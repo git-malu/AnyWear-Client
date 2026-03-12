@@ -1,1 +1,59 @@
-# AnyWear-Client
+# AnyWear Client
+
+Welcome to the **AnyWear Client** repository. This is the frontend application for the AnyWear ecosystem, targeting both Desktop and Mobile platforms using a single codebase.
+
+## 🚀 Tech Stack
+
+- **Framework**: [Tauri v2](https://v2.tauri.app/)
+- **UI Library**: [React 19](https://react.dev/)
+- **Language**: [TypeScript 5](https://www.typescriptlang.org/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **State Management**: [Zustand](https://zustand-demo.pmnd.rs/) (Global) & [TanStack Query v5](https://tanstack.com/query/latest) (Server State)
+- **API Client**: [Axios](https://axios-http.com/) (Models and endpoints auto-generated via [Orval](https://orval.dev/))
+
+## 📦 Getting Started
+
+### Prerequisites
+
+Ensure you have the following installed:
+- [Node.js](https://nodejs.org/)
+- [pnpm](https://pnpm.io/) (Strictly use `pnpm` for all dependency management)
+- [Rust](https://www.rust-lang.org/) (Required for Tauri)
+- Any OS-specific dependencies required by Tauri (see [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/))
+
+### Installation
+
+1. Clone the repository (make sure to initialize submodules if applicable):
+   ```bash
+   git clone --recurse-submodules <repository-url>
+   cd AnyWear-Client
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+## 🛠️ Scripts & Commands
+
+- `pnpm dev` - Run the development server (Web)
+- `pnpm tauri dev` - Run the Tauri Desktop application
+- `pnpm build` - Compile TypeScript and build the Vite project for production
+- `pnpm tsc --noEmit` - Run strictly type checking (no emit)
+- `pnpm orval` - Regenerate the API client from the OpenAPI spec. **Must be run after any changes to `AnyWear-Meta/api/anywear_openapi.yaml`.**
+
+## 🏗️ Project Structure
+
+- `src/api/`: API integration layer. Includes auto-generated models and endpoints from Orval, and a custom Axios instance (`custom-instance.ts`).
+- `src/components/`: Reusable, generic UI components (buttons, modals, inputs).
+- `src/layouts/`: Global wrapper components (e.g., `AuthLayout`, `MainLayout`).
+- `src/pages/`: Route-specific page components (grouped by feature).
+- `src/store/`: Zustand state management stores (e.g., `authStore.ts`).
+- `src-tauri/`: Rust backend specifically for Tauri desktop/mobile system bindings.
+- `AnyWear-Meta/`: Git submodule containing the single-source-of-truth OpenAPI spec.
+
+## 🔗 Related Repositories
+
+- **AnyWear-Service**: The backend service (Node.js/Hono/Drizzle).
+- **AnyWear-Meta**: A Git submodule utilized by this application for metadata management (OpenAPI definitions).
