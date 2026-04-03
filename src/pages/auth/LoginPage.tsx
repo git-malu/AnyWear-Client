@@ -19,9 +19,6 @@ export default function LoginPage() {
           if (res.accessToken) {
             setToken(res.accessToken);
             navigate('/dashboard');
-          } else if (res.data?.accessToken) {
-            setToken(res.data.accessToken);
-            navigate('/dashboard');
           }
         },
       }
@@ -58,7 +55,18 @@ export default function LoginPage() {
 
         {error ? (
           <div className="text-red-500 text-sm">
-            Invalid email or password.
+            {(() => {
+              const e = error as any;
+              const data = e.response?.data;
+              if (data?.message) return String(data.message);
+              if (data?.error) {
+                if (typeof data.error === "string") return data.error;
+                return "Validation Error";
+              }
+              return (
+                e.message || "Invalid email or password."
+              );
+            })()}
           </div>
         ) : null}
 

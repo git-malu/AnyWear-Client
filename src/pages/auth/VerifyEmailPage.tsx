@@ -43,7 +43,18 @@ export default function VerifyEmailPage() {
 
         {error ? (
           <div className="text-red-500 text-sm">
-            Invalid verification code.
+            {(() => {
+              const e = error as any;
+              const data = e.response?.data;
+              if (data?.message) return String(data.message);
+              if (data?.error) {
+                if (typeof data.error === "string") return data.error;
+                return "Validation Error";
+              }
+              return (
+                e.message || "Invalid verification code."
+              );
+            })()}
           </div>
         ) : null}
 
