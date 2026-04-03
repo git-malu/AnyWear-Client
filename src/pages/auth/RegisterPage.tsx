@@ -52,7 +52,7 @@ export default function RegisterPage() {
 
         {error ? (
           <div className="text-red-500 text-sm">
-            Failed to register. Please check your details.
+            {(error as any).response?.data?.message || (error as any).response?.data?.error || (error as any).message || 'Failed to register. Please check your details.'}
           </div>
         ) : null}
 
