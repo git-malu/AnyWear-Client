@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { usePostAuthRegister } from '../../api/endpoints/auth/auth';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { usePostAuthRegister } from "../../api/endpoints/auth/auth";
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { mutate: register, isPending, error } = usePostAuthRegister();
 
@@ -16,21 +16,25 @@ export default function RegisterPage() {
         onSuccess: () => {
           navigate(`/verify?email=${encodeURIComponent(email)}`);
         },
-      }
+      },
     );
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium leading-6 text-gray-900">Create an account</h3>
+        <h3 className="text-lg font-medium leading-6 text-gray-900">
+          Create an account
+        </h3>
         <p className="mt-1 text-sm text-gray-500">
           Sign up to manage your wardrobe and get AI styling recommendations.
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
           <input
             type="email"
             value={email}
@@ -40,7 +44,9 @@ export default function RegisterPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <input
             type="password"
             value={password}
@@ -52,7 +58,30 @@ export default function RegisterPage() {
 
         {error ? (
           <div className="text-red-500 text-sm">
-            {(error as any).response?.data?.message || (error as any).response?.data?.error || (error as any).message || 'Failed to register. Please check your details.'}
+            {(() => {
+              const e = error as any;
+              const data = e.response?.data;
+              if (data?.message) return String(data.message);
+              if (data?.error) {
+                if (typeof data.error === "string") return data.error;
+                if (data.error.message) {
+                  try {
+                    const parsed = JSON.parse(data.error.message);
+                    if (Array.isArray(parsed) && parsed[0]?.message) {
+                      return parsed
+                        .map((issue: any) => issue.message)
+                        .join(", ");
+                    }
+                  } catch (err) {
+                    return String(data.error.message);
+                  }
+                }
+                return "Validation Error";
+              }
+              return (
+                e.message || "Failed to register. Please check your details."
+              );
+            })()}
           </div>
         ) : null}
 
@@ -61,11 +90,14 @@ export default function RegisterPage() {
           disabled={isPending}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
-          {isPending ? 'Signing up...' : 'Sign up'}
+          {isPending ? "Signing up..." : "Sign up"}
         </button>
       </form>
       <div className="text-sm text-center">
-        <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+        <Link
+          to="/login"
+          className="font-medium text-indigo-600 hover:text-indigo-500"
+        >
           Already have an account? Log in
         </Link>
       </div>
