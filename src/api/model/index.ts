@@ -6,17 +6,12 @@
  */
 
 export * from './deleteWardrobeId200';
+export * from './getUsersMe200';
 export * from './getWardrobe200Item';
 export * from './getWardrobeId200';
 export * from './patchWardrobeId200';
 export * from './patchWardrobeIdBody';
 export * from './patchWardrobeIdBodyStyleAttributes';
-export * from './postAuthLogin200';
-export * from './postAuthLoginBody';
-export * from './postAuthRegister200';
-export * from './postAuthRegisterBody';
-export * from './postAuthVerify200';
-export * from './postAuthVerifyBody';
 export * from './postWardrobe201';
 export * from './postWardrobeBody';
 export * from './postWardrobeBodyStyleAttributes';

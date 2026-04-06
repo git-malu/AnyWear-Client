@@ -1,24 +1,41 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { usePostAuthRegister } from "../../api/endpoints/auth/auth";
+import { signUp } from 'aws-amplify/auth';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { mutate: register, isPending, error } = usePostAuthRegister();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    register(
-      { data: { email, password } },
-      {
-        onSuccess: () => {
-          navigate(`/verify?email=${encodeURIComponent(email)}`);
-        },
-      },
-    );
+    setIsPending(true);
+    setAuthError(null);
+    
+    try {
+      const { isSignUpComplete, nextStep } = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email
+          }
+        }
+      });
+
+      if (nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
+        navigate(`/verify?email=${encodeURIComponent(email)}`);
+      } else if (isSignUpComplete) {
+        navigate('/login');
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Failed to register. Please check your details.');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -75,32 +92,9 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {error ? (
+        {authError ? (
           <div className="text-red-500 text-sm">
-            {(() => {
-              const e = error as any;
-              const data = e.response?.data;
-              if (data?.message) return String(data.message);
-              if (data?.error) {
-                if (typeof data.error === "string") return data.error;
-                if (data.error.message) {
-                  try {
-                    const parsed = JSON.parse(data.error.message);
-                    if (Array.isArray(parsed) && parsed[0]?.message) {
-                      return parsed
-                        .map((issue: any) => issue.message)
-                        .join(", ");
-                    }
-                  } catch (err) {
-                    return String(data.error.message);
-                  }
-                }
-                return "Validation Error";
-              }
-              return (
-                e.message || "Failed to register. Please check your details."
-              );
-            })()}
+            {authError}
           </div>
         ) : null}
 

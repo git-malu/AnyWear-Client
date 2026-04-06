@@ -1,24 +1,35 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { usePostAuthVerify } from '../../api/endpoints/auth/auth';
+import { confirmSignUp } from 'aws-amplify/auth';
 
 export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const email = searchParams.get('email') || '';
-  const { mutate: verify, isPending, error } = usePostAuthVerify();
+  
+  const [isPending, setIsPending] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    verify(
-      { data: { email, code } },
-      {
-        onSuccess: () => {
-          navigate('/login');
-        },
+    setIsPending(true);
+    setAuthError(null);
+    
+    try {
+      const { isSignUpComplete } = await confirmSignUp({
+        username: email,
+        confirmationCode: code
+      });
+      
+      if (isSignUpComplete) {
+        navigate('/login');
       }
-    );
+    } catch (err: any) {
+      setAuthError(err.message || 'Invalid verification code.');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -41,20 +52,9 @@ export default function VerifyEmailPage() {
           />
         </div>
 
-        {error ? (
+        {authError ? (
           <div className="text-red-500 text-sm">
-            {(() => {
-              const e = error as any;
-              const data = e.response?.data;
-              if (data?.message) return String(data.message);
-              if (data?.error) {
-                if (typeof data.error === "string") return data.error;
-                return "Validation Error";
-              }
-              return (
-                e.message || "Invalid verification code."
-              );
-            })()}
+            {authError}
           </div>
         ) : null}
 

@@ -1,29 +1,60 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { usePostAuthLogin } from '../../api/endpoints/auth/auth';
+import { signIn, fetchAuthSession } from 'aws-amplify/auth';
+import { useGetUsersMe } from '../../api/endpoints/users/users';
 import { useAuthStore } from '../../store/authStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  
   const navigate = useNavigate();
   const setToken = useAuthStore((state) => state.setToken);
-  const { mutate: login, isPending, error } = usePostAuthLogin();
+  
+  // Refetch explicitly on login success
+  const { refetch: fetchMe } = useGetUsersMe({
+    query: { enabled: false }
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(
-      { data: { email, password } },
-      {
-        onSuccess: (res: any) => {
-          if (res.accessToken) {
-            setToken(res.accessToken);
-            navigate('/dashboard');
-          }
-        },
+    setIsPending(true);
+    setAuthError(null);
+    
+    try {
+      const { isSignedIn, nextStep } = await signIn({
+        username: email,
+        password,
+      });
+
+      if (isSignedIn) {
+        // 1. Get the session to extract the JWT Access Token
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString();
+        
+        if (token) {
+          // 2. Set token in Zustand store (Custom Axios instance uses this)
+          setToken(token);
+          
+          // 3. Trigger JIT Provisioning (calls GET /users/me)
+          await fetchMe();
+          
+          // 4. Redirect to dashboard
+          navigate('/dashboard');
+        } else {
+          setAuthError('Authentication successful, but could not retrieve session tokens.');
+        }
+      } else if (nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+        navigate(`/verify?email=${encodeURIComponent(email)}`);
       }
-    );
+    } catch (err: any) {
+      setAuthError(err.message || 'Invalid email or password.');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -72,20 +103,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {error ? (
+        {authError ? (
           <div className="text-red-500 text-sm">
-            {(() => {
-              const e = error as any;
-              const data = e.response?.data;
-              if (data?.message) return String(data.message);
-              if (data?.error) {
-                if (typeof data.error === "string") return data.error;
-                return "Validation Error";
-              }
-              return (
-                e.message || "Invalid email or password."
-              );
-            })()}
+            {authError}
           </div>
         ) : null}
 
