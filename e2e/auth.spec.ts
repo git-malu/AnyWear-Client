@@ -50,7 +50,7 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
     // 2. Fill out the signup form
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'TestPassword123!');
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Sign up' }).click();
 
     // 3. Wait for the redirect to verify or login page
     // (Depending on Cognito settings, it might auto-redirect to /verify to ask for a code)
