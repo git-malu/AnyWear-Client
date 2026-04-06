@@ -74,13 +74,13 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
     await page.goto('/login');
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'TestPassword123!');
-    await page.click('button[type="submit"]');
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
     // 6. Wait for successful login redirect
-    // Assuming successful login redirects to the root / or dashboard
-    await page.waitForURL('/');
+    // According to LoginPage.tsx, successful login redirects to /dashboard
+    await page.waitForURL('/dashboard');
     
-    // Verify we reached the main app page
+    // Verify we reached the dashboard
     await expect(page.locator('body')).toBeVisible();
   });
 });
