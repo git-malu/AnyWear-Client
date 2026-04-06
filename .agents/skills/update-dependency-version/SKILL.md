@@ -9,9 +9,9 @@ This project uses a single package manager:
 - **Root Directory (`/`)**: Uses `pnpm` for the main Tauri + React frontend application.
 
 ## Critical Constraints
-
-1.  **Framework Requirements**: This project uses React 19, TypeScript 5, Vite, and Tauri v2. Be careful not to introduce breaking major version updates unless explicitly requested.
-2.  **Explicit Consent**: NEVER run an update command without first showing the user exactly which versions will be changed and getting their explicit "Go ahead" or "Yes".
+1.  **Node.js 24 (LTS)**: This project MUST stay on Node 24. Do NOT update `@types/node` beyond the `24.x` range (e.g., keep it pinned to `~24.x.x`).
+2.  **Framework Requirements**: This project uses React 19, TypeScript 5, Vite, and Tauri v2. Be careful not to introduce breaking major version updates unless explicitly requested.
+3.  **Explicit Consent**: NEVER run an update command without first showing the user exactly which versions will be changed and getting their explicit "Go ahead" or "Yes".
 
 ## Execution Steps
 
