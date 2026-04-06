@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Hide native browser password reveal eye icon */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-reveal {
+  display: none;
+}
+
 body {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   background-color: #f9fafb;
