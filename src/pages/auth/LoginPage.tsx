@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [isPending, setIsPending] = useState(false);
   
   const navigate = useNavigate();
-  const setToken = useAuthStore((state) => state.setToken);
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   
   // Refetch explicitly on login success
   const { refetch: fetchMe } = useGetUsersMe({
@@ -44,8 +44,8 @@ export default function LoginPage() {
         const token = session.tokens?.accessToken?.toString();
         
         if (token) {
-          // 2. Set token in Zustand store (Custom Axios instance uses this)
-          setToken(token);
+          // 2. Set authenticated in Zustand store
+          setAuthenticated(true);
           
           // 3. Trigger JIT Provisioning (calls GET /users/me)
           await fetchMe();
@@ -68,7 +68,7 @@ export default function LoginPage() {
             const session = await fetchAuthSession();
             const token = session.tokens?.accessToken?.toString();
             if (token) {
-              setToken(token);
+              setAuthenticated(true);
               await fetchMe();
               navigate('/dashboard');
               return;

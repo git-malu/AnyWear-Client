@@ -1,13 +1,19 @@
 import Axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { useAuthStore } from '../store/authStore';
 
 export const AXIOS_INSTANCE = Axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000' });
 
 AXIOS_INSTANCE.interceptors.request.use(
-  (config) => {
-    const { token } = useAuthStore.getState();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.debug('No active auth session', error);
     }
     return config;
   },
