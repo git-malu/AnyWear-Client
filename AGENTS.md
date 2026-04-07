@@ -56,6 +56,7 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 ### 2. State Management
 - **Server State**: Always rely on TanStack Query (`useQuery`, `useMutation`) for remote data fetching, caching, loading states, and synchronization. Do not duplicate server state in Zustand.
 - **Client/Global State**: Use Zustand (`src/store/`) for cross-component global state (like user authentication status or UI theme).
+- **Authentication State (Event-Driven)**: AWS Amplify is the single source of truth for authentication. Zustand acts as a synchronous UI mirror. The `AuthListener` in `App.tsx` listens to Amplify Hub events (`signedOut`, `tokenRefresh_failure`) and automatically clears Zustand's memory. Always use `logout()` in `useAuthStore` to explicitly trigger `signOut()` from Amplify.
 - **Local State**: Use `useState` or `useReducer` for simple, isolated UI state (e.g., modal visibility, form inputs).
 
 ### 3. Styling (Tailwind CSS v4)
