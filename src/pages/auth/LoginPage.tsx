@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signIn, fetchAuthSession } from 'aws-amplify/auth';
+import { signIn, fetchAuthSession, signOut } from 'aws-amplify/auth';
 import { useGetUsersMe } from '../../api/endpoints/users/users';
 import { useAuthStore } from '../../store/authStore';
 
@@ -18,6 +18,14 @@ export default function LoginPage() {
   const { refetch: fetchMe } = useGetUsersMe({
     query: { enabled: false }
   });
+
+  // Ensure Amplify is signed out if we are on the login page
+  // This prevents "There is already a signed in user" error if local state was cleared but Amplify wasn't
+  useEffect(() => {
+    signOut().catch(() => {
+      // Ignore errors if no user was signed in
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +59,30 @@ export default function LoginPage() {
         navigate(`/verify?email=${encodeURIComponent(email)}`);
       }
     } catch (err: any) {
-      setAuthError(err.message || 'Invalid email or password.');
+      // If we still get the already signed in error despite the useEffect, try one more time
+      if (err.message === 'There is already a signed in user.') {
+        try {
+          await signOut();
+          const retryResult = await signIn({ username: email, password });
+          if (retryResult.isSignedIn) {
+            const session = await fetchAuthSession();
+            const token = session.tokens?.accessToken?.toString();
+            if (token) {
+              setToken(token);
+              await fetchMe();
+              navigate('/dashboard');
+              return;
+            }
+          } else if (retryResult.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+            navigate(`/verify?email=${encodeURIComponent(email)}`);
+            return;
+          }
+        } catch (retryErr: any) {
+          setAuthError(retryErr.message || 'Invalid email or password.');
+        }
+      } else {
+        setAuthError(err.message || 'Invalid email or password.');
+      }
     } finally {
       setIsPending(false);
     }
