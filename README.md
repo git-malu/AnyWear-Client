@@ -41,7 +41,7 @@ Ensure you have the following installed:
 - `pnpm tauri dev` - Run the Tauri Desktop application
 - `pnpm build` - Compile TypeScript and build the Vite project for production
 - `pnpm tsc --noEmit` - Run strictly type checking (no emit)
-- `pnpm orval` - Regenerate the API client from the OpenAPI spec. **Must be run after any changes to `AnyWear-Meta/api/anywear_openapi.yaml`.**
+- `pnpm orval` - Regenerate the API client from the OpenAPI spec. **Must be run after any changes to `api/anywear_openapi.yaml`.**
 
 ## 🏗️ Project Structure
 
@@ -51,9 +51,9 @@ Ensure you have the following installed:
 - `src/pages/`: Route-specific page components (grouped by feature).
 - `src/store/`: Zustand state management stores (e.g., `authStore.ts`).
 - `src-tauri/`: Rust backend specifically for Tauri desktop/mobile system bindings.
-- `AnyWear-Meta/`: Git submodule containing the single-source-of-truth OpenAPI spec.
+- `api/`: Git submodule containing the single-source-of-truth OpenAPI spec.
 
 ## 🔗 Related Repositories
 
 - **AnyWear-Service**: The backend service (Node.js/Hono/Drizzle).
-- **AnyWear-Meta**: A Git submodule utilized by this application for metadata management (OpenAPI definitions).
+- **api**: A Git submodule utilized by this application for metadata management (OpenAPI definitions).

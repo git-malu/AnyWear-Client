@@ -8,7 +8,7 @@ Welcome to the **AnyWear Client** repository. This document provides critical co
 - **Core Stack**: Tauri (v2), React 19, TypeScript 5, Vite, Tailwind CSS v4, Zustand, TanStack Query (React Query v5), and Axios.
 - **Related Repositories**:
     - `AnyWear-Service`: The backend service (Node.js/Hono/Drizzle).
-    - `AnyWear-Meta`: A Git submodule utilized by this application for metadata management (OpenAPI definitions).
+    - `api`: A Git submodule utilized by this application for metadata management (OpenAPI definitions).
 
 ## 🛠️ Build, Lint, and Test Commands
 
@@ -19,7 +19,7 @@ Agents must strictly use `pnpm` for all dependency management and script executi
 - **Run Development Server (Web)**: `pnpm dev`
 - **Run Tauri Desktop App**: `pnpm tauri dev`
 - **Build for Production**: `pnpm build` (compiles TS and builds Vite)
-- **Regenerate API Client**: `pnpm orval` (Must be run after any changes to `AnyWear-Meta/api/anywear_openapi.yaml`)
+- **Regenerate API Client**: `pnpm orval` (Must be run after any changes to `api/anywear_openapi.yaml`)
 
 ### Type Checking & Linting
 - **Type Check**: `pnpm tsc --noEmit`
@@ -44,13 +44,13 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 - `src/components/`: Reusable, generic UI components (buttons, modals, inputs).
 - `src/store/`: Zustand state management stores (e.g., `authStore.ts`).
 - `src-tauri/`: Rust backend specifically for Tauri desktop/mobile system bindings.
-- `AnyWear-Meta/`: Git submodule containing the single-source-of-truth OpenAPI spec.
+- `api/`: Git submodule containing the single-source-of-truth OpenAPI spec.
 
 ## 📝 Code Style & Guidelines
 
 ### 1. React & TypeScript Standards
 - **Functional Components**: Use functional components with standard `export default function ComponentName() {}` syntax instead of arrow functions for top-level exports.
-- **Strict Typing**: Avoid using `any` or `ts-ignore`. Utilize the auto-generated types from `src/api/model/` whenever interacting with API data. If a generated type lacks a field, investigate the OpenAPI spec in the `AnyWear-Meta` submodule first.
+- **Strict Typing**: Avoid using `any` or `ts-ignore`. Utilize the auto-generated types from `src/api/model/` whenever interacting with API data. If a generated type lacks a field, investigate the OpenAPI spec in the `api` submodule first.
 - **Hooks**: Use generated TanStack Query hooks (e.g., `useGetWardrobe()`) from `src/api/endpoints/` for all network requests. Do not use raw `fetch` or `axios` directly in components unless for specialized tasks like binary S3 uploads.
 
 ### 2. State Management
@@ -88,8 +88,8 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 
 1. **API Synchronization Workflow**:
    If a frontend feature requires a backend change:
-   - First, navigate to the `AnyWear-Meta` submodule.
-   - Edit the relevant OpenAPI specification (e.g., `AnyWear-Meta/api/anywear_openapi.yaml`).
+   - First, navigate to the `api` submodule.
+   - Edit the relevant OpenAPI specification (e.g., `api/anywear_openapi.yaml`).
    - Run `pnpm orval` in the `AnyWear-Client` root.
    - Inspect the newly generated interfaces in `src/api/model/` before utilizing the newly generated hook in your components.
 
@@ -100,4 +100,4 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
    After writing or refactoring code, run `pnpm tsc --noEmit` to ensure you haven't introduced type errors. Do not declare a task "complete" without verifying the types align.
 
 4. **Preserve Submodule Integrity**:
-   Treat the `AnyWear-Meta` submodule as a critical architectural boundary. Follow the documentation and guidelines inside `AnyWear-Meta/AGENTS.md` when making cross-repository changes.
+   Treat the `api` submodule as a critical architectural boundary. Follow the documentation and guidelines inside `api/AGENTS.md` when making cross-repository changes.
