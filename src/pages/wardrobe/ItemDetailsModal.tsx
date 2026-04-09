@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePatchWardrobeId, useDeleteWardrobeId } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
+import CachedImage from '../../components/CachedImage';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -82,7 +83,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
               
               <div className="mt-4 flex justify-center">
                 {item.originalImageUrl ? (
-                  <img src={item.originalImageUrl} alt="Item" className="max-h-64 object-contain rounded-md" />
+                  <CachedImage src={item.originalImageUrl} cacheKey={item.id} alt="Item" className="max-h-64 object-contain rounded-md" />
                 ) : (
                   <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400">
                     No Image

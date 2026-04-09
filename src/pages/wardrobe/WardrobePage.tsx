@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGetWardrobe, useDeleteWardrobeId } from '../../api/endpoints/wardrobe/wardrobe';
 import AddItemModal from './AddItemModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import CachedImage from '../../components/CachedImage';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 
 export default function WardrobePage() {
@@ -52,7 +53,7 @@ export default function WardrobePage() {
             >
               <div className="aspect-w-3 aspect-h-4 bg-gray-200">
                 {item.originalImageUrl ? (
-                  <img src={item.originalImageUrl} alt={item.category || 'Wardrobe item'} className="object-cover" />
+                  <CachedImage src={item.originalImageUrl} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="object-cover" />
                 ) : (
                   <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400">
                     No Image
