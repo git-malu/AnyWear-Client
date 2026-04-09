@@ -5,6 +5,18 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-mkdir",
+    "fs:allow-appdata-read",
+    "fs:allow-appdata-write",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/*" },
+        { "path": "$APPDATA/cache/images/*" }
+      ]
+    }
   ]
 }
