@@ -16,10 +16,11 @@ Agents must strictly use `pnpm` for all dependency management and script executi
 
 ### General Commands
 - **Install Dependencies**: `pnpm install`
-- **Run Development Server (Web)**: `pnpm dev`
-- **Run Tauri Desktop App**: `pnpm tauri dev`
-- **Build for Production**: `pnpm build` (compiles TS and builds Vite)
-- **Regenerate API Client**: `pnpm orval` (Must be run after any changes to `api/anywear_openapi.yaml`)
+- **Run Development Server (Web)**: `pnpm run dev`
+- **Run Tauri Desktop App**: `pnpm run tauri dev`
+- **Build for Production**: `pnpm run build` (compiles TS and builds Vite)
+- **Preview Production Build**: `pnpm run preview`
+- **Regenerate API Client**: `pnpm run orval` (Must be run after any changes to `api/anywear_openapi.yaml`)
 
 ### Type Checking & Linting
 - **Type Check**: `pnpm tsc --noEmit`
@@ -27,11 +28,12 @@ Agents must strictly use `pnpm` for all dependency management and script executi
 - **Linting**: Run ESLint via `pnpm lint` (when configured).
 
 ### Testing (Vitest & React Testing Library)
-Vitest is the standard test runner for this repository. It is API-compatible with Jest but optimized for Vite.
-- **Run All Tests**: `pnpm test` (or `pnpm vitest`)
-- **Run a Single Test**: `pnpm vitest run path/to/file.test.ts`
-- **Run Tests in Watch Mode**: `pnpm vitest path/to/file.test.ts`
-- **Run Coverage**: `pnpm vitest run --coverage`
+Vitest is the standard test runner for this repository. It is API-compatible with Jest but optimized for Vite. Playwright is used for E2E testing.
+- **Run Tests in Watch Mode**: `pnpm run test`
+- **Run All Tests Once**: `pnpm run test:run`
+- **Run a Single Test**: `pnpm run test:run path/to/file.test.ts`
+- **Run Coverage**: `pnpm run test:coverage`
+- **Run E2E Tests**: `pnpm run test:e2e`
 *Note: When generating or fixing tests, ensure you are mocking Axios/Orval hooks correctly using tools like MSW (Mock Service Worker) or `vi.mock()`.*
 
 ## 🏗️ Architecture & Directory Structure
