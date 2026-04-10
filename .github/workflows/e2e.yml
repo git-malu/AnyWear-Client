@@ -1,0 +1,86 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anywear_dev
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Client
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: client
+
+      - name: Checkout Service
+        uses: actions/checkout@v4
+        with:
+          repository: git-malu/AnyWear-Service
+          submodules: recursive
+          path: service
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install Client Dependencies
+        working-directory: ./client
+        run: pnpm install
+
+      - name: Install Service Dependencies
+        working-directory: ./service
+        run: pnpm install
+
+      - name: Setup Database
+        working-directory: ./service
+        run: pnpm db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
+
+      - name: Start Service
+        working-directory: ./service
+        run: pnpm dev &
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
+          PORT: 3000
+
+      - name: Wait for Service
+        run: npx wait-on http://localhost:3000/health
+
+      - name: Install Playwright Browsers
+        working-directory: ./client
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run E2E Tests
+        working-directory: ./client
+        run: pnpm run test:e2e
+        env:
+          VITE_API_URL: http://localhost:3000
