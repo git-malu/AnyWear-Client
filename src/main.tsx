@@ -5,6 +5,7 @@ import "./index.css";
 import "./lib/amplify"; // Initialize Amplify
 
 import { warn, debug, trace, info, error } from '@tauri-apps/plugin-log';
+import { isTauri } from '@tauri-apps/api/core';
 
 function forwardConsole(
   fnName: 'log' | 'debug' | 'info' | 'warn' | 'error',
@@ -24,11 +25,13 @@ function forwardConsole(
 }
 
 // Forward frontend logs to Tauri plugin so they save to the same file
-forwardConsole('log', trace);
-forwardConsole('debug', debug);
-forwardConsole('info', info);
-forwardConsole('warn', warn);
-forwardConsole('error', error);
+if (isTauri()) {
+  forwardConsole('log', trace);
+  forwardConsole('debug', debug);
+  forwardConsole('info', info);
+  forwardConsole('warn', warn);
+  forwardConsole('error', error);
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

@@ -35,8 +35,10 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
           })
         );
         console.log(`Successfully deleted test user: ${testEmail}`);
-      } catch (error) {
-        console.error(`Failed to delete user ${testEmail}:`, error);
+      } catch (error: any) {
+        if (error.name !== 'UserNotFoundException') {
+          console.error(`Failed to delete user ${testEmail}:`, error);
+        }
       }
     } else {
       console.warn('Skipping cleanup: USER_POOL_ID environment variable is not set.');
