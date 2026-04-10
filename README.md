@@ -43,6 +43,12 @@ Ensure you have the following installed:
 - `pnpm tsc --noEmit` - Run strictly type checking (no emit)
 - `pnpm orval` - Regenerate the API client from the OpenAPI spec. **Must be run after any changes to `api/anywear_openapi.yaml`.**
 
+### Testing
+- `pnpm test` - Run tests in watch mode
+- `pnpm test:run` - Run all tests once
+- `pnpm test:e2e` - Run Playwright End-to-End tests
+  - **Important:** Before running E2E tests for the first time, you must install the Playwright browsers by running `pnpm exec playwright install`.
+
 ## 🏗️ Project Structure
 
 - `src/api/`: API integration layer. Includes auto-generated models and endpoints from Orval, and a custom Axios instance (`custom-instance.ts`).
