@@ -33,7 +33,7 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 - **Run All Tests Once**: `pnpm run test:run`
 - **Run a Single Test**: `pnpm run test:run path/to/file.test.ts`
 - **Run Coverage**: `pnpm run test:coverage`
-- **Run E2E Tests**: `pnpm run test:e2e` (Note: If you encounter a `browserType.launch` error, you must install the Playwright browsers first by running `pnpm exec playwright install`).
+- **Run E2E Tests**: `pnpm run test:e2e` (Note: If you encounter a `browserType.launch` error, you must install the Playwright Chromium browser first by running `pnpm exec playwright install chromium`).
 *Note: When generating or fixing tests, ensure you are mocking Axios/Orval hooks correctly using tools like MSW (Mock Service Worker) or `vi.mock()`.*
 
 ## 🏗️ Architecture & Directory Structure

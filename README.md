@@ -47,7 +47,7 @@ Ensure you have the following installed:
 - `pnpm test` - Run tests in watch mode
 - `pnpm test:run` - Run all tests once
 - `pnpm test:e2e` - Run Playwright End-to-End tests
-  - **Important:** Before running E2E tests for the first time, you must install the Playwright browsers by running `pnpm exec playwright install`.
+  - **Important:** Before running E2E tests for the first time, you must install the Playwright Chromium browser by running `pnpm exec playwright install chromium`.
 
 ## 🏗️ Project Structure
 
