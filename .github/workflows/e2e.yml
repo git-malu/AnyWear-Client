@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Playwright Browsers
         working-directory: ./client
-        run: pnpm exec playwright install --with-deps
+        run: pnpm exec playwright install chromium --with-deps
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
