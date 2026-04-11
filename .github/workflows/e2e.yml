@@ -35,6 +35,7 @@ jobs:
         with:
           submodules: recursive
           path: client
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Checkout Service
         uses: actions/checkout@v4
@@ -42,6 +43,7 @@ jobs:
           repository: git-malu/AnyWear-Service
           submodules: recursive
           path: service
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
