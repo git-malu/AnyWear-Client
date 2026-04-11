@@ -30,12 +30,21 @@ jobs:
           --health-retries 5
 
     steps:
+      - name: Generate token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Client
         uses: actions/checkout@v4
         with:
           submodules: recursive
           path: client
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
+          persist-credentials: false
 
       - name: Checkout Service
         uses: actions/checkout@v4
@@ -43,7 +52,8 @@ jobs:
           repository: git-malu/AnyWear-Service
           submodules: recursive
           path: service
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
