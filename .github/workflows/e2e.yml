@@ -107,10 +107,14 @@ jobs:
           STAGE="dev"
           POOL_ID=$(aws ssm get-parameter --name "/anywear/$STAGE/cognito_user_pool_id" --query "Parameter.Value" --output text)
           CLIENT_ID=$(aws ssm get-parameter --name "/anywear/$STAGE/cognito_client_id" --query "Parameter.Value" --output text)
+          S3_BUCKET=$(aws ssm get-parameter --name "/anywear/$STAGE/s3_bucket_name" --query "Parameter.Value" --output text)
+          AWS_REGION=$(aws ssm get-parameter --name "/anywear/$STAGE/aws_region" --query "Parameter.Value" --output text)
           
           echo "USER_POOL_ID=$POOL_ID" >> $GITHUB_ENV
           echo "VITE_COGNITO_USER_POOL_ID=$POOL_ID" >> $GITHUB_ENV
           echo "VITE_COGNITO_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
+          echo "S3_BUCKET_NAME=$S3_BUCKET" >> $GITHUB_ENV
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
 
       - name: Run E2E Tests
         working-directory: ./client
