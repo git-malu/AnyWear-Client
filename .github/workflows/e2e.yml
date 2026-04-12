@@ -100,7 +100,7 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.STAGE }}-github-actions-e2e-role
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.STAGE }}-github-actions-e2e-role
           aws-region: us-east-1
 
       - name: Fetch Secrets from Parameter Store
