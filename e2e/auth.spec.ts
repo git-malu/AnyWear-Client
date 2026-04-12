@@ -79,10 +79,10 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     // 6. Wait for successful login redirect
-    // According to LoginPage.tsx, successful login redirects to /dashboard
     await page.waitForURL('/dashboard');
     
-    // Verify we reached the dashboard
-    await expect(page.locator('body')).toBeVisible();
+    // Verify we reached the dashboard and the profile was provisioned/loaded
+    // (This ensures the ProtectedRoute guard has finished loading)
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 });
   });
 });
