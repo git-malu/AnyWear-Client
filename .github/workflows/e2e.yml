@@ -83,20 +83,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
 
-      - name: Start Service
-        working-directory: ./service
-        run: pnpm dev &
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
-          PORT: 3000
-
-      - name: Wait for Service
-        run: npx wait-on http://localhost:3000/health
-
-      - name: Install Playwright Browsers
-        working-directory: ./client
-        run: pnpm exec playwright install chromium --with-deps
-
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -114,8 +100,24 @@ jobs:
           echo "USER_POOL_ID=$POOL_ID" >> $GITHUB_ENV
           echo "VITE_COGNITO_USER_POOL_ID=$POOL_ID" >> $GITHUB_ENV
           echo "VITE_COGNITO_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
+          echo "COGNITO_USER_POOL_ID=$POOL_ID" >> $GITHUB_ENV
+          echo "COGNITO_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
           echo "S3_BUCKET_NAME=$S3_BUCKET" >> $GITHUB_ENV
           echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+
+      - name: Start Service
+        working-directory: ./service
+        run: pnpm dev &
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
+          PORT: 3000
+
+      - name: Wait for Service
+        run: npx wait-on http://localhost:3000/health
+
+      - name: Install Playwright Browsers
+        working-directory: ./client
+        run: pnpm exec playwright install chromium --with-deps
 
       - name: Run E2E Tests
         working-directory: ./client
