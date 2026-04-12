@@ -124,9 +124,6 @@ test.describe('Wardrobe Management', () => {
     await expect(page.locator('text=red • cotton').first()).toBeVisible({ timeout: 5000, ignoreCase: true });
 
     // 3. Delete the item
-    // Setup dialog handler to accept the confirm dialog
-    page.on('dialog', dialog => dialog.accept());
-
     // Click the item to open details again
     await page.locator('text=Jacket').first().click();
     
