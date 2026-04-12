@@ -1,8 +1,12 @@
 import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useGetUsersMe } from '../api/endpoints/users/users';
 
 export default function MainLayout() {
   const logout = useAuthStore((state) => state.logout);
+  
+  // Trigger JIT user provisioning. This will run once when the user enters the protected area.
+  useGetUsersMe();
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

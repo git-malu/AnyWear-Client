@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import CachedImage from './CachedImage';
 import { isTauri, convertFileSrc } from '@tauri-apps/api/core';
-import { exists, mkdir, writeFile } from '@tauri-apps/plugin-fs';
+import { exists, writeFile } from '@tauri-apps/plugin-fs';
 
 // Mock Tauri APIs
 vi.mock('@tauri-apps/api/core', () => ({
@@ -24,16 +24,16 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 }));
 
 describe('CachedImage Component', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn() as any;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   it('renders with original src if not running in Tauri', async () => {
@@ -63,7 +63,7 @@ describe('CachedImage Component', () => {
     expect(img).toHaveAttribute('src', 'http://asset.localhost//mock/appdata/cache/images/test-key-2.jpg');
     
     // Should not try to download
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('downloads and saves the image if it does not exist locally', async () => {
@@ -78,7 +78,7 @@ describe('CachedImage Component', () => {
 
     // Mock successful fetch
     const mockArrayBuffer = new ArrayBuffer(8);
-    vi.mocked(global.fetch).mockResolvedValue({
+    vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,
       arrayBuffer: async () => mockArrayBuffer,
     } as Response);
@@ -88,7 +88,7 @@ describe('CachedImage Component', () => {
     const img = await waitFor(() => screen.getByRole('img'));
 
     // Verify it fetched the image
-    expect(global.fetch).toHaveBeenCalledWith('https://example.com/image.jpg');
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://example.com/image.jpg');
     
     // Verify it wrote the file
     expect(writeFile).toHaveBeenCalledWith(
@@ -106,7 +106,7 @@ describe('CachedImage Component', () => {
     vi.mocked(exists).mockResolvedValue(false);
 
     // Mock failed fetch
-    vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
+    vi.mocked(globalThis.fetch).mockRejectedValue(new Error('Network error'));
 
     // Suppress console.error for this specific test
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

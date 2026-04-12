@@ -65,6 +65,18 @@ test.describe('Wardrobe Management', () => {
   });
 
   test('should add, view, update and delete a wardrobe item', async ({ page }) => {
+    // Listen for any alerts and print them to help debugging
+    page.on('dialog', dialog => {
+      console.log(`[DIALOG] ${dialog.type()}: ${dialog.message()}`);
+      dialog.accept();
+    });
+
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        console.log(`[BROWSER ERROR] ${msg.text()}`);
+      }
+    });
+
     // Navigate to Wardrobe page
     await page.goto('/wardrobe');
     await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible();
