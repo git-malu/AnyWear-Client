@@ -10,6 +10,7 @@ jobs:
   e2e:
     name: Run E2E Tests
     runs-on: ubuntu-latest
+    environment: dev
     permissions:
       id-token: write
       contents: read
@@ -99,12 +100,12 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/dev-github-actions-e2e-role
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.STAGE }}-github-actions-e2e-role
           aws-region: us-east-1
 
       - name: Fetch Secrets from Parameter Store
         run: |
-          STAGE="dev"
+          STAGE="${{ vars.STAGE }}"
           POOL_ID=$(aws ssm get-parameter --name "/anywear/$STAGE/cognito_user_pool_id" --query "Parameter.Value" --output text)
           CLIENT_ID=$(aws ssm get-parameter --name "/anywear/$STAGE/cognito_client_id" --query "Parameter.Value" --output text)
           S3_BUCKET=$(aws ssm get-parameter --name "/anywear/$STAGE/s3_bucket_name" --query "Parameter.Value" --output text)
