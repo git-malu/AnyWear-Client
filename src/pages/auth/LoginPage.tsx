@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signIn, fetchAuthSession, signOut } from 'aws-amplify/auth';
-import { useGetUsersMe } from '../../api/endpoints/users/users';
 import { useAuthStore } from '../../store/authStore';
 
 export default function LoginPage() {
@@ -14,11 +13,6 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   
-  // Refetch explicitly on login success
-  const { refetch: fetchMe } = useGetUsersMe({
-    query: { enabled: false }
-  });
-
   // Ensure Amplify is signed out if we are on the login page
   // This prevents "There is already a signed in user" error if local state was cleared but Amplify wasn't
   useEffect(() => {
@@ -45,12 +39,10 @@ export default function LoginPage() {
         
         if (token) {
           // 2. Set authenticated in Zustand store
+          // This will trigger the ProtectedRoute in App.tsx to mount and fetch the profile
           setAuthenticated(true);
           
-          // 3. Trigger JIT Provisioning (calls GET /users/me)
-          await fetchMe();
-          
-          // 4. Redirect to dashboard
+          // 3. Redirect to dashboard
           navigate('/dashboard');
         } else {
           setAuthError('Authentication successful, but could not retrieve session tokens.');
@@ -69,7 +61,6 @@ export default function LoginPage() {
             const token = session.tokens?.accessToken?.toString();
             if (token) {
               setAuthenticated(true);
-              await fetchMe();
               navigate('/dashboard');
               return;
             }
