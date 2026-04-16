@@ -103,3 +103,11 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 
 4. **Preserve Submodule Integrity**:
    Treat the `api` submodule as a critical architectural boundary. Follow the documentation and guidelines inside `api/AGENTS.md` when making cross-repository changes.
+
+5. **CI/CD Pipeline Monitoring**:
+   Agents can use the `gh` CLI to check the status of GitHub Actions workflows. This is useful for verifying whether builds, tests, or deployments have succeeded or failed after pushing changes.
+   - `gh workflow list` — list all workflows in the repository
+   - `gh run list` — list recent workflow runs
+   - `gh run view <run-id>` — view details of a specific run
+   - `gh run watch <run-id>` — live-stream a run's progress
+   - `gh run view <run-id> --log-failed` — view logs for failed steps only
