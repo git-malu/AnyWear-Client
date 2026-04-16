@@ -79,9 +79,14 @@ jobs:
 
       - name: Setup Database
         working-directory: ./service
-        run: pnpm db:push
+        run: pnpm db:push --force
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
+
+      - name: Verify Database Tables
+        run: |
+          psql postgresql://postgres:postgres@localhost:5432/anywear_dev -c "\dt" | tee /tmp/db-tables.txt
+          psql postgresql://postgres:postgres@localhost:5432/anywear_dev -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'clothing_items');" | grep -q "2" || { echo "ERROR: Expected tables not found!"; exit 1; }
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -107,10 +112,15 @@ jobs:
 
       - name: Start Service
         working-directory: ./service
-        run: pnpm dev &
+        run: pnpm dev > /tmp/service.log 2>&1 &
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anywear_dev
           PORT: 3000
+          STAGE: dev
+          COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
+          S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Wait for Service
         run: npx wait-on http://localhost:3000/health
@@ -123,4 +133,15 @@ jobs:
         working-directory: ./client
         run: pnpm run test:e2e
         env:
-          VITE_API_URL: http://localhost:3000
+          VITE_API_BASE_URL: http://localhost:3000
+
+      - name: Print Service Logs
+        if: failure()
+        run: cat /tmp/service.log || true
+
+      - name: Upload Service Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: /tmp/service.log
