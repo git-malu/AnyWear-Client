@@ -32,13 +32,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (isLoading || (!data && !isError)) {
+  if (isLoading) {
     return <FullPageLoading />;
   }
 
-  // If there's an error and we are NOT loading, we still show the app 
-  // but individual components might need to handle the missing user state
-  // or we could show a hard error screen here.
+  if (isError || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900">Profile Sync Failed</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            We couldn't synchronize your profile with our local database. 
+            This usually happens in dev environments when AWS permissions are restricted.
+          </p>
+          <div className="mt-5">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 

@@ -62,9 +62,11 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
       });
 
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add item:', error);
-      alert('Failed to upload image or create item');
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+      console.error('Error details:', errorMessage);
+      alert(`Failed to upload image or create item: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
