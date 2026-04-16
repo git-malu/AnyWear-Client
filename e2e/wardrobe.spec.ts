@@ -27,23 +27,15 @@ test.describe('Wardrobe Management', () => {
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'TestPassword123!');
     await page.getByRole('button', { name: 'Sign up' }).click();
-    await page.waitForURL(/\/verify|\/login/);
+    await page.waitForURL('/login');
 
-    // 2. Confirm User via AWS SDK
-    await cognitoClient.send(
-      new AdminConfirmSignUpCommand({
-        UserPoolId: USER_POOL_ID,
-        Username: testEmail,
-      })
-    );
-
-    // 3. Login
+    // 2. Login
     await page.goto('/login');
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'TestPassword123!');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // 4. Wait for dashboard
+    // 3. Wait for dashboard
     await page.waitForURL('/dashboard');
   });
 

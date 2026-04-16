@@ -45,7 +45,7 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
     }
   });
 
-  test('should register, confirm via SDK, and login successfully', async ({ page }) => {
+  test('should register, auto-confirm via PreSignUp trigger, and login successfully', async ({ page }) => {
     // 1. Go to register page
     await page.goto('/register');
 
@@ -54,31 +54,16 @@ test.describe('Authentication Flow with AWS SDK Bypass', () => {
     await page.fill('input[type="password"]', 'TestPassword123!');
     await page.getByRole('button', { name: 'Sign up' }).click();
 
-    // 3. Wait for the redirect to verify or login page
-    // (Depending on Cognito settings, it might auto-redirect to /verify to ask for a code)
-    await page.waitForURL(/\/verify|\/login/);
+    // 3. Wait for the redirect to login page (auto-confirmed by PreSignUp lambda)
+    await page.waitForURL('/login');
 
-    // 4. Force confirm the user using AWS SDK to bypass email verification
-    if (!USER_POOL_ID) {
-      test.skip(true, 'USER_POOL_ID is not set. Skipping the rest of the test.');
-      return;
-    }
-
-    console.log(`Confirming user ${testEmail} via AWS SDK...`);
-    await cognitoClient.send(
-      new AdminConfirmSignUpCommand({
-        UserPoolId: USER_POOL_ID,
-        Username: testEmail,
-      })
-    );
-
-    // 5. Navigate to login and sign in to trigger JIT provisioning
+    // 4. Navigate to login and sign in to trigger JIT provisioning
     await page.goto('/login');
     await page.fill('input[type="email"]', testEmail);
     await page.fill('input[type="password"]', 'TestPassword123!');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // 6. Wait for successful login redirect
+    // 5. Wait for successful login redirect
     await page.waitForURL('/dashboard');
     
     // Verify we reached the dashboard and the profile was provisioned/loaded
