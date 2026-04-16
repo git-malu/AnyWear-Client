@@ -12,6 +12,7 @@ import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import LoginPage from './pages/auth/LoginPage';
 import WardrobePage from './pages/wardrobe/WardrobePage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import SettingsPage from './pages/settings/SettingsPage';
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,7 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/wardrobe" element={<WardrobePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </Router>

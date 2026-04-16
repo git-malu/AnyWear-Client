@@ -7,8 +7,15 @@
 
 export * from './deleteWardrobeId200';
 export * from './getUsersMe200';
+export * from './getUsersMe404';
 export * from './getWardrobe200Item';
 export * from './getWardrobeId200';
+export * from './getWeatherCityLookup200';
+export * from './getWeatherCityLookup200LocationsItem';
+export * from './getWeatherCityLookupParams';
+export * from './getWeatherCurrent200';
+export * from './getWeatherCurrent200ClothingIndex';
+export * from './getWeatherCurrent404';
 export * from './patchWardrobeId200';
 export * from './patchWardrobeIdBody';
 export * from './patchWardrobeIdBodyStyleAttributes';
@@ -17,3 +24,6 @@ export * from './postWardrobeBody';
 export * from './postWardrobeBodyStyleAttributes';
 export * from './postWardrobeUploadUrl200';
 export * from './postWardrobeUploadUrlBody';
+export * from './putUsersProfile200';
+export * from './putUsersProfile404';
+export * from './putUsersProfileBody';

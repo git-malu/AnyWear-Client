@@ -5,22 +5,30 @@
  * OpenAPI spec version: 1.0.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
-  GetUsersMe200
+  GetUsersMe200,
+  GetUsersMe404,
+  PutUsersProfile200,
+  PutUsersProfile404,
+  PutUsersProfileBody
 } from '../../model';
 
 import { customInstance } from '../../custom-instance';
@@ -52,7 +60,7 @@ export const getGetUsersMeQueryKey = () => {
     }
 
 
-export const getGetUsersMeQueryOptions = <TData = Awaited<ReturnType<typeof getUsersMe>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getGetUsersMeQueryOptions = <TData = Awaited<ReturnType<typeof getUsersMe>>, TError = GetUsersMe404>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -71,10 +79,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetUsersMeQueryResult = NonNullable<Awaited<ReturnType<typeof getUsersMe>>>
-export type GetUsersMeQueryError = unknown
+export type GetUsersMeQueryError = GetUsersMe404
 
 
-export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = unknown>(
+export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = GetUsersMe404>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getUsersMe>>,
@@ -84,7 +92,7 @@ export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TE
       >, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = unknown>(
+export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = GetUsersMe404>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getUsersMe>>,
@@ -94,12 +102,12 @@ export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TE
       >, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = unknown>(
+export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = GetUsersMe404>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = unknown>(
+export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TError = GetUsersMe404>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUsersMe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -114,3 +122,60 @@ export function useGetUsersMe<TData = Awaited<ReturnType<typeof getUsersMe>>, TE
 
 
 
+export const putUsersProfile = (
+    putUsersProfileBody: PutUsersProfileBody,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<PutUsersProfile200>(
+      {url: `/users/profile`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: putUsersProfileBody, signal
+    },
+      options);
+    }
+
+
+
+export const getPutUsersProfileMutationOptions = <TError = PutUsersProfile404,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUsersProfile>>, TError,{data: PutUsersProfileBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof putUsersProfile>>, TError,{data: PutUsersProfileBody}, TContext> => {
+
+const mutationKey = ['putUsersProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putUsersProfile>>, {data: PutUsersProfileBody}> = (props) => {
+          const {data} = props ?? {};
+
+          return  putUsersProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutUsersProfileMutationResult = NonNullable<Awaited<ReturnType<typeof putUsersProfile>>>
+    export type PutUsersProfileMutationBody = PutUsersProfileBody
+    export type PutUsersProfileMutationError = PutUsersProfile404
+
+    export const usePutUsersProfile = <TError = PutUsersProfile404,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putUsersProfile>>, TError,{data: PutUsersProfileBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof putUsersProfile>>,
+        TError,
+        {data: PutUsersProfileBody},
+        TContext
+      > => {
+      return useMutation(getPutUsersProfileMutationOptions(options), queryClient);
+    }
