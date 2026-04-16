@@ -1,6 +1,26 @@
-# Skill: Update Dependency Versions
+---
+name: update-dependency-version
+description: Safely update dependencies in the AnyWear Client repository
+license: MIT
+compatibility: opencode
+metadata:
+  audience: developers
+  workflow: pnpm
+---
 
-**Description:** Use this skill when requested to update dependencies in the AnyWear Client repository.
+## What I do
+
+- Identify out-of-date packages using `pnpm outdated`.
+- Request user permission before applying any version changes.
+- Apply safe (semver) or major updates based on user choice.
+- Verify the build integrity using `pnpm tsc --noEmit` and `pnpm build`.
+- Regenerate the API client via `pnpm orval` to maintain sync with the OpenAPI spec.
+
+## When to use me
+
+Use this when requested to update dependencies in the AnyWear Client repository.
+This skill ensures the project stays on Node 24 (LTS) and respects framework requirements (React 19, Tauri v2).
+Always preview changes to the user before execution.
 
 ## Context
 
@@ -9,6 +29,7 @@ This project uses a single package manager:
 - **Root Directory (`/`)**: Uses `pnpm` for the main Tauri + React frontend application.
 
 ## Critical Constraints
+
 1.  **Node.js 24 (LTS)**: This project MUST stay on Node 24. Do NOT update `@types/node` beyond the `24.x` range (e.g., keep it pinned to `~24.x.x`).
 2.  **Framework Requirements**: This project uses React 19, TypeScript 5, Vite, and Tauri v2. Be careful not to introduce breaking major version updates unless explicitly requested.
 3.  **Explicit Consent**: NEVER run an update command without first showing the user exactly which versions will be changed and getting their explicit "Go ahead" or "Yes".
