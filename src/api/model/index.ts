@@ -16,6 +16,8 @@ export * from './getWeatherCityLookupParams';
 export * from './getWeatherCurrent200';
 export * from './getWeatherCurrent200ClothingIndex';
 export * from './getWeatherCurrent404';
+export * from './getWeatherTopCities200';
+export * from './getWeatherTopCities200LocationsItem';
 export * from './patchWardrobeId200';
 export * from './patchWardrobeIdBody';
 export * from './patchWardrobeIdBodyStyleAttributes';

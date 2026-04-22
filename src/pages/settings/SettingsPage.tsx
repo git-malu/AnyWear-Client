@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useGetUsersMe, usePutUsersProfile } from '../../api/endpoints/users/users';
-import { useGetWeatherCityLookup } from '../../api/endpoints/weather/weather';
+import { useGetWeatherCityLookup, useGetWeatherTopCities } from '../../api/endpoints/weather/weather';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetWeatherCurrentQueryKey } from '../../api/endpoints/weather/weather';
 import type { GetWeatherCityLookup200LocationsItem } from '../../api/model';
@@ -9,6 +9,12 @@ export default function SettingsPage() {
   const { data: user } = useGetUsersMe();
   const updateProfile = usePutUsersProfile();
   const queryClient = useQueryClient();
+
+  const { data: topCities } = useGetWeatherTopCities({
+    query: {
+      staleTime: Infinity, // These don't change often
+    },
+  });
 
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [geoError, setGeoError] = useState('');
@@ -141,6 +147,27 @@ export default function SettingsPage() {
             <span className="px-2 bg-white text-gray-500">or search manually</span>
           </div>
         </div>
+
+        {/* Top Cities Quick Select */}
+        {topCities?.locations && topCities.locations.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+              Popular Cities
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {topCities.locations.slice(0, 10).map((city) => (
+                <button
+                  key={city.id}
+                  onClick={() => handleSelectCity(city)}
+                  disabled={updateProfile.isPending}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-800 transition-colors border border-gray-200 disabled:opacity-50"
+                >
+                  {city.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* City search form */}
         <form onSubmit={handleCitySearch} className="flex gap-2 mb-4">

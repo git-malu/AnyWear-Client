@@ -23,7 +23,8 @@ import type {
   GetWeatherCityLookup200,
   GetWeatherCityLookupParams,
   GetWeatherCurrent200,
-  GetWeatherCurrent404
+  GetWeatherCurrent404,
+  GetWeatherTopCities200
 } from '../../model';
 
 import { customInstance } from '../../custom-instance';
@@ -193,6 +194,90 @@ export function useGetWeatherCityLookup<TData = Awaited<ReturnType<typeof getWea
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetWeatherCityLookupQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+export const getWeatherTopCities = (
+
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<GetWeatherTopCities200>(
+      {url: `/weather/top-cities`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetWeatherTopCitiesQueryKey = () => {
+    return [
+    `/weather/top-cities`
+    ] as const;
+    }
+
+
+export const getGetWeatherTopCitiesQueryOptions = <TData = Awaited<ReturnType<typeof getWeatherTopCities>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeatherTopCitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeatherTopCities>>> = ({ signal }) => getWeatherTopCities(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWeatherTopCitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getWeatherTopCities>>>
+export type GetWeatherTopCitiesQueryError = unknown
+
+
+export function useGetWeatherTopCities<TData = Awaited<ReturnType<typeof getWeatherTopCities>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeatherTopCities>>,
+          TError,
+          Awaited<ReturnType<typeof getWeatherTopCities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeatherTopCities<TData = Awaited<ReturnType<typeof getWeatherTopCities>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeatherTopCities>>,
+          TError,
+          Awaited<ReturnType<typeof getWeatherTopCities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeatherTopCities<TData = Awaited<ReturnType<typeof getWeatherTopCities>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetWeatherTopCities<TData = Awaited<ReturnType<typeof getWeatherTopCities>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeatherTopCities>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWeatherTopCitiesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
