@@ -1,130 +1,165 @@
-import { test, expect } from '@playwright/test';
-import {
-  CognitoIdentityProviderClient,
-  AdminDeleteUserCommand
-} from '@aws-sdk/client-cognito-identity-provider';
-
-const cognitoClient = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-});
-
-const USER_POOL_ID = process.env.USER_POOL_ID;
+import { test, expect } from './fixtures';
 
 test.describe('Weather Integration', () => {
-  let testEmail: string;
+  
+  test('should show empty state on dashboard when no location is configured', async ({ authenticatedPage: page }) => {
+    // 1. Mock weather/current to return null (empty state)
+    await page.route('**/weather/current', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: 'null'
+      });
+    });
 
-  test.beforeEach(async ({ page }) => {
-    testEmail = `test+weather_${Date.now()}@anywear.local`;
-
-    if (!USER_POOL_ID) {
-      test.skip(true, 'USER_POOL_ID is not set. Skipping the test.');
-      return;
-    }
-
-    // 1. Register User
-    await page.goto('/register');
-    await page.fill('input[type="email"]', testEmail);
-    await page.fill('input[type="password"]', 'TestPassword123!');
-    await page.getByRole('button', { name: 'Sign up' }).click();
-    await page.waitForURL('/login');
-
-    // 2. Login
-    await page.goto('/login');
-    await page.fill('input[type="email"]', testEmail);
-    await page.fill('input[type="password"]', 'TestPassword123!');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-
-    // 3. Wait for dashboard
-    await page.waitForURL('/dashboard');
+    await page.goto('/dashboard');
+    
+    // 2. Verify empty state message and CTA
+    await expect(page.getByText(/Set your location to see today's weather/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Set Location' })).toBeVisible();
   });
 
-  test.afterEach(async () => {
-    if (USER_POOL_ID) {
-      try {
-        await cognitoClient.send(
-          new AdminDeleteUserCommand({
-            UserPoolId: USER_POOL_ID,
-            Username: testEmail,
-          })
-        );
-      } catch (error: any) {
-        if (error.name !== 'UserNotFoundException') {
-          console.error(`Failed to delete user ${testEmail}:`, error);
-        }
-      }
-    }
+  test('should manually set location via city search', async ({ authenticatedPage: page }) => {
+    let updatedLocationId = '';
+
+    // 1. Mock endpoints
+    await page.route('**/weather/current', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+    });
+
+    await page.route('**/weather/city-lookup?q=shanghai*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          locations: [{ id: '101020100', name: 'Shanghai', adm1: 'Shanghai', country: 'China', lat: '31.23', lon: '121.47' }]
+        })
+      });
+    });
+
+    await page.route('**/users/profile', async (route) => {
+      const body = route.request().postDataJSON();
+      updatedLocationId = body.locationId;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    });
+
+    // 2. Go to settings and search
+    await page.goto('/settings');
+    await page.getByPlaceholder('Search for a city...').fill('shanghai');
+    await page.getByRole('button', { name: 'Search' }).click();
+    
+    // 3. Wait for results and select
+    const resultButton = page.locator('ul button').filter({ hasText: 'Shanghai' });
+    await expect(resultButton).toBeVisible();
+    await resultButton.click();
+
+    // 4. Verify update
+    expect(updatedLocationId).toBe('101020100');
   });
 
-  test('should search for a city, select it, and see weather on dashboard', async ({ page }) => {
-    // 1. Mock the backend calls for city lookup and weather
-    await page.route('**/weather/city-lookup?q=hangzhou*', async (route) => {
+  test('should manually set location via Popular City chips', async ({ authenticatedPage: page }) => {
+    let updatedLocationName = '';
+
+    // 1. Mock top-cities and profile update
+    await page.route('**/weather/top-cities', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           locations: [
-            {
-              id: '101210101',
-              name: 'Hangzhou',
-              adm1: 'Zhejiang',
-              adm2: 'Hangzhou',
-              country: 'China',
-              lat: '30.24603',
-              lon: '120.21079'
-            }
+            { id: '101010100', name: 'Beijing', adm1: 'Beijing', lat: '39.9', lon: '116.4' },
+            { id: '101280101', name: 'Guangzhou', adm1: 'Guangdong', lat: '23.1', lon: '113.2' }
           ]
         })
       });
     });
 
-    await page.route('**/weather/current', async (route) => {
-      // Check if it's a GET request (fetching weather)
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            locationName: 'Hangzhou, Zhejiang',
-            temperature: '25',
-            feelsLike: '27',
-            icon: '101',
-            conditionText: 'Cloudy',
-            humidity: '60',
-            windDir: 'East',
-            windScale: '2',
-            obsTime: new Date().toISOString(),
-            stale: false,
-            clothingIndex: {
-              suggestion: 'Light cotton clothes are recommended.'
-            }
-          })
-        });
-      } else {
-        await route.continue();
-      }
+    await page.route('**/users/profile', async (route) => {
+      const body = route.request().postDataJSON();
+      updatedLocationName = body.locationName;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     });
 
-    // 2. Go to settings to set location
+    // 2. Go to settings and click a chip
     await page.goto('/settings');
-    await expect(page.getByText('Set your location to see today\'s weather')).toBeVisible();
+    await page.getByRole('button', { name: 'Beijing' }).click();
 
-    // 3. Search for "hangzhou"
-    const searchInput = page.getByPlaceholder('Search for a city...');
-    await searchInput.fill('hangzhou');
-    
-    // Wait for and click the result
-    await page.click('text=Hangzhou, Zhejiang');
+    // 3. Verify update
+    expect(updatedLocationName).toBe('Beijing, Beijing');
+  });
 
-    // Verify success message or change in UI
+  test('should set location via auto-detect (geolocation)', async ({ authenticatedPage: page }) => {
+    let updatedLat = 0;
+    let updatedLon = 0;
+
+    // 1. Grant geolocation permissions and mock coordinates
+    await page.context().grantPermissions(['geolocation']);
+    await page.context().setGeolocation({ latitude: 30.27, longitude: 120.15 });
+
+    // 2. Mock profile update
+    await page.route('**/users/profile', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.latitude && body.longitude) {
+        updatedLat = body.latitude;
+        updatedLon = body.longitude;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    });
+
+    // 3. Go to settings and click auto-detect
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+
+    // 4. Verify update
     await expect(page.getByText('Location updated successfully')).toBeVisible();
+    expect(updatedLat).toBeCloseTo(30.27);
+    expect(updatedLon).toBeCloseTo(120.15);
+  });
 
-    // 4. Go back to dashboard and verify weather widget
+  test('should display weather data on dashboard when location is set', async ({ authenticatedPage: page }) => {
+    // 1. Mock weather/current with data
+    await page.route('**/weather/current', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          locationName: 'Hangzhou, Zhejiang',
+          temperature: '22',
+          feelsLike: '24',
+          icon: '100',
+          conditionText: 'Sunny',
+          humidity: '45',
+          windDir: 'North',
+          windScale: '1',
+          obsTime: new Date().toISOString(),
+          clothingIndex: {
+            suggestion: 'T-shirt and light trousers are fine.'
+          }
+        })
+      });
+    });
+
+    // 2. Mock users/me to have a location
+    await page.route('**/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-id',
+          email: 'test@anywear.local',
+          locationId: '101210101',
+          locationName: 'Hangzhou, Zhejiang'
+        })
+      });
+    });
+
     await page.goto('/dashboard');
-    
-    const weatherWidget = page.locator('div.bg-white.shadow.rounded-lg.p-6').first();
-    await expect(weatherWidget.getByText('Hangzhou, Zhejiang')).toBeVisible();
-    await expect(weatherWidget.getByText('25°C')).toBeVisible();
-    await expect(weatherWidget.getByText('Cloudy')).toBeVisible();
-    await expect(weatherWidget.getByText('Light cotton clothes are recommended.')).toBeVisible();
+
+    // 3. Verify widget content
+    const widget = page.locator('div.bg-white.shadow.rounded-lg.p-6').first();
+    await expect(widget.getByText('Hangzhou, Zhejiang')).toBeVisible();
+    await expect(widget.getByText('22°C')).toBeVisible();
+    await expect(widget.getByText('Sunny')).toBeVisible();
+    await expect(widget.getByText(/T-shirt and light trousers/)).toBeVisible();
   });
 });
