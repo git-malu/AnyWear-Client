@@ -72,11 +72,13 @@ export default function SettingsPage() {
       },
       (err) => {
         setGeoStatus('error');
-        setGeoError(
-          err.code === err.PERMISSION_DENIED
-            ? 'Location permission denied. Please use the city search below instead.'
-            : 'Could not determine your location. Please use the city search below.',
-        );
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoError('Location permission denied. Please use the city search below instead.');
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setGeoError('Location information is unavailable in your current environment. Please use the city search below.');
+        } else {
+          setGeoError('Could not determine your location. Please use the city search below.');
+        }
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );

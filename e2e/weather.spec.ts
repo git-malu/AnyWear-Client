@@ -88,13 +88,13 @@ test.describe('Weather Integration', () => {
     expect(updatedLocationName).toBe('Beijing, Beijing');
   });
 
-  test('should set location via auto-detect (geolocation)', async ({ authenticatedPage: page }) => {
+  test('should set location via auto-detect (geolocation)', async ({ authenticatedPage: page, mockGeolocation }) => {
     let updatedLat = 0;
     let updatedLon = 0;
 
-    // 1. Grant geolocation permissions and mock coordinates
+    // 1. Mock coordinates via fixture (more reliable in CI than native browser geolocation)
+    await mockGeolocation({ latitude: 30.27, longitude: 120.15 });
     await page.context().grantPermissions(['geolocation']);
-    await page.context().setGeolocation({ latitude: 30.27, longitude: 120.15 });
 
     // 2. Mock profile update
     await page.route('**/users/profile', async (route) => {
@@ -114,6 +114,51 @@ test.describe('Weather Integration', () => {
     await expect(page.getByText('Location updated successfully')).toBeVisible();
     expect(updatedLat).toBeCloseTo(30.27);
     expect(updatedLon).toBeCloseTo(120.15);
+  });
+
+  test('should show helpful error when geolocation permission is denied', async ({ authenticatedPage: page }) => {
+    // 1. Mock permission denied
+    await page.context().grantPermissions([]); // Clear any previously granted permissions
+    await page.addInitScript(() => {
+      // @ts-ignore
+      navigator.geolocation.getCurrentPosition = (_success, error) => {
+        const err = new Error('User denied Geolocation');
+        // @ts-ignore
+        err.code = 1; // PERMISSION_DENIED
+        // @ts-ignore
+        err.PERMISSION_DENIED = 1;
+        error(err);
+      };
+    });
+
+    // 2. Click auto-detect
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+
+    // 3. Verify error message
+    await expect(page.getByText(/Location permission denied/)).toBeVisible();
+  });
+
+  test('should show helpful error when position is unavailable', async ({ authenticatedPage: page }) => {
+    // 1. Mock position unavailable
+    await page.addInitScript(() => {
+      // @ts-ignore
+      navigator.geolocation.getCurrentPosition = (_success, error) => {
+        const err = new Error('Position unavailable');
+        // @ts-ignore
+        err.code = 2; // POSITION_UNAVAILABLE
+        // @ts-ignore
+        err.POSITION_UNAVAILABLE = 2;
+        error(err);
+      };
+    });
+
+    // 2. Click auto-detect
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+
+    // 3. Verify error message
+    await expect(page.getByText(/Location information is unavailable/)).toBeVisible();
   });
 
   test('should display weather data on dashboard when location is set', async ({ authenticatedPage: page }) => {
