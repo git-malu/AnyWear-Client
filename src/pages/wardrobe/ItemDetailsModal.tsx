@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usePatchWardrobeId, useDeleteWardrobeId, usePostWardrobeItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
+import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import CachedImage from '../../components/CachedImage';
 
@@ -71,9 +71,9 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
   const [attrs, setAttrs] = useState<StyleAttributeFields>({ color: '', material: '', design: '', fit: '', pattern: '', neckline: '', sleeveLength: '', pockets: '', hemline: '', vibe: '', brand: '' });
   const [weatherTagsInput, setWeatherTagsInput] = useState('');
 
-  const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeId();
-  const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeId();
-  const { mutateAsync: retagItem, isPending: isRetagging } = usePostWardrobeItemIdRetag();
+  const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
+  const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
+  const { mutateAsync: retagItem, isPending: isRetagging } = usePostWardrobeItemsItemIdRetag();
 
   useEffect(() => {
     if (item) {

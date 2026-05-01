@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGetWardrobe, useDeleteWardrobeId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
+import { useGetWardrobe, useDeleteWardrobeItemsId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
 import AddItemModal from './AddItemModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import CachedImage from '../../components/CachedImage';
@@ -51,7 +51,7 @@ export default function WardrobePage() {
     },
   });
   const { data: categoriesResponse } = useGetWardrobeCategories();
-  const { mutate: deleteItem } = useDeleteWardrobeId();
+  const { mutate: deleteItem } = useDeleteWardrobeItemsId();
 
   const wardrobeData = Array.isArray(wardrobeResponse) ? wardrobeResponse : (wardrobeResponse as any)?.data && Array.isArray((wardrobeResponse as any).data) ? (wardrobeResponse as any).data : [];
   const categories = categoriesResponse?.categories ?? [];

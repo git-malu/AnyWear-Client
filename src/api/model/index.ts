@@ -5,12 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export * from './deleteWardrobeId200';
+export * from './deleteWardrobeItemsId200';
 export * from './getUsersMe200';
 export * from './getUsersMe404';
 export * from './getWardrobe200Item';
 export * from './getWardrobeCategories200';
-export * from './getWardrobeId200';
+export * from './getWardrobeItemsId200';
 export * from './getWardrobeParams';
 export * from './getWeatherCityLookup200';
 export * from './getWeatherCityLookup200LocationsItem';
@@ -20,10 +20,10 @@ export * from './getWeatherCurrent200ClothingIndex';
 export * from './getWeatherCurrent404';
 export * from './getWeatherTopCities200';
 export * from './getWeatherTopCities200LocationsItem';
-export * from './patchWardrobeId200';
-export * from './patchWardrobeIdBody';
-export * from './patchWardrobeIdBodyStyleAttributes';
-export * from './postWardrobeItemIdRetag202';
+export * from './patchWardrobeItemsId200';
+export * from './patchWardrobeItemsIdBody';
+export * from './patchWardrobeItemsIdBodyStyleAttributes';
+export * from './postWardrobeItemsItemIdRetag202';
 export * from './postWardrobeUpload202';
 export * from './postWardrobeUploadBody';
 export * from './postWardrobeUploadUrl200';
