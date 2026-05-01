@@ -26,11 +26,14 @@ import type {
 import type {
   DeleteWardrobeId200,
   GetWardrobe200Item,
+  GetWardrobeCategories200,
   GetWardrobeId200,
+  GetWardrobeParams,
   PatchWardrobeId200,
   PatchWardrobeIdBody,
-  PostWardrobe201,
-  PostWardrobeBody,
+  PostWardrobeItemIdRetag202,
+  PostWardrobeUpload202,
+  PostWardrobeUploadBody,
   PostWardrobeUploadUrl200,
   PostWardrobeUploadUrlBody
 } from '../../model';
@@ -99,27 +102,27 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getPostWardrobeUploadUrlMutationOptions(options), queryClient);
     }
-    export const postWardrobe = (
-    postWardrobeBody: PostWardrobeBody,
+    export const postWardrobeUpload = (
+    postWardrobeUploadBody: PostWardrobeUploadBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
-      return customInstance<PostWardrobe201>(
-      {url: `/wardrobe`, method: 'POST',
+      return customInstance<PostWardrobeUpload202>(
+      {url: `/wardrobe/upload`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
-      data: postWardrobeBody, signal
+      data: postWardrobeUploadBody, signal
     },
       options);
     }
 
 
 
-export const getPostWardrobeMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobe>>, TError,{data: PostWardrobeBody}, TContext>, request?: SecondParameter<typeof customInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof postWardrobe>>, TError,{data: PostWardrobeBody}, TContext> => {
+export const getPostWardrobeUploadMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeUpload>>, TError,{data: PostWardrobeUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWardrobeUpload>>, TError,{data: PostWardrobeUploadBody}, TContext> => {
 
-const mutationKey = ['postWardrobe'];
+const mutationKey = ['postWardrobeUpload'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -129,10 +132,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWardrobe>>, {data: PostWardrobeBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWardrobeUpload>>, {data: PostWardrobeUploadBody}> = (props) => {
           const {data} = props ?? {};
 
-          return  postWardrobe(data,requestOptions)
+          return  postWardrobeUpload(data,requestOptions)
         }
 
 
@@ -142,28 +145,29 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type PostWardrobeMutationResult = NonNullable<Awaited<ReturnType<typeof postWardrobe>>>
-    export type PostWardrobeMutationBody = PostWardrobeBody
-    export type PostWardrobeMutationError = unknown
+    export type PostWardrobeUploadMutationResult = NonNullable<Awaited<ReturnType<typeof postWardrobeUpload>>>
+    export type PostWardrobeUploadMutationBody = PostWardrobeUploadBody
+    export type PostWardrobeUploadMutationError = void
 
-    export const usePostWardrobe = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobe>>, TError,{data: PostWardrobeBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+    export const usePostWardrobeUpload = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeUpload>>, TError,{data: PostWardrobeUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof postWardrobe>>,
+        Awaited<ReturnType<typeof postWardrobeUpload>>,
         TError,
-        {data: PostWardrobeBody},
+        {data: PostWardrobeUploadBody},
         TContext
       > => {
-      return useMutation(getPostWardrobeMutationOptions(options), queryClient);
+      return useMutation(getPostWardrobeUploadMutationOptions(options), queryClient);
     }
     export const getWardrobe = (
-
+    params?: GetWardrobeParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
       return customInstance<GetWardrobe200Item[]>(
-      {url: `/wardrobe`, method: 'GET', signal
+      {url: `/wardrobe`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -171,23 +175,23 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getGetWardrobeQueryKey = () => {
+export const getGetWardrobeQueryKey = (params?: GetWardrobeParams,) => {
     return [
-    `/wardrobe`
+    `/wardrobe`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetWardrobeQueryOptions = <TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getGetWardrobeQueryOptions = <TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>(params?: GetWardrobeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetWardrobeQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetWardrobeQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWardrobe>>> = ({ signal }) => getWardrobe(requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWardrobe>>> = ({ signal }) => getWardrobe(params, requestOptions, signal);
 
 
 
@@ -201,7 +205,7 @@ export type GetWardrobeQueryError = unknown
 
 
 export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>> & Pick<
+ params: undefined |  GetWardrobeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWardrobe>>,
           TError,
@@ -211,7 +215,7 @@ export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, 
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>> & Pick<
+ params?: GetWardrobeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWardrobe>>,
           TError,
@@ -221,16 +225,16 @@ export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, 
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: GetWardrobeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
 export function useGetWardrobe<TData = Awaited<ReturnType<typeof getWardrobe>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: GetWardrobeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobe>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetWardrobeQueryOptions(options)
+  const queryOptions = getGetWardrobeQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -437,3 +441,142 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeleteWardrobeIdMutationOptions(options), queryClient);
     }
+    export const postWardrobeItemIdRetag = (
+    itemId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<PostWardrobeItemIdRetag202>(
+      {url: `/wardrobe/${itemId}/retag`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+export const getPostWardrobeItemIdRetagMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemIdRetag>>, TError,{itemId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemIdRetag>>, TError,{itemId: string}, TContext> => {
+
+const mutationKey = ['postWardrobeItemIdRetag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWardrobeItemIdRetag>>, {itemId: string}> = (props) => {
+          const {itemId} = props ?? {};
+
+          return  postWardrobeItemIdRetag(itemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostWardrobeItemIdRetagMutationResult = NonNullable<Awaited<ReturnType<typeof postWardrobeItemIdRetag>>>
+
+    export type PostWardrobeItemIdRetagMutationError = void
+
+    export const usePostWardrobeItemIdRetag = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemIdRetag>>, TError,{itemId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postWardrobeItemIdRetag>>,
+        TError,
+        {itemId: string},
+        TContext
+      > => {
+      return useMutation(getPostWardrobeItemIdRetagMutationOptions(options), queryClient);
+    }
+    export const getWardrobeCategories = (
+
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<GetWardrobeCategories200>(
+      {url: `/wardrobe/categories`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetWardrobeCategoriesQueryKey = () => {
+    return [
+    `/wardrobe/categories`
+    ] as const;
+    }
+
+
+export const getGetWardrobeCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof getWardrobeCategories>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWardrobeCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWardrobeCategories>>> = ({ signal }) => getWardrobeCategories(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWardrobeCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof getWardrobeCategories>>>
+export type GetWardrobeCategoriesQueryError = unknown
+
+
+export function useGetWardrobeCategories<TData = Awaited<ReturnType<typeof getWardrobeCategories>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWardrobeCategories>>,
+          TError,
+          Awaited<ReturnType<typeof getWardrobeCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWardrobeCategories<TData = Awaited<ReturnType<typeof getWardrobeCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWardrobeCategories>>,
+          TError,
+          Awaited<ReturnType<typeof getWardrobeCategories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWardrobeCategories<TData = Awaited<ReturnType<typeof getWardrobeCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetWardrobeCategories<TData = Awaited<ReturnType<typeof getWardrobeCategories>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeCategories>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWardrobeCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+

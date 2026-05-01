@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { usePostWardrobeUploadUrl, usePostWardrobe } from '../../api/endpoints/wardrobe/wardrobe';
+import { usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
 
 interface Props {
   isOpen: boolean;
@@ -9,14 +9,11 @@ interface Props {
 
 export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null);
-  const [category, setCategory] = useState('');
-  const [color, setColor] = useState('');
-  const [material, setMaterial] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { mutateAsync: getUploadUrl } = usePostWardrobeUploadUrl();
-  const { mutateAsync: createItem } = usePostWardrobe();
+  const { mutateAsync: confirmUpload } = usePostWardrobeUpload();
 
   if (!isOpen) return null;
 
@@ -26,16 +23,16 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
 
     setIsUploading(true);
     try {
-      // 1. Get pre-signed URL
+      // 1. Get pre-signed URL (creates DB row, returns itemId)
       const ext = file.name.split('.').pop() || 'jpg';
-      const uploadData = await getUploadUrl({
+      const uploadUrlResult = await getUploadUrl({
         data: { contentType: file.type || 'image/jpeg', extension: ext },
       });
 
-      const presignedUrl = (uploadData as any).data?.url || (uploadData as any).url;
-      const key = (uploadData as any).data?.key || (uploadData as any).key;
+      const presignedUrl = (uploadUrlResult as any).data?.url || (uploadUrlResult as any).url;
+      const itemId = (uploadUrlResult as any).data?.itemId || (uploadUrlResult as any).itemId;
 
-      if (!presignedUrl || !key) {
+      if (!presignedUrl || !itemId) {
         throw new Error('Failed to get upload URL');
       }
 
@@ -48,25 +45,17 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
         },
       });
 
-      // 3. Create wardrobe item
-      // The API expects originalImageUrl, we'll construct the base URL from the presigned URL
-      const baseUrl = presignedUrl.split('?')[0];
-      
-      await createItem({
-        data: {
-          originalImageUrl: baseUrl,
-          category,
-          color,
-          material,
-        },
+      // 3. Confirm upload and trigger auto-tagging
+      await confirmUpload({
+        data: { itemId },
       });
 
+      // Close modal — auto-tagging runs async, wardrobe list will show 'processing' status
       onSuccess();
     } catch (error: any) {
       console.error('Failed to add item:', error);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
-      console.error('Error details:', errorMessage);
-      alert(`Failed to upload image or create item: ${errorMessage}`);
+      alert(`Failed to upload image: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
@@ -93,7 +82,10 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
           <div className="sm:flex sm:items-start">
             <div className="w-full mt-3 text-center sm:mt-0 sm:text-left">
               <h3 className="text-lg font-medium leading-6 text-gray-900">Add Wardrobe Item</h3>
-              
+              <p className="mt-1 text-sm text-gray-500">
+                Upload a photo and AI will automatically tag the item with category, color, material, and more.
+              </p>
+
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Image</label>
@@ -127,46 +119,13 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <input
-                    type="text"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    placeholder="e.g. Tops, Pants, Shoes"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Color</label>
-                  <input
-                    type="text"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    placeholder="e.g. Black, Blue"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Material</label>
-                  <input
-                    type="text"
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value)}
-                    placeholder="e.g. Cotton, Denim"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
                     disabled={isUploading || !file}
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
                   >
-                    {isUploading ? 'Uploading...' : 'Save Item'}
+                    {isUploading ? 'Uploading...' : 'Upload & Auto-Tag'}
                   </button>
                   <button
                     type="button"

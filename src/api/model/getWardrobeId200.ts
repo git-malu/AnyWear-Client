@@ -8,17 +8,17 @@
 export type GetWardrobeId200 = {
   id: string;
   ownerId: string;
+  /** @nullable */
+  name: string | null;
   originalImageUrl: string;
   /** @nullable */
   normalizedImageUrl: string | null;
-  /** @nullable */
-  category: string | null;
-  /** @nullable */
-  color: string | null;
-  /** @nullable */
-  material: string | null;
+  category: string;
+  taggingStatus: string;
   weatherTags?: unknown | null;
   styleAttributes?: unknown | null;
   /** @nullable */
   isPublic: boolean | null;
+  /** @nullable */
+  imageEmbedding: string | null;
 };

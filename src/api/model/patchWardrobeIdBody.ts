@@ -7,10 +7,9 @@
 import type { PatchWardrobeIdBodyStyleAttributes } from './patchWardrobeIdBodyStyleAttributes';
 
 export type PatchWardrobeIdBody = {
+  name?: string;
   originalImageUrl?: string;
   category?: string;
-  color?: string;
-  material?: string;
   weatherTags?: string[];
   styleAttributes?: PatchWardrobeIdBodyStyleAttributes;
   isPublic?: boolean;

@@ -8,4 +8,5 @@
 export type PostWardrobeUploadUrl200 = {
   url: string;
   key: string;
+  itemId: string;
 };
