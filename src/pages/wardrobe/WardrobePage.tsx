@@ -39,7 +39,17 @@ export default function WardrobePage() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [filters, setFilters] = useState<GetWardrobeParams>({});
 
-  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters);
+  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters, {
+    query: {
+      refetchInterval: (query) => {
+        const items = Array.isArray(query.state.data) ? query.state.data : [];
+        const hasProcessing = items.some(
+          (item: any) => item.taggingStatus === 'processing' || item.taggingStatus === 'uploading'
+        );
+        return hasProcessing ? 2000 : false;
+      },
+    },
+  });
   const { data: categoriesResponse } = useGetWardrobeCategories();
   const { mutate: deleteItem } = useDeleteWardrobeId();
 
