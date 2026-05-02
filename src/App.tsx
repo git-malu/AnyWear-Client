@@ -11,6 +11,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import LoginPage from './pages/auth/LoginPage';
 import WardrobePage from './pages/wardrobe/WardrobePage';
+import MirrorPage from './pages/mirror/MirrorPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
@@ -103,6 +104,7 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/wardrobe" element={<WardrobePage />} />
+            <Route path="/mirror" element={<MirrorPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
