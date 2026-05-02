@@ -22,6 +22,7 @@ export * from './getWeatherTopCities200';
 export * from './getWeatherTopCities200LocationsItem';
 export * from './patchWardrobeItemsId200';
 export * from './patchWardrobeItemsIdBody';
+export * from './patchWardrobeItemsIdBodyImageUrlsItem';
 export * from './patchWardrobeItemsIdBodyStyleAttributes';
 export * from './postWardrobeItemsItemIdRetag202';
 export * from './postWardrobeUpload202';

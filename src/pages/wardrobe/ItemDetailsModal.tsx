@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
+import { useState, useEffect, useRef } from 'react';
+import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag, usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import CachedImage from '../../components/CachedImage';
+import { parseImageUrls } from '../../lib/image-utils';
+import type { ImageEntry } from '../../lib/image-utils';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -65,15 +67,23 @@ const ATTRIBUTE_FIELDS: { key: keyof StyleAttributeFields; label: string; placeh
   { key: 'brand', label: 'Brand', placeholder: 'e.g. Nike' },
 ];
 
+const VIEW_OPTIONS = ['', 'front', 'back', 'side', 'detail', 'tag'];
+
 export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: Props) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [attrs, setAttrs] = useState<StyleAttributeFields>({ color: '', material: '', design: '', fit: '', pattern: '', neckline: '', sleeveLength: '', pockets: '', hemline: '', vibe: '', brand: '' });
   const [weatherTagsInput, setWeatherTagsInput] = useState('');
+  const [images, setImages] = useState<ImageEntry[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isAddingImage, setIsAddingImage] = useState(false);
+  const addImageInputRef = useRef<HTMLInputElement>(null);
 
   const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
   const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
   const { mutateAsync: retagItem, isPending: isRetagging } = usePostWardrobeItemsItemIdRetag();
+  const { mutateAsync: getUploadUrl } = usePostWardrobeUploadUrl();
+  const { mutateAsync: confirmUpload } = usePostWardrobeUpload();
 
   useEffect(() => {
     if (item) {
@@ -81,10 +91,15 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
       setCategory(item.category || '');
       setAttrs(parseStyleAttributes(item.styleAttributes));
       setWeatherTagsInput(parseWeatherTags(item.weatherTags).join(', '));
+      const parsed = parseImageUrls(item.imageUrls);
+      setImages(parsed);
+      setSelectedImageIndex(0);
     }
   }, [item]);
 
   if (!isOpen || !item) return null;
+
+  const currentImage = images[selectedImageIndex];
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +117,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
         data: {
           name: name || undefined,
           category: category || undefined,
+          imageUrls: images.length > 0 ? images : undefined,
           styleAttributes: Object.keys(styleAttributes).length > 0 ? styleAttributes : undefined,
           weatherTags: tags.length > 0 ? tags : undefined,
         },
@@ -133,6 +149,53 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
     } catch (error) {
       console.error('Failed to re-tag item:', error);
       alert('Failed to start re-tagging');
+    }
+  };
+
+  const handleViewChange = (index: number, value: string) => {
+    setImages((prev) => {
+      const copy = [...prev];
+      if (copy[index]) copy[index] = { ...copy[index], view: value || undefined };
+      return copy;
+    });
+  };
+
+  const handleSetPrimary = (index: number) => {
+    setImages((prev) => prev.map((img, i) => ({ ...img, isPrimary: i === index ? true : false })));
+  };
+
+  const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !item.id) return;
+
+    setIsAddingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const uploadUrlResult = await getUploadUrl({
+        data: { contentType: file.type || 'image/jpeg', extension: ext },
+      });
+
+      const presignedUrl = (uploadUrlResult as any).data?.url || (uploadUrlResult as any).url;
+      const itemId = (uploadUrlResult as any).data?.itemId || (uploadUrlResult as any).itemId;
+      const key = (uploadUrlResult as any).data?.key || (uploadUrlResult as any).key;
+
+      if (!presignedUrl || !itemId) throw new Error('Failed to get upload URL');
+
+      await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'image/jpeg' },
+      });
+
+      await confirmUpload({ data: { itemId } });
+
+      setImages((prev) => [...prev, { url: key, isPrimary: prev.length === 0 }]);
+    } catch (error: any) {
+      console.error('Failed to add image:', error);
+      alert('Failed to upload additional image');
+    } finally {
+      setIsAddingImage(false);
+      if (addImageInputRef.current) addImageInputRef.current.value = '';
     }
   };
 
@@ -169,17 +232,78 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
                 )}
               </div>
 
-              <div className="mt-4 flex justify-center">
-                {item.originalImageUrl ? (
-                  <CachedImage src={item.originalImageUrl} cacheKey={item.id} alt="Item" className="max-h-64 object-contain rounded-md" />
-                ) : (
-                  <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400 rounded-md">
-                    No Image
+              {/* Image gallery */}
+              <div className="mt-4">
+                <div className="flex justify-center">
+                  {currentImage ? (
+                    <CachedImage src={currentImage.url} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
+                  ) : (
+                    <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400 rounded-md">
+                      No Image
+                    </div>
+                  )}
+                </div>
+
+                {/* Per-image controls: view + primary */}
+                {currentImage && (
+                  <div className="mt-2 flex items-center gap-3 justify-center text-xs">
+                    <select
+                      value={currentImage.view || ''}
+                      onChange={(e) => handleViewChange(selectedImageIndex, e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs"
+                    >
+                      {VIEW_OPTIONS.map((v) => (
+                        <option key={v} value={v}>{v || '(no view)'}</option>
+                      ))}
+                    </select>
+                    <label className="flex items-center gap-1 text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currentImage.isPrimary === true}
+                        onChange={() => handleSetPrimary(selectedImageIndex)}
+                        className="rounded"
+                      />
+                      Primary
+                    </label>
+                  </div>
+                )}
+
+                {/* Thumbnail row */}
+                {images.length > 0 && (
+                  <div className="mt-3 flex gap-2 justify-center">
+                    {images.map((img, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(idx)}
+                        className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
+                      >
+                        <CachedImage src={img.url} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => addImageInputRef.current?.click()}
+                      disabled={isAddingImage}
+                      className="w-16 h-16 rounded border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-600 transition flex-shrink-0 disabled:opacity-50"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                    <input
+                      ref={addImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleAddImage}
+                    />
                   </div>
                 )}
               </div>
 
-              <form onSubmit={handleUpdate} className="mt-6 space-y-3 max-h-[50vh] overflow-y-auto">
+              <form onSubmit={handleUpdate} className="mt-4 space-y-3 max-h-[50vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700">Name</label>

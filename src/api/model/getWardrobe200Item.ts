@@ -10,9 +10,7 @@ export type GetWardrobe200Item = {
   ownerId: string;
   /** @nullable */
   name: string | null;
-  originalImageUrl: string;
-  /** @nullable */
-  normalizedImageUrl: string | null;
+  imageUrls?: unknown | null;
   category: string;
   taggingStatus: string;
   weatherTags?: unknown | null;
