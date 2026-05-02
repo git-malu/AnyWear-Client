@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag, usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
+import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import CachedImage from '../../components/CachedImage';
 import { parseImageUrls } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
+import { AXIOS_INSTANCE } from '../../api/custom-instance';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -82,8 +83,6 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
   const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
   const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
   const { mutateAsync: retagItem, isPending: isRetagging } = usePostWardrobeItemsItemIdRetag();
-  const { mutateAsync: getUploadUrl } = usePostWardrobeUploadUrl();
-  const { mutateAsync: confirmUpload } = usePostWardrobeUpload();
 
   useEffect(() => {
     if (item) {
@@ -164,6 +163,21 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
     setImages((prev) => prev.map((img, i) => ({ ...img, isPrimary: i === index ? true : false })));
   };
 
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length > 0 && next.every((img) => img.isPrimary !== true)) {
+        next[0] = { ...next[0], isPrimary: true };
+      }
+      return next;
+    });
+    setSelectedImageIndex((prev) => {
+      if (index === prev) return 0;
+      if (index < prev) return prev - 1;
+      return prev;
+    });
+  };
+
   const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !item.id) return;
@@ -171,15 +185,16 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
     setIsAddingImage(true);
     try {
       const ext = file.name.split('.').pop() || 'jpg';
-      const uploadUrlResult = await getUploadUrl({
-        data: { contentType: file.type || 'image/jpeg', extension: ext },
-      });
+      const { data: uploadData } = await AXIOS_INSTANCE.post(
+        `/wardrobe/items/${item.id}/upload-url`,
+        { contentType: file.type || 'image/jpeg', extension: ext },
+      );
 
-      const presignedUrl = (uploadUrlResult as any).data?.url || (uploadUrlResult as any).url;
-      const itemId = (uploadUrlResult as any).data?.itemId || (uploadUrlResult as any).itemId;
-      const key = (uploadUrlResult as any).data?.key || (uploadUrlResult as any).key;
+      const presignedUrl: string = uploadData.url;
+      const key: string = uploadData.key;
+      const downloadUrl: string = uploadData.downloadUrl || key;
 
-      if (!presignedUrl || !itemId) throw new Error('Failed to get upload URL');
+      if (!presignedUrl) throw new Error('Failed to get upload URL');
 
       await fetch(presignedUrl, {
         method: 'PUT',
@@ -187,9 +202,8 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
         headers: { 'Content-Type': file.type || 'image/jpeg' },
       });
 
-      await confirmUpload({ data: { itemId } });
-
-      setImages((prev) => [...prev, { url: key, isPrimary: prev.length === 0 }]);
+      setImages((prev) => [...prev, { url: downloadUrl, isPrimary: prev.length === 0 }]);
+      setSelectedImageIndex(images.length);
     } catch (error: any) {
       console.error('Failed to add image:', error);
       alert('Failed to upload additional image');
@@ -272,14 +286,22 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
                 {images.length > 0 && (
                   <div className="mt-3 flex gap-2 justify-center">
                     {images.map((img, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedImageIndex(idx)}
-                        className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
-                      >
-                        <CachedImage src={img.url} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
-                      </button>
+                      <div key={idx} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedImageIndex(idx)}
+                          className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
+                        >
+                          <CachedImage src={img.url} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveImage(idx); }}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] leading-none hover:bg-red-600 transition"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                     <button
                       type="button"
