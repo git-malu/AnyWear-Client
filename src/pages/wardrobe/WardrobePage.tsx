@@ -145,8 +145,8 @@ export default function WardrobePage() {
                 onClick={() => !isProcessing && setSelectedItem(item)}
               >
                 <div className="aspect-w-3 aspect-h-4 bg-gray-200">
-                  {getPrimaryImage(item.imageUrls) ? (
-                    <CachedImage src={getPrimaryImage(item.imageUrls)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="object-cover" />
+                  {getPrimaryImage(item.imageKeys) ? (
+                    <CachedImage src={getPrimaryImage(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="object-cover" />
                   ) : (
                     <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400">
                       No Image

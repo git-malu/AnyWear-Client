@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import CachedImage from '../../components/CachedImage';
-import { parseImageUrls } from '../../lib/image-utils';
+import { parseImageKeys } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
 
@@ -91,7 +91,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
       setCategory(item.category || '');
       setAttrs(parseStyleAttributes(item.styleAttributes));
       setWeatherTagsInput(parseWeatherTags(item.weatherTags).join(', '));
-      const parsed = parseImageUrls(item.imageUrls);
+      const parsed = parseImageKeys(item.imageKeys);
       setImages(parsed);
       setSelectedImageIndex(0);
     }
@@ -117,7 +117,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
         data: {
           name: name || undefined,
           category: category || undefined,
-          imageUrls: images.length > 0 ? images : undefined,
+          imageKeys: images.length > 0 ? images : undefined,
           styleAttributes: Object.keys(styleAttributes).length > 0 ? styleAttributes : undefined,
           weatherTags: tags.length > 0 ? tags : undefined,
         },
@@ -203,7 +203,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
         headers: { 'Content-Type': file.type || 'image/jpeg' },
       });
 
-      setImages((prev) => [...prev, { url: key, isPrimary: prev.length === 0 }]);
+      setImages((prev) => [...prev, { key, isPrimary: prev.length === 0 }]);
       pendingDisplayUrls.current.set(key, downloadUrl);
       setSelectedImageIndex(images.length);
     } catch (error: any) {
@@ -256,7 +256,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
               <div className="mt-4">
                 <div className="flex justify-center">
                   {currentImage ? (
-                    <CachedImage src={getDisplayUrl(currentImage.url)} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
+                    <CachedImage src={getDisplayUrl(currentImage.key)} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
                   ) : (
                     <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400 rounded-md">
                       No Image
@@ -298,7 +298,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
                           onClick={() => setSelectedImageIndex(idx)}
                           className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
                         >
-                          <CachedImage src={getDisplayUrl(img.url)} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                          <CachedImage src={getDisplayUrl(img.key)} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
                         </button>
                         <button
                           type="button"

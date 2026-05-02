@@ -6,7 +6,7 @@ const mockItem = {
   id: ITEM_ID,
   ownerId: 'test-user-id',
   name: 'My T-Shirt',
-  imageUrls: [{ url: 'https://example.com/test.jpg', isPrimary: true }],
+  imageKeys: [{ key: 'https://example.com/test.jpg', isPrimary: true }],
   category: 'Top',
   taggingStatus: 'processing',
   weatherTags: ['Warm', 'Temperate'],

@@ -4,12 +4,12 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { PatchWardrobeItemsIdBodyImageUrlsItem } from './patchWardrobeItemsIdBodyImageUrlsItem';
+import type { PatchWardrobeItemsIdBodyImageKeysItem } from './patchWardrobeItemsIdBodyImageKeysItem';
 import type { PatchWardrobeItemsIdBodyStyleAttributes } from './patchWardrobeItemsIdBodyStyleAttributes';
 
 export type PatchWardrobeItemsIdBody = {
   name?: string;
-  imageUrls?: PatchWardrobeItemsIdBodyImageUrlsItem[];
+  imageKeys?: PatchWardrobeItemsIdBodyImageKeysItem[];
   category?: string;
   weatherTags?: string[];
   styleAttributes?: PatchWardrobeItemsIdBodyStyleAttributes;
