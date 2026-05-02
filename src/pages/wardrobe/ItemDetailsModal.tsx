@@ -79,6 +79,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isAddingImage, setIsAddingImage] = useState(false);
   const addImageInputRef = useRef<HTMLInputElement>(null);
+  const pendingDisplayUrls = useRef<Map<string, string>>(new Map());
 
   const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
   const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
@@ -202,7 +203,8 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
         headers: { 'Content-Type': file.type || 'image/jpeg' },
       });
 
-      setImages((prev) => [...prev, { url: downloadUrl, isPrimary: prev.length === 0 }]);
+      setImages((prev) => [...prev, { url: key, isPrimary: prev.length === 0 }]);
+      pendingDisplayUrls.current.set(key, downloadUrl);
       setSelectedImageIndex(images.length);
     } catch (error: any) {
       console.error('Failed to add image:', error);
@@ -211,6 +213,10 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
       setIsAddingImage(false);
       if (addImageInputRef.current) addImageInputRef.current.value = '';
     }
+  };
+
+  const getDisplayUrl = (rawUrl: string): string => {
+    return pendingDisplayUrls.current.get(rawUrl) || rawUrl;
   };
 
   const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';
@@ -250,7 +256,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
               <div className="mt-4">
                 <div className="flex justify-center">
                   {currentImage ? (
-                    <CachedImage src={currentImage.url} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
+                    <CachedImage src={getDisplayUrl(currentImage.url)} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
                   ) : (
                     <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400 rounded-md">
                       No Image
@@ -292,7 +298,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
                           onClick={() => setSelectedImageIndex(idx)}
                           className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
                         >
-                          <CachedImage src={img.url} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                          <CachedImage src={getDisplayUrl(img.url)} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
                         </button>
                         <button
                           type="button"
