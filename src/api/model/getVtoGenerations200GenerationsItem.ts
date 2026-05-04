@@ -14,7 +14,7 @@ export type GetVtoGenerations200GenerationsItem = {
   createdAt: string;
   status: string;
   /** @nullable */
-  generatedImageUrl: string | null;
+  imageKey: string | null;
   /**
      * @minimum 0
      * @maximum 5

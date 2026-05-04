@@ -10,7 +10,7 @@ export type GetVtoGenerationsGenerationId200 = {
   generation_id: string;
   status: GetVtoGenerationsGenerationId200Status;
   /** @nullable */
-  generated_image_url?: string | null;
+  image_key?: string | null;
   /** @nullable */
   error_message?: string | null;
   created_at: string;

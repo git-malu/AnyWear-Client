@@ -64,9 +64,9 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
               return (
                 <div key={gen.id} className="relative group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="aspect-[3/4] bg-gray-200">
-                    {gen.generatedImageUrl ? (
+                    {gen.imageKey ? (
                       <CachedImage
-                        src={gen.generatedImageUrl}
+                        src={gen.imageKey}
                         cacheKey={`vto-hist-${gen.id}`}
                         alt="Try-on history"
                         className="w-full h-full object-cover"
@@ -116,9 +116,9 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       </>
                     ) : (
                       <>
-                        {gen.generatedImageUrl && (
+                        {gen.imageKey && (
                           <button
-                            onClick={() => setViewImageUrl(gen.generatedImageUrl)}
+                            onClick={() => setViewImageUrl(gen.imageKey)}
                             className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
                           >
                             View Full

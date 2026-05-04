@@ -8,7 +8,7 @@
 export type PostVtoBasePhotos201 = {
   id: string;
   userId: string;
-  imageUrl: string;
+  imageKey: string;
   isDefault: boolean;
   createdAt: string;
   /** @nullable */

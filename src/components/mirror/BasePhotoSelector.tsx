@@ -127,7 +127,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
               onClick={() => onSelect(photo.id)}
             >
               <CachedImage
-                src={photo.thumbnailUrl || photo.imageUrl}
+                src={photo.thumbnailUrl || photo.imageKey}
                 cacheKey={`vto-base-${photo.id}`}
                 alt="Base photo"
                 className="w-full aspect-[3/4] object-cover"

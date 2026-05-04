@@ -103,7 +103,7 @@ export default function MirrorPage() {
             vtoId={vtoId}
             onRetry={handleGenerate}
             onRate={handleRate}
-            currentRating={result?.generated_image_url ? null : null}
+            currentRating={result?.image_key ? null : null}
           />
         </div>
 

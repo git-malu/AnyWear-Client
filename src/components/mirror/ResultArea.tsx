@@ -36,7 +36,7 @@ export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: Re
   }, [vtoId, statusData?.status]);
 
   const status = statusData?.status;
-  const imageUrl = statusData?.generated_image_url ?? null;
+  const imageUrl = statusData?.image_key ?? null;
   const errorMessage = statusData?.error_message ?? null;
 
   if (!vtoId) {
