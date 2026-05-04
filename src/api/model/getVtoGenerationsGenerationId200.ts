@@ -4,11 +4,11 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetVtoStatusVtoId200Status } from './getVtoStatusVtoId200Status';
+import type { GetVtoGenerationsGenerationId200Status } from './getVtoGenerationsGenerationId200Status';
 
-export type GetVtoStatusVtoId200 = {
-  vto_id: string;
-  status: GetVtoStatusVtoId200Status;
+export type GetVtoGenerationsGenerationId200 = {
+  generation_id: string;
+  status: GetVtoGenerationsGenerationId200Status;
   /** @nullable */
   generated_image_url?: string | null;
   /** @nullable */

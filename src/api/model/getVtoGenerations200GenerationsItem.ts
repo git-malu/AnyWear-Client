@@ -4,9 +4,9 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetVtoHistory200GenerationsItemItemsItem } from './getVtoHistory200GenerationsItemItemsItem';
+import type { GetVtoGenerations200GenerationsItemItemsItem } from './getVtoGenerations200GenerationsItemItemsItem';
 
-export type GetVtoHistory200GenerationsItem = {
+export type GetVtoGenerations200GenerationsItem = {
   id: string;
   userId?: string;
   /** @nullable */
@@ -24,5 +24,5 @@ export type GetVtoHistory200GenerationsItem = {
   /** @nullable */
   promptUsed: string | null;
   advancedSettings?: unknown | null;
-  items: GetVtoHistory200GenerationsItemItemsItem[];
+  items: GetVtoGenerations200GenerationsItemItemsItem[];
 };

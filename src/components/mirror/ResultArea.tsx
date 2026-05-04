@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useGetVtoStatusVtoId } from '../../api/endpoints/vto/vto';
+import { useGetVtoGenerationsGenerationId } from '../../api/endpoints/vto/vto';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
-import type { GetVtoStatusVtoId200 } from '../../api/model/getVtoStatusVtoId200';
+import type { GetVtoGenerationsGenerationId200 } from '../../api/model/getVtoGenerationsGenerationId200';
 
 interface ResultAreaProps {
   vtoId: string | null;
@@ -14,10 +14,10 @@ interface ResultAreaProps {
 export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: ResultAreaProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  const { data: statusData } = useGetVtoStatusVtoId(vtoId ?? '', {
+  const { data: statusData } = useGetVtoGenerationsGenerationId(vtoId ?? '', {
     query: {
       refetchInterval: (query) => {
-        const d = query.state.data as GetVtoStatusVtoId200 | undefined;
+        const d = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
         if (d && (d.status === 'Pending' || d.status === 'Processing')) return 2000;
         return false;
       },

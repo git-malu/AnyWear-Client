@@ -4,13 +4,13 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { PostVtoGenerateBodyAdvancedSettings } from './postVtoGenerateBodyAdvancedSettings';
+import type { PostVtoGenerationsBodyAdvancedSettings } from './postVtoGenerationsBodyAdvancedSettings';
 
-export type PostVtoGenerateBody = {
+export type PostVtoGenerationsBody = {
   base_photo_id: string;
   /** @minItems 1 */
   wearable_item_ids: string[];
   /** @maxLength 500 */
   prompt?: string;
-  advanced_settings?: PostVtoGenerateBodyAdvancedSettings;
+  advanced_settings?: PostVtoGenerationsBodyAdvancedSettings;
 };

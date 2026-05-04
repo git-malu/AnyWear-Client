@@ -2,8 +2,8 @@ import { useState } from 'react';
 import useVtoHistory from '../../hooks/useVtoHistory';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
-import type { GetVtoHistoryStatus } from '../../api/model/getVtoHistoryStatus';
-import type { GetVtoHistory200GenerationsItem } from '../../api/model/getVtoHistory200GenerationsItem';
+import type { GetVtoGenerationsStatus } from '../../api/model/getVtoGenerationsStatus';
+import type { GetVtoGenerations200GenerationsItem } from '../../api/model/getVtoGenerations200GenerationsItem';
 
 function relativeTime(dateStr: string): string {
   const now = Date.now();
@@ -33,7 +33,7 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
         <select
           value={filters.status ?? ''}
           onChange={(e) => {
-            const val = e.target.value as GetVtoHistoryStatus | '';
+            const val = e.target.value as GetVtoGenerationsStatus | '';
             setFilters({ ...filters, status: val || undefined });
           }}
           className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -59,7 +59,7 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {generations.map((gen: GetVtoHistory200GenerationsItem) => {
+            {generations.map((gen: GetVtoGenerations200GenerationsItem) => {
               const wearableItemIds = gen.items?.map((item) => item.id) ?? [];
               return (
                 <div key={gen.id} className="relative group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

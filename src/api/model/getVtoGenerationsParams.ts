@@ -4,9 +4,9 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetVtoHistoryStatus } from './getVtoHistoryStatus';
+import type { GetVtoGenerationsStatus } from './getVtoGenerationsStatus';
 
-export type GetVtoHistoryParams = {
+export type GetVtoGenerationsParams = {
 /**
  * @minimum 1
  */
@@ -16,7 +16,7 @@ page?: number;
  * @maximum 50
  */
 limit?: number;
-status?: GetVtoHistoryStatus;
+status?: GetVtoGenerationsStatus;
 from?: string;
 to?: string;
 };

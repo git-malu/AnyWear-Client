@@ -25,16 +25,16 @@ import type {
 
 import type {
   GetVtoBasePhotos200Item,
-  GetVtoHistory200,
-  GetVtoHistoryParams,
-  GetVtoStatusVtoId200,
+  GetVtoGenerations200,
+  GetVtoGenerationsGenerationId200,
+  GetVtoGenerationsParams,
   PatchVtoBasePhotosId200,
   PatchVtoBasePhotosIdBody,
-  PatchVtoHistoryIdRatingBody,
+  PatchVtoGenerationsGenerationIdRatingBody,
   PostVtoBasePhotos201,
   PostVtoBasePhotosBody,
-  PostVtoGenerate202,
-  PostVtoGenerateBody
+  PostVtoGenerations202,
+  PostVtoGenerationsBody
 } from '../../model';
 
 import { customInstance } from '../../custom-instance';
@@ -44,27 +44,27 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 
-export const postVtoGenerate = (
-    postVtoGenerateBody: PostVtoGenerateBody,
+export const postVtoGenerations = (
+    postVtoGenerationsBody: PostVtoGenerationsBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
-      return customInstance<PostVtoGenerate202>(
-      {url: `/vto/generate`, method: 'POST',
+      return customInstance<PostVtoGenerations202>(
+      {url: `/vto/generations`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
-      data: postVtoGenerateBody, signal
+      data: postVtoGenerationsBody, signal
     },
       options);
     }
 
 
 
-export const getPostVtoGenerateMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerate>>, TError,{data: PostVtoGenerateBody}, TContext>, request?: SecondParameter<typeof customInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerate>>, TError,{data: PostVtoGenerateBody}, TContext> => {
+export const getPostVtoGenerationsMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerations>>, TError,{data: PostVtoGenerationsBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerations>>, TError,{data: PostVtoGenerationsBody}, TContext> => {
 
-const mutationKey = ['postVtoGenerate'];
+const mutationKey = ['postVtoGenerations'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -74,10 +74,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postVtoGenerate>>, {data: PostVtoGenerateBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postVtoGenerations>>, {data: PostVtoGenerationsBody}> = (props) => {
           const {data} = props ?? {};
 
-          return  postVtoGenerate(data,requestOptions)
+          return  postVtoGenerations(data,requestOptions)
         }
 
 
@@ -87,112 +87,28 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type PostVtoGenerateMutationResult = NonNullable<Awaited<ReturnType<typeof postVtoGenerate>>>
-    export type PostVtoGenerateMutationBody = PostVtoGenerateBody
-    export type PostVtoGenerateMutationError = void
+    export type PostVtoGenerationsMutationResult = NonNullable<Awaited<ReturnType<typeof postVtoGenerations>>>
+    export type PostVtoGenerationsMutationBody = PostVtoGenerationsBody
+    export type PostVtoGenerationsMutationError = void
 
-    export const usePostVtoGenerate = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerate>>, TError,{data: PostVtoGenerateBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+    export const usePostVtoGenerations = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoGenerations>>, TError,{data: PostVtoGenerationsBody}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof postVtoGenerate>>,
+        Awaited<ReturnType<typeof postVtoGenerations>>,
         TError,
-        {data: PostVtoGenerateBody},
+        {data: PostVtoGenerationsBody},
         TContext
       > => {
-      return useMutation(getPostVtoGenerateMutationOptions(options), queryClient);
+      return useMutation(getPostVtoGenerationsMutationOptions(options), queryClient);
     }
-    export const getVtoStatusVtoId = (
-    vtoId: string,
+    export const getVtoGenerations = (
+    params?: GetVtoGenerationsParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
-      return customInstance<GetVtoStatusVtoId200>(
-      {url: `/vto/status/${vtoId}`, method: 'GET', signal
-    },
-      options);
-    }
-
-
-
-
-export const getGetVtoStatusVtoIdQueryKey = (vtoId: string,) => {
-    return [
-    `/vto/status/${vtoId}`
-    ] as const;
-    }
-
-
-export const getGetVtoStatusVtoIdQueryOptions = <TData = Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError = void>(vtoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetVtoStatusVtoIdQueryKey(vtoId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVtoStatusVtoId>>> = ({ signal }) => getVtoStatusVtoId(vtoId, requestOptions, signal);
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(vtoId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetVtoStatusVtoIdQueryResult = NonNullable<Awaited<ReturnType<typeof getVtoStatusVtoId>>>
-export type GetVtoStatusVtoIdQueryError = void
-
-
-export function useGetVtoStatusVtoId<TData = Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError = void>(
- vtoId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getVtoStatusVtoId>>,
-          TError,
-          Awaited<ReturnType<typeof getVtoStatusVtoId>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customInstance>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVtoStatusVtoId<TData = Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError = void>(
- vtoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getVtoStatusVtoId>>,
-          TError,
-          Awaited<ReturnType<typeof getVtoStatusVtoId>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof customInstance>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVtoStatusVtoId<TData = Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError = void>(
- vtoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useGetVtoStatusVtoId<TData = Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError = void>(
- vtoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoStatusVtoId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getGetVtoStatusVtoIdQueryOptions(vtoId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-export const getVtoHistory = (
-    params?: GetVtoHistoryParams,
- options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
-) => {
-
-
-      return customInstance<GetVtoHistory200>(
-      {url: `/vto/history`, method: 'GET',
+      return customInstance<GetVtoGenerations200>(
+      {url: `/vto/generations`, method: 'GET',
         params, signal
     },
       options);
@@ -201,66 +117,66 @@ export const getVtoHistory = (
 
 
 
-export const getGetVtoHistoryQueryKey = (params?: GetVtoHistoryParams,) => {
+export const getGetVtoGenerationsQueryKey = (params?: GetVtoGenerationsParams,) => {
     return [
-    `/vto/history`, ...(params ? [params] : [])
+    `/vto/generations`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetVtoHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getVtoHistory>>, TError = unknown>(params?: GetVtoHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getGetVtoGenerationsQueryOptions = <TData = Awaited<ReturnType<typeof getVtoGenerations>>, TError = unknown>(params?: GetVtoGenerationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetVtoHistoryQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getGetVtoGenerationsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVtoHistory>>> = ({ signal }) => getVtoHistory(params, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVtoGenerations>>> = ({ signal }) => getVtoGenerations(params, requestOptions, signal);
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type GetVtoHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getVtoHistory>>>
-export type GetVtoHistoryQueryError = unknown
+export type GetVtoGenerationsQueryResult = NonNullable<Awaited<ReturnType<typeof getVtoGenerations>>>
+export type GetVtoGenerationsQueryError = unknown
 
 
-export function useGetVtoHistory<TData = Awaited<ReturnType<typeof getVtoHistory>>, TError = unknown>(
- params: undefined |  GetVtoHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData>> & Pick<
+export function useGetVtoGenerations<TData = Awaited<ReturnType<typeof getVtoGenerations>>, TError = unknown>(
+ params: undefined |  GetVtoGenerationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getVtoHistory>>,
+          Awaited<ReturnType<typeof getVtoGenerations>>,
           TError,
-          Awaited<ReturnType<typeof getVtoHistory>>
+          Awaited<ReturnType<typeof getVtoGenerations>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVtoHistory<TData = Awaited<ReturnType<typeof getVtoHistory>>, TError = unknown>(
- params?: GetVtoHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData>> & Pick<
+export function useGetVtoGenerations<TData = Awaited<ReturnType<typeof getVtoGenerations>>, TError = unknown>(
+ params?: GetVtoGenerationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getVtoHistory>>,
+          Awaited<ReturnType<typeof getVtoGenerations>>,
           TError,
-          Awaited<ReturnType<typeof getVtoHistory>>
+          Awaited<ReturnType<typeof getVtoGenerations>>
         > , 'initialData'
       >, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVtoHistory<TData = Awaited<ReturnType<typeof getVtoHistory>>, TError = unknown>(
- params?: GetVtoHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export function useGetVtoGenerations<TData = Awaited<ReturnType<typeof getVtoGenerations>>, TError = unknown>(
+ params?: GetVtoGenerationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetVtoHistory<TData = Awaited<ReturnType<typeof getVtoHistory>>, TError = unknown>(
- params?: GetVtoHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoHistory>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export function useGetVtoGenerations<TData = Awaited<ReturnType<typeof getVtoGenerations>>, TError = unknown>(
+ params?: GetVtoGenerationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerations>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetVtoHistoryQueryOptions(params,options)
+  const queryOptions = getGetVtoGenerationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -270,28 +186,167 @@ export function useGetVtoHistory<TData = Awaited<ReturnType<typeof getVtoHistory
 
 
 
-export const patchVtoHistoryIdRating = (
-    id: string,
-    patchVtoHistoryIdRatingBody: PatchVtoHistoryIdRatingBody,
+export const getVtoGenerationsGenerationId = (
+    generationId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<GetVtoGenerationsGenerationId200>(
+      {url: `/vto/generations/${generationId}`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetVtoGenerationsGenerationIdQueryKey = (generationId: string,) => {
+    return [
+    `/vto/generations/${generationId}`
+    ] as const;
+    }
+
+
+export const getGetVtoGenerationsGenerationIdQueryOptions = <TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError = void>(generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVtoGenerationsGenerationIdQueryKey(generationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>> = ({ signal }) => getVtoGenerationsGenerationId(generationId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(generationId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetVtoGenerationsGenerationIdQueryResult = NonNullable<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>>
+export type GetVtoGenerationsGenerationIdQueryError = void
+
+
+export function useGetVtoGenerationsGenerationId<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError = void>(
+ generationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>,
+          TError,
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVtoGenerationsGenerationId<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>,
+          TError,
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVtoGenerationsGenerationId<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetVtoGenerationsGenerationId<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationId>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetVtoGenerationsGenerationIdQueryOptions(generationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+export const deleteVtoGenerationsGenerationId = (
+    generationId: string,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
       return customInstance<void>(
-      {url: `/vto/history/${id}/rating`, method: 'PATCH',
+      {url: `/vto/generations/${generationId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+export const getDeleteVtoGenerationsGenerationIdMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext> => {
+
+const mutationKey = ['deleteVtoGenerationsGenerationId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, {generationId: string}> = (props) => {
+          const {generationId} = props ?? {};
+
+          return  deleteVtoGenerationsGenerationId(generationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVtoGenerationsGenerationIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>>
+
+    export type DeleteVtoGenerationsGenerationIdMutationError = void
+
+    export const useDeleteVtoGenerationsGenerationId = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>,
+        TError,
+        {generationId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteVtoGenerationsGenerationIdMutationOptions(options), queryClient);
+    }
+    export const patchVtoGenerationsGenerationIdRating = (
+    generationId: string,
+    patchVtoGenerationsGenerationIdRatingBody: PatchVtoGenerationsGenerationIdRatingBody,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<void>(
+      {url: `/vto/generations/${generationId}/rating`, method: 'PATCH',
       headers: {'Content-Type': 'application/json', },
-      data: patchVtoHistoryIdRatingBody, signal
+      data: patchVtoGenerationsGenerationIdRatingBody, signal
     },
       options);
     }
 
 
 
-export const getPatchVtoHistoryIdRatingMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchVtoHistoryIdRating>>, TError,{id: string;data: PatchVtoHistoryIdRatingBody}, TContext>, request?: SecondParameter<typeof customInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof patchVtoHistoryIdRating>>, TError,{id: string;data: PatchVtoHistoryIdRatingBody}, TContext> => {
+export const getPatchVtoGenerationsGenerationIdRatingMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>, TError,{generationId: string;data: PatchVtoGenerationsGenerationIdRatingBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>, TError,{generationId: string;data: PatchVtoGenerationsGenerationIdRatingBody}, TContext> => {
 
-const mutationKey = ['patchVtoHistoryIdRating'];
+const mutationKey = ['patchVtoGenerationsGenerationIdRating'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -301,10 +356,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchVtoHistoryIdRating>>, {id: string;data: PatchVtoHistoryIdRatingBody}> = (props) => {
-          const {id,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>, {generationId: string;data: PatchVtoGenerationsGenerationIdRatingBody}> = (props) => {
+          const {generationId,data} = props ?? {};
 
-          return  patchVtoHistoryIdRating(id,data,requestOptions)
+          return  patchVtoGenerationsGenerationIdRating(generationId,data,requestOptions)
         }
 
 
@@ -314,74 +369,19 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type PatchVtoHistoryIdRatingMutationResult = NonNullable<Awaited<ReturnType<typeof patchVtoHistoryIdRating>>>
-    export type PatchVtoHistoryIdRatingMutationBody = PatchVtoHistoryIdRatingBody
-    export type PatchVtoHistoryIdRatingMutationError = void
+    export type PatchVtoGenerationsGenerationIdRatingMutationResult = NonNullable<Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>>
+    export type PatchVtoGenerationsGenerationIdRatingMutationBody = PatchVtoGenerationsGenerationIdRatingBody
+    export type PatchVtoGenerationsGenerationIdRatingMutationError = void
 
-    export const usePatchVtoHistoryIdRating = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchVtoHistoryIdRating>>, TError,{id: string;data: PatchVtoHistoryIdRatingBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+    export const usePatchVtoGenerationsGenerationIdRating = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>, TError,{generationId: string;data: PatchVtoGenerationsGenerationIdRatingBody}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof patchVtoHistoryIdRating>>,
+        Awaited<ReturnType<typeof patchVtoGenerationsGenerationIdRating>>,
         TError,
-        {id: string;data: PatchVtoHistoryIdRatingBody},
+        {generationId: string;data: PatchVtoGenerationsGenerationIdRatingBody},
         TContext
       > => {
-      return useMutation(getPatchVtoHistoryIdRatingMutationOptions(options), queryClient);
-    }
-    export const deleteVtoHistoryId = (
-    id: string,
- options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
-) => {
-
-
-      return customInstance<void>(
-      {url: `/vto/history/${id}`, method: 'DELETE', signal
-    },
-      options);
-    }
-
-
-
-export const getDeleteVtoHistoryIdMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext> => {
-
-const mutationKey = ['deleteVtoHistoryId'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVtoHistoryId>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteVtoHistoryId(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteVtoHistoryIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVtoHistoryId>>>
-
-    export type DeleteVtoHistoryIdMutationError = void
-
-    export const useDeleteVtoHistoryId = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof deleteVtoHistoryId>>,
-        TError,
-        {id: string},
-        TContext
-      > => {
-      return useMutation(getDeleteVtoHistoryIdMutationOptions(options), queryClient);
+      return useMutation(getPatchVtoGenerationsGenerationIdRatingMutationOptions(options), queryClient);
     }
     export const postVtoBasePhotos = (
     postVtoBasePhotosBody: PostVtoBasePhotosBody,

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GetVtoHistory200GenerationsItemItemsItem = {
+export type GetVtoGenerations200GenerationsItemItemsItem = {
   id: string;
   /** @nullable */
   name: string | null;

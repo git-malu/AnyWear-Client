@@ -1,26 +1,26 @@
 import { useState, useCallback } from 'react';
-import { useGetVtoHistory, usePatchVtoHistoryIdRating, useDeleteVtoHistoryId } from '../api/endpoints/vto/vto';
-import type { GetVtoHistoryParams } from '../api/model/getVtoHistoryParams';
+import { useGetVtoGenerations, usePatchVtoGenerationsGenerationIdRating, useDeleteVtoGenerationsGenerationId } from '../api/endpoints/vto/vto';
+import type { GetVtoGenerationsParams } from '../api/model/getVtoGenerationsParams';
 import { keepPreviousData } from '@tanstack/react-query';
 
 const DEFAULT_LIMIT = 12;
 
 export default function useVtoHistory() {
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState<GetVtoHistoryParams>({ limit: DEFAULT_LIMIT });
+  const [filters, setFilters] = useState<GetVtoGenerationsParams>({ limit: DEFAULT_LIMIT });
 
-  const params: GetVtoHistoryParams = {
+  const params: GetVtoGenerationsParams = {
     ...filters,
     page,
     limit: DEFAULT_LIMIT,
   };
 
-  const { data, isLoading, refetch } = useGetVtoHistory(params, {
+  const { data, isLoading, refetch } = useGetVtoGenerations(params, {
     query: { placeholderData: keepPreviousData },
   });
 
-  const rateMutation = usePatchVtoHistoryIdRating();
-  const deleteMutation = useDeleteVtoHistoryId();
+  const rateMutation = usePatchVtoGenerationsGenerationIdRating();
+  const deleteMutation = useDeleteVtoGenerationsGenerationId();
 
   const generations = data?.generations ?? [];
   const total = data?.total ?? 0;
@@ -30,9 +30,9 @@ export default function useVtoHistory() {
     setPage(newPage);
   }, []);
 
-  const rateGeneration = useCallback((id: string, rating: number) => {
+  const rateGeneration = useCallback((generationId: string, rating: number) => {
     rateMutation.mutate(
-      { id, data: { rating } },
+      { generationId, data: { rating } },
       {
         onSuccess: () => {
           refetch();
@@ -41,9 +41,9 @@ export default function useVtoHistory() {
     );
   }, [rateMutation, refetch]);
 
-  const deleteGeneration = useCallback((id: string) => {
+  const deleteGeneration = useCallback((generationId: string) => {
     deleteMutation.mutate(
-      { id },
+      { generationId },
       {
         onSuccess: () => {
           refetch();

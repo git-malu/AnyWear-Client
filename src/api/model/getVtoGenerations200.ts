@@ -4,10 +4,10 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetVtoHistory200GenerationsItem } from './getVtoHistory200GenerationsItem';
+import type { GetVtoGenerations200GenerationsItem } from './getVtoGenerations200GenerationsItem';
 
-export type GetVtoHistory200 = {
-  generations: GetVtoHistory200GenerationsItem[];
+export type GetVtoGenerations200 = {
+  generations: GetVtoGenerations200GenerationsItem[];
   total: number;
   page: number;
   limit: number;

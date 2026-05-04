@@ -5,4 +5,6 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type PostVtoGenerateBodyAdvancedSettings = {[key: string]: unknown | null};
+export type PostVtoGenerations202 = {
+  generation_id: string;
+};

@@ -1,0 +1,8 @@
+src/components/mirror/ResultArea.tsx(2,10): error TS2305: Module '"../../api/endpoints/vto/vto"' has no exported member 'useGetVtoStatusVtoId'.
+src/components/mirror/ResultArea.tsx(19,25): error TS7006: Parameter 'query' implicitly has an 'any' type.
+src/hooks/useVtoGeneration.ts(2,10): error TS2724: '"../api/endpoints/vto/vto"' has no exported member named 'usePostVtoGenerate'. Did you mean 'usePostVtoGenerations'?
+src/hooks/useVtoGeneration.ts(2,30): error TS2305: Module '"../api/endpoints/vto/vto"' has no exported member 'useGetVtoStatusVtoId'.
+src/hooks/useVtoGeneration.ts(16,25): error TS7006: Parameter 'query' implicitly has an 'any' type.
+src/hooks/useVtoHistory.ts(2,10): error TS2305: Module '"../api/endpoints/vto/vto"' has no exported member 'useGetVtoHistory'.
+src/hooks/useVtoHistory.ts(2,28): error TS2305: Module '"../api/endpoints/vto/vto"' has no exported member 'usePatchVtoHistoryIdRating'.
+src/hooks/useVtoHistory.ts(2,56): error TS2305: Module '"../api/endpoints/vto/vto"' has no exported member 'useDeleteVtoHistoryId'.
