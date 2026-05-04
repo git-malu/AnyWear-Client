@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useGetVtoHistory, usePatchVtoHistoryIdRating } from '../api/endpoints/vto/vto';
+import { useGetVtoHistory, usePatchVtoHistoryIdRating, useDeleteVtoHistoryId } from '../api/endpoints/vto/vto';
 import type { GetVtoHistoryParams } from '../api/model/getVtoHistoryParams';
 import { keepPreviousData } from '@tanstack/react-query';
 
@@ -20,6 +20,7 @@ export default function useVtoHistory() {
   });
 
   const rateMutation = usePatchVtoHistoryIdRating();
+  const deleteMutation = useDeleteVtoHistoryId();
 
   const generations = data?.generations ?? [];
   const total = data?.total ?? 0;
@@ -40,5 +41,16 @@ export default function useVtoHistory() {
     );
   }, [rateMutation, refetch]);
 
-  return { generations, total, page, nextPage, goToPage, isLoading, filters, setFilters, rateGeneration };
+  const deleteGeneration = useCallback((id: string) => {
+    deleteMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          refetch();
+        },
+      }
+    );
+  }, [deleteMutation, refetch]);
+
+  return { generations, total, page, nextPage, goToPage, isLoading, filters, setFilters, rateGeneration, deleteGeneration };
 }

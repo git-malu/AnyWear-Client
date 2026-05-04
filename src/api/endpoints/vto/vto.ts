@@ -328,6 +328,61 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getPatchVtoHistoryIdRatingMutationOptions(options), queryClient);
     }
+    export const deleteVtoHistoryId = (
+    id: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<void>(
+      {url: `/vto/history/${id}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+export const getDeleteVtoHistoryIdMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteVtoHistoryId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVtoHistoryId>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteVtoHistoryId(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVtoHistoryIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVtoHistoryId>>>
+
+    export type DeleteVtoHistoryIdMutationError = void
+
+    export const useDeleteVtoHistoryId = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoHistoryId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVtoHistoryId>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteVtoHistoryIdMutationOptions(options), queryClient);
+    }
     export const postVtoBasePhotos = (
     postVtoBasePhotosBody: PostVtoBasePhotosBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal

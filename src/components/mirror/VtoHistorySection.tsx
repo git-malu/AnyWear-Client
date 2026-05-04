@@ -23,8 +23,9 @@ interface VtoHistorySectionProps {
 }
 
 export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionProps) {
-  const { generations, total, page, nextPage, goToPage, isLoading, filters, setFilters, rateGeneration } = useVtoHistory();
+  const { generations, total, page, nextPage, goToPage, isLoading, filters, setFilters, rateGeneration, deleteGeneration } = useVtoHistory();
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div>
@@ -96,29 +97,55 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       <RatingWidget rating={null} onChange={(r) => rateGeneration(gen.id, r)} />
                     )}
                   </div>
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3">
-                    {gen.generatedImageUrl && (
-                      <button
-                        onClick={() => setViewImageUrl(gen.generatedImageUrl)}
-                        className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
-                      >
-                        View Full
-                      </button>
+                  <div className={`absolute inset-0 bg-black/50 transition-opacity flex flex-col items-center justify-center gap-2 p-3 ${confirmDeleteId === gen.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                    {confirmDeleteId === gen.id ? (
+                      <>
+                        <p className="text-white text-xs font-medium text-center">Delete this try-on?</p>
+                        <button
+                          onClick={() => { deleteGeneration(gen.id); setConfirmDeleteId(null); }}
+                          className="w-full text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 text-center"
+                        >
+                          Yes, Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {gen.generatedImageUrl && (
+                          <button
+                            onClick={() => setViewImageUrl(gen.generatedImageUrl)}
+                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                          >
+                            View Full
+                          </button>
+                        )}
+                        {wearableItemIds.length > 0 && (
+                          <button
+                            onClick={() => onReuseOutfit(wearableItemIds)}
+                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                          >
+                            Reuse Outfit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {/* re-submit handled by parent */}}
+                          className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                        >
+                          Retry
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(gen.id)}
+                          className="w-full text-xs bg-red-500/90 text-white px-3 py-1.5 rounded hover:bg-red-500 text-center"
+                        >
+                          Delete
+                        </button>
+                      </>
                     )}
-                    {wearableItemIds.length > 0 && (
-                      <button
-                        onClick={() => onReuseOutfit(wearableItemIds)}
-                        className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
-                      >
-                        Reuse Outfit
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {/* re-submit handled by parent */}}
-                      className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
-                    >
-                      Retry
-                    </button>
                   </div>
                 </div>
               );
