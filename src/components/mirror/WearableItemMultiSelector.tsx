@@ -5,12 +5,12 @@ import { getPrimaryImage } from '../../lib/image-utils';
 import type { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import type { GetWardrobeParams } from '../../api/model/getWardrobeParams';
 
-interface GarmentMultiSelectorProps {
+interface WearableItemMultiSelectorProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
 }
 
-export default function GarmentMultiSelector({ selectedIds, onSelectionChange }: GarmentMultiSelectorProps) {
+export default function WearableItemMultiSelector({ selectedIds, onSelectionChange }: WearableItemMultiSelectorProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
 
@@ -49,7 +49,7 @@ export default function GarmentMultiSelector({ selectedIds, onSelectionChange }:
     <div>
       <div className="flex items-center justify-between mb-3">
         <span className={`text-sm font-medium ${selectedIds.length > 0 ? 'text-indigo-600' : 'text-gray-500'}`}>
-          {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'No garments selected'}
+          {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'No wearable items selected'}
         </span>
       </div>
 
@@ -78,7 +78,7 @@ export default function GarmentMultiSelector({ selectedIds, onSelectionChange }:
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search garments..."
+        placeholder="Search wearable items..."
         className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3"
       />
 

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import MirrorErrorBoundary from '../../components/mirror/MirrorErrorBoundary';
 import CreditDisplay from '../../components/mirror/CreditDisplay';
 import BasePhotoSelector from '../../components/mirror/BasePhotoSelector';
-import GarmentMultiSelector from '../../components/mirror/GarmentMultiSelector';
+import WearableItemMultiSelector from '../../components/mirror/WearableItemMultiSelector';
 import StylePromptInput from '../../components/mirror/StylePromptInput';
 import TryOnButton from '../../components/mirror/TryOnButton';
 import ResultArea from '../../components/mirror/ResultArea';
@@ -12,23 +12,23 @@ import { useGetUsersMe } from '../../api/endpoints/users/users';
 
 export default function MirrorPage() {
   const [selectedBasePhotoId, setSelectedBasePhotoId] = useState<string | null>(null);
-  const [selectedGarmentIds, setSelectedGarmentIds] = useState<string[]>([]);
+  const [selectedWearableItemIds, setSelectedGarmentIds] = useState<string[]>([]);
   const [prompt, setPrompt] = useState('');
 
   const { generate, result, errorMessage, isPolling, isStarting, vtoId } = useVtoGeneration();
   const { data: user } = useGetUsersMe();
 
   const credits = user?.dailyCredits ?? 0;
-  const canGenerate = !!selectedBasePhotoId && selectedGarmentIds.length > 0 && credits > 0 && !isStarting && !isPolling;
+  const canGenerate = !!selectedBasePhotoId && selectedWearableItemIds.length > 0 && credits > 0 && !isStarting && !isPolling;
 
   const handleGenerate = useCallback(() => {
-    if (!selectedBasePhotoId || selectedGarmentIds.length === 0) return;
+    if (!selectedBasePhotoId || selectedWearableItemIds.length === 0) return;
     generate({
       base_photo_id: selectedBasePhotoId,
-      garment_ids: selectedGarmentIds,
+      wearable_item_ids: selectedWearableItemIds,
       prompt: prompt.trim() || undefined,
     });
-  }, [generate, selectedBasePhotoId, selectedGarmentIds, prompt]);
+  }, [generate, selectedBasePhotoId, selectedWearableItemIds, prompt]);
 
   const handleReuseOutfit = useCallback((ids: string[]) => {
     setSelectedGarmentIds(ids);
@@ -60,9 +60,9 @@ export default function MirrorPage() {
           </div>
 
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Garments</h2>
-            <GarmentMultiSelector
-              selectedIds={selectedGarmentIds}
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Wearable Items</h2>
+            <WearableItemMultiSelector
+              selectedIds={selectedWearableItemIds}
               onSelectionChange={setSelectedGarmentIds}
             />
           </div>
@@ -84,10 +84,10 @@ export default function MirrorPage() {
               {!selectedBasePhotoId && (
                 <p className="text-xs text-gray-400 text-center">Select a base photo to start</p>
               )}
-              {selectedBasePhotoId && selectedGarmentIds.length === 0 && (
-                <p className="text-xs text-gray-400 text-center">Select at least one garment</p>
+              {selectedBasePhotoId && selectedWearableItemIds.length === 0 && (
+                <p className="text-xs text-gray-400 text-center">Select at least one wearable item</p>
               )}
-              {selectedBasePhotoId && selectedGarmentIds.length > 0 && credits === 0 && (
+              {selectedBasePhotoId && selectedWearableItemIds.length > 0 && credits === 0 && (
                 <p className="text-xs text-red-500 text-center">Out of daily credits. Credits reset at midnight.</p>
               )}
               {errorMessage && (

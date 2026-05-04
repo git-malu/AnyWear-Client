@@ -88,7 +88,7 @@ jobs:
       - name: Verify Database Tables
         run: |
           psql postgresql://postgres:postgres@localhost:5432/anywear_dev -c "\dt" | tee /tmp/db-tables.txt
-          psql postgresql://postgres:postgres@localhost:5432/anywear_dev -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'clothing_items');" | grep -q "2" || { echo "ERROR: Expected tables not found!"; exit 1; }
+          psql postgresql://postgres:postgres@localhost:5432/anywear_dev -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'wearable_items');" | grep -q "2" || { echo "ERROR: Expected tables not found!"; exit 1; }
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4

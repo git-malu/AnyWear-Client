@@ -9,7 +9,7 @@ import type { PostVtoGenerateBodyAdvancedSettings } from './postVtoGenerateBodyA
 export type PostVtoGenerateBody = {
   base_photo_id: string;
   /** @minItems 1 */
-  garment_ids: string[];
+  wearable_item_ids: string[];
   /** @maxLength 500 */
   prompt?: string;
   advanced_settings?: PostVtoGenerateBodyAdvancedSettings;

@@ -19,7 +19,7 @@ function relativeTime(dateStr: string): string {
 }
 
 interface VtoHistorySectionProps {
-  onReuseOutfit: (garmentIds: string[]) => void;
+  onReuseOutfit: (wearableItemIds: string[]) => void;
 }
 
 export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionProps) {
@@ -53,13 +53,13 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
         </div>
       ) : generations.length === 0 ? (
         <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm text-gray-500">No try-on sessions yet. Select your base photo and garments above to get started.</p>
+          <p className="text-sm text-gray-500">No try-on sessions yet. Select your base photo and wearable items above to get started.</p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {generations.map((gen: GetVtoHistory200GenerationsItem) => {
-              const garmentIds = gen.items?.map((item) => item.id) ?? [];
+              const wearableItemIds = gen.items?.map((item) => item.id) ?? [];
               return (
                 <div key={gen.id} className="relative group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="aspect-[3/4] bg-gray-200">
@@ -88,7 +88,7 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       </span>
                     </div>
                     {gen.items.length > 0 && (
-                      <p className="text-xs text-gray-500">{gen.items.length} garment{gen.items.length !== 1 ? 's' : ''}</p>
+                      <p className="text-xs text-gray-500">{gen.items.length} wearable item{gen.items.length !== 1 ? 's' : ''}</p>
                     )}
                     {gen.rating != null ? (
                       <RatingWidget rating={gen.rating} onChange={() => {}} readonly />
@@ -105,9 +105,9 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                         View Full
                       </button>
                     )}
-                    {garmentIds.length > 0 && (
+                    {wearableItemIds.length > 0 && (
                       <button
-                        onClick={() => onReuseOutfit(garmentIds)}
+                        onClick={() => onReuseOutfit(wearableItemIds)}
                         className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
                       >
                         Reuse Outfit
