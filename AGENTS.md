@@ -111,3 +111,98 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
    - `gh run view <run-id>` — view details of a specific run
    - `gh run watch <run-id>` — live-stream a run's progress
    - `gh run view <run-id> --log-failed` — view logs for failed steps only
+
+---
+
+## 🧪 Agent-Driven E2E Testing (Playwright MCP)
+
+After implementing features, agents must drive the running application through Playwright MCP to verify end-to-end behavior. This replaces the need to write pre-scripted E2E tests for every feature — the agent explores the app autonomously.
+
+### Prerequisites
+
+The Vite dev server must be running (serves the React frontend at `http://localhost:1420`):
+```bash
+pnpm dev
+```
+
+The backend service (`AnyWear-Service`) must also be running with a database available. Ensure `VITE_API_BASE_URL` points to the running backend.
+
+### Launching Playwright MCP
+
+The agent connects to the app by invoking Playwright MCP as an MCP server tool. No project dependency is needed — it's invoked via `npx`:
+
+```bash
+npx @playwright/mcp@latest --browser chromium --headless
+```
+
+The following MCP tools are available for interacting with the app:
+
+| Tool | Usage |
+|------|-------|
+| `browser_navigate` | Navigate to a route: `browser_navigate("/login")` |
+| `browser_snapshot` | Capture a structured ARIA tree of the current page — the agent reads elements by `ref` and role |
+| `browser_click` | Click an element: `browser_click(ref="e12")` |
+| `browser_type` | Type into an input: `browser_type(ref="e28", text="hello")` |
+| `browser_fill_form` | Fill multiple fields at once |
+| `browser_wait_for` | Wait for text to appear/disappear |
+| `browser_evaluate` | Execute arbitrary JS in page context (for mocking, state injection) |
+| `browser_file_upload` | Upload files to file inputs |
+| `browser_console_messages` | Read all browser console output |
+| `browser_take_screenshot` | Capture a screenshot (PNG/JPEG) |
+| `browser_run_code_unsafe` | Run raw Playwright API code (escape hatch) |
+
+### Key Application Routes
+
+| Route | Page |
+|-------|------|
+| `/login` | Login page |
+| `/register` | Registration page |
+| `/dashboard` | Main dashboard (requires auth) |
+| `/wardrobe` | Wardrobe management (requires auth) |
+| `/mirror` | Virtual Try-On mirror (requires auth) |
+| `/settings` | User settings (requires auth) |
+
+### Authentication Bypass for Testing
+
+Since the agent runs in standalone Chromium (not the Tauri WebView2), Cognito's hosted UI OAuth flow is not directly usable. Instead, inject auth state via `browser_evaluate`:
+
+```js
+// Set localStorage to simulate authenticated state
+await browser_evaluate({ function: `() => window.localStorage.setItem('isAuthenticated', 'true')` });
+```
+
+If the backend requires a real JWT, obtain one via the Cognito Admin API or use the pre-registered test user pattern from `e2e/fixtures.ts`.
+
+### Mocking APIs
+
+Use `browser_evaluate` to patch `fetch` and return mock responses:
+
+```js
+// See e2e/agent-helpers.ts for pre-built injectable helpers
+await browser_evaluate({ function: helpers.mockApiRoute('/users/me', { id: 'test', email: 'test@anywear.local' }) });
+```
+
+### Testing Workflow
+
+After implementing a feature, follow this loop:
+
+1. **Navigate** — go to the relevant page
+2. **Snapshot** — capture the ARIA tree to understand the UI state
+3. **Interact** — click buttons, fill forms, upload files
+4. **Observe** — snapshot again, verify expected elements appeared
+5. **Check console** — read `browser_console_messages` for errors
+6. **Report** — log any anomalies found
+
+### Smoke Test
+
+To verify the pipeline is working before testing a specific feature:
+
+```bash
+# 1. Start the dev server
+pnpm dev
+
+# 2. Run the smoke verification script
+node scripts/agent-smoke.mjs
+```
+
+This confirms the dev server responds and required environment variables are set.
