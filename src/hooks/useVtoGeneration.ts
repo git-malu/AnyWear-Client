@@ -1,28 +1,45 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePostVtoGenerations, useGetVtoGenerationsGenerationId } from '../api/endpoints/vto/vto';
 import type { PostVtoGenerationsBody } from '../api/model/postVtoGenerationsBody';
 import type { GetVtoGenerationsGenerationId200 } from '../api/model/getVtoGenerationsGenerationId200';
 import type { GetVtoGenerationsGenerationId200Status } from '../api/model/getVtoGenerationsGenerationId200Status';
 import { useQueryClient } from '@tanstack/react-query';
+import { connectSse } from '../lib/sse';
 
 export default function useVtoGeneration() {
   const queryClient = useQueryClient();
   const [vtoId, setVtoId] = useState<string | null>(null);
+  const sseRef = useRef<ReturnType<typeof connectSse> | null>(null);
 
   const generateMutation = usePostVtoGenerations();
 
   const statusQuery = useGetVtoGenerationsGenerationId(vtoId ?? '', {
     query: {
-      refetchInterval: (query) => {
-        const data = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
-        if (data && (data.status === 'Pending' || data.status === 'Processing')) {
-          return 2000;
-        }
-        return false;
-      },
       enabled: !!vtoId,
     },
   });
+
+  useEffect(() => {
+    sseRef.current?.close();
+    sseRef.current = null;
+
+    if (!vtoId) return;
+
+    sseRef.current = connectSse<GetVtoGenerationsGenerationId200>(
+      `/vto/generations/${vtoId}/stream`,
+      (data) => {
+        queryClient.setQueryData(
+          [`/vto/generations/${vtoId}`],
+          data,
+        );
+      },
+    );
+
+    return () => {
+      sseRef.current?.close();
+      sseRef.current = null;
+    };
+  }, [vtoId, queryClient]);
 
   const status: GetVtoGenerationsGenerationId200Status | null = statusQuery.data?.status ?? null;
   const result: GetVtoGenerationsGenerationId200 | null = statusQuery.data ?? null;

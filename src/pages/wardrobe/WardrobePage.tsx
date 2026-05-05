@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGetWardrobe, useDeleteWardrobeItemsId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
 import { useGetOutfits, useDeleteOutfitsId } from '../../api/endpoints/outfits/outfits';
 import AddItemModal from './AddItemModal';
@@ -6,8 +6,10 @@ import CreateOutfitModal from './CreateOutfitModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import CachedImage from '../../components/CachedImage';
 import { getPrimaryImage } from '../../lib/image-utils';
+import { connectSse } from '../../lib/sse';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import { GetWardrobeParams } from '../../api/model/getWardrobeParams';
+import { useQueryClient } from '@tanstack/react-query';
 
 function getTagStatusBadge(status: string | undefined) {
   switch (status) {
@@ -43,17 +45,10 @@ export default function WardrobePage() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [filters, setFilters] = useState<GetWardrobeParams>({});
 
-  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters, {
-    query: {
-      refetchInterval: (query) => {
-        const items = Array.isArray(query.state.data) ? query.state.data : [];
-        const hasProcessing = items.some(
-          (item: any) => item.taggingStatus === 'processing' || item.taggingStatus === 'uploading'
-        );
-        return hasProcessing ? 2000 : false;
-      },
-    },
-  });
+  const queryClient = useQueryClient();
+
+  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters, {});
+
   const { data: categoriesResponse } = useGetWardrobeCategories();
   const { mutate: deleteItem } = useDeleteWardrobeItemsId();
   const { data: outfitsResponse, refetch: refetchOutfits } = useGetOutfits({ query: {} });
@@ -61,6 +56,30 @@ export default function WardrobePage() {
 
   const wardrobeData = Array.isArray(wardrobeResponse) ? wardrobeResponse : (wardrobeResponse as any)?.data && Array.isArray((wardrobeResponse as any).data) ? (wardrobeResponse as any).data : [];
   const categories = categoriesResponse?.categories ?? [];
+
+  useEffect(() => {
+    if (!wardrobeData || !Array.isArray(wardrobeData)) return;
+
+    const connections: Array<ReturnType<typeof connectSse>> = [];
+
+    for (const item of wardrobeData as GetWardrobe200Item[]) {
+      if (item.taggingStatus === 'processing' || item.taggingStatus === 'uploading') {
+        const conn = connectSse(
+          `/wardrobe/items/${item.id}/stream`,
+          (data) => {
+            if (data.tagging_status === 'ready' || data.tagging_status === 'failed') {
+              queryClient.invalidateQueries({ queryKey: ['/wardrobe'] });
+            }
+          },
+        );
+        connections.push(conn);
+      }
+    }
+
+    return () => {
+      connections.forEach((c) => c.close());
+    };
+  }, [wardrobeData, queryClient]);
 
   const handleDelete = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

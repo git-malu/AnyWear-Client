@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGetVtoGenerationsGenerationId } from '../../api/endpoints/vto/vto';
+import { useQueryClient } from '@tanstack/react-query';
+import { connectSse } from '../../lib/sse';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
 import type { GetVtoGenerationsGenerationId200 } from '../../api/model/getVtoGenerationsGenerationId200';
@@ -13,17 +15,36 @@ interface ResultAreaProps {
 
 export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: ResultAreaProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const queryClient = useQueryClient();
+  const sseRef = useRef<ReturnType<typeof connectSse> | null>(null);
 
   const { data: statusData } = useGetVtoGenerationsGenerationId(vtoId ?? '', {
     query: {
-      refetchInterval: (query) => {
-        const d = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
-        if (d && (d.status === 'Pending' || d.status === 'Processing')) return 2000;
-        return false;
-      },
       enabled: !!vtoId,
     },
   });
+
+  useEffect(() => {
+    sseRef.current?.close();
+    sseRef.current = null;
+
+    if (!vtoId) return;
+
+    sseRef.current = connectSse<GetVtoGenerationsGenerationId200>(
+      `/vto/generations/${vtoId}/stream`,
+      (data) => {
+        queryClient.setQueryData(
+          [`/vto/generations/${vtoId}`],
+          data,
+        );
+      },
+    );
+
+    return () => {
+      sseRef.current?.close();
+      sseRef.current = null;
+    };
+  }, [vtoId, queryClient]);
 
   useEffect(() => {
     if (!vtoId) {
