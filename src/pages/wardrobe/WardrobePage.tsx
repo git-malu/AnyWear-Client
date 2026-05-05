@@ -47,7 +47,18 @@ export default function WardrobePage() {
 
   const queryClient = useQueryClient();
 
-  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters, {});
+  const { data: wardrobeResponse, isLoading, refetch } = useGetWardrobe(filters, {
+    query: {
+      // Fallback polling: if SSE fails, the UI still updates within 10s
+      refetchInterval: (query) => {
+        const items = Array.isArray(query.state.data) ? query.state.data : [];
+        const hasProcessing = items.some(
+          (item: any) => item.taggingStatus === 'processing' || item.taggingStatus === 'uploading'
+        );
+        return hasProcessing ? 10000 : false;
+      },
+    },
+  });
 
   const { data: categoriesResponse } = useGetWardrobeCategories();
   const { mutate: deleteItem } = useDeleteWardrobeItemsId();

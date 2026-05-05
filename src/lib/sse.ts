@@ -23,9 +23,11 @@ export function connectSse<T = any>(
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
       if (!token) {
-        console.error('[SSE] No auth token available');
+        console.warn('[SSE] No auth token available, connection skipped');
         return;
       }
+
+      if (aborted) return;
 
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
       const url = `${baseUrl}${path}`;
@@ -63,6 +65,7 @@ export function connectSse<T = any>(
             if (!content) continue;
             try {
               const data = JSON.parse(content) as T;
+              console.log('[SSE] Event received:', data);
               onEvent(data);
             } catch {
               // skip non-JSON lines
