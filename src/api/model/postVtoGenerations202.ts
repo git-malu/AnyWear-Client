@@ -7,4 +7,5 @@
 
 export type PostVtoGenerations202 = {
   generation_id: string;
+  outfit_id: string;
 };

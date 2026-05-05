@@ -3,6 +3,7 @@ import MirrorErrorBoundary from '../../components/mirror/MirrorErrorBoundary';
 import CreditDisplay from '../../components/mirror/CreditDisplay';
 import BasePhotoSelector from '../../components/mirror/BasePhotoSelector';
 import WearableItemMultiSelector from '../../components/mirror/WearableItemMultiSelector';
+import OutfitPicker from '../../components/mirror/OutfitPicker';
 import StylePromptInput from '../../components/mirror/StylePromptInput';
 import TryOnButton from '../../components/mirror/TryOnButton';
 import ResultArea from '../../components/mirror/ResultArea';
@@ -10,33 +11,48 @@ import VtoHistorySection from '../../components/mirror/VtoHistorySection';
 import useVtoGeneration from '../../hooks/useVtoGeneration';
 import { useGetUsersMe } from '../../api/endpoints/users/users';
 
+type SelectionMode = 'outfit' | 'items';
+
 export default function MirrorPage() {
+  const [mode, setMode] = useState<SelectionMode>('items');
   const [selectedBasePhotoId, setSelectedBasePhotoId] = useState<string | null>(null);
-  const [selectedWearableItemIds, setSelectedGarmentIds] = useState<string[]>([]);
+  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
+  const [selectedWearableItemIds, setSelectedWearableItemIds] = useState<string[]>([]);
+  const [outfitName, setOutfitName] = useState('');
   const [prompt, setPrompt] = useState('');
 
   const { generate, result, errorMessage, isPolling, isStarting, vtoId } = useVtoGeneration();
   const { data: user } = useGetUsersMe();
 
   const credits = user?.dailyCredits ?? 0;
-  const canGenerate = !!selectedBasePhotoId && selectedWearableItemIds.length > 0 && credits > 0 && !isStarting && !isPolling;
+
+  const hasItems = mode === 'outfit' ? !!selectedOutfitId : selectedWearableItemIds.length > 0;
+  const canGenerate = !!selectedBasePhotoId && hasItems && credits > 0 && !isStarting && !isPolling;
 
   const handleGenerate = useCallback(() => {
-    if (!selectedBasePhotoId || selectedWearableItemIds.length === 0) return;
-    generate({
-      base_photo_id: selectedBasePhotoId,
-      wearable_item_ids: selectedWearableItemIds,
-      prompt: prompt.trim() || undefined,
-    });
-  }, [generate, selectedBasePhotoId, selectedWearableItemIds, prompt]);
+    if (!selectedBasePhotoId) return;
+
+    if (mode === 'outfit' && selectedOutfitId) {
+      generate({
+        base_photo_id: selectedBasePhotoId,
+        outfit_id: selectedOutfitId,
+        prompt: prompt.trim() || undefined,
+      });
+    } else if (mode === 'items' && selectedWearableItemIds.length > 0) {
+      generate({
+        base_photo_id: selectedBasePhotoId,
+        wearable_item_ids: selectedWearableItemIds,
+        outfit_name: outfitName.trim() || undefined,
+        prompt: prompt.trim() || undefined,
+      });
+    }
+  }, [generate, selectedBasePhotoId, mode, selectedOutfitId, selectedWearableItemIds, outfitName, prompt]);
 
   const handleReuseOutfit = useCallback((ids: string[]) => {
-    setSelectedGarmentIds(ids);
+    setMode('items');
+    setSelectedWearableItemIds(ids);
+    setSelectedOutfitId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const handleRate = useCallback((_rating: number) => {
-    // Rating will be handled by the hook integration
   }, []);
 
   return (
@@ -60,11 +76,50 @@ export default function MirrorPage() {
           </div>
 
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Wearable Items</h2>
-            <WearableItemMultiSelector
-              selectedIds={selectedWearableItemIds}
-              onSelectionChange={setSelectedGarmentIds}
-            />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Outfit</h2>
+              <div className="flex rounded-lg bg-gray-100 p-0.5">
+                <button
+                  onClick={() => { setMode('outfit'); setSelectedWearableItemIds([]); }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${mode === 'outfit' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Saved
+                </button>
+                <button
+                  onClick={() => { setMode('items'); setSelectedOutfitId(null); }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${mode === 'items' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Select Items
+                </button>
+              </div>
+            </div>
+
+            {mode === 'outfit' ? (
+              <OutfitPicker
+                selectedOutfitId={selectedOutfitId}
+                onSelect={setSelectedOutfitId}
+              />
+            ) : (
+              <>
+                <WearableItemMultiSelector
+                  selectedIds={selectedWearableItemIds}
+                  onSelectionChange={setSelectedWearableItemIds}
+                />
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Outfit Name (optional — auto-saved for reuse)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    value={outfitName}
+                    onChange={(e) => setOutfitName(e.target.value)}
+                    placeholder="e.g. Weekend Casual"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="bg-white shadow rounded-lg p-6">
@@ -84,10 +139,12 @@ export default function MirrorPage() {
               {!selectedBasePhotoId && (
                 <p className="text-xs text-gray-400 text-center">Select a base photo to start</p>
               )}
-              {selectedBasePhotoId && selectedWearableItemIds.length === 0 && (
-                <p className="text-xs text-gray-400 text-center">Select at least one wearable item</p>
+              {selectedBasePhotoId && !hasItems && (
+                <p className="text-xs text-gray-400 text-center">
+                  {mode === 'outfit' ? 'Select an outfit' : 'Select at least one wearable item'}
+                </p>
               )}
-              {selectedBasePhotoId && selectedWearableItemIds.length > 0 && credits === 0 && (
+              {selectedBasePhotoId && hasItems && credits === 0 && (
                 <p className="text-xs text-red-500 text-center">Out of daily credits. Credits reset at midnight.</p>
               )}
               {errorMessage && (
@@ -102,7 +159,7 @@ export default function MirrorPage() {
           <ResultArea
             vtoId={vtoId}
             onRetry={handleGenerate}
-            onRate={handleRate}
+            onRate={() => {}}
             currentRating={result?.image_key ? null : null}
           />
         </div>

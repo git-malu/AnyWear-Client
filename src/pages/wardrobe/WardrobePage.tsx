@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useGetWardrobe, useDeleteWardrobeItemsId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
+import { useGetOutfits, useDeleteOutfitsId } from '../../api/endpoints/outfits/outfits';
 import AddItemModal from './AddItemModal';
+import CreateOutfitModal from './CreateOutfitModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import CachedImage from '../../components/CachedImage';
 import { getPrimaryImage } from '../../lib/image-utils';
@@ -36,6 +38,7 @@ function getMaterialFromAttributes(styleAttributes: unknown): string | null {
 
 export default function WardrobePage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isOutfitModalOpen, setIsOutfitModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GetWardrobe200Item | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [filters, setFilters] = useState<GetWardrobeParams>({});
@@ -53,6 +56,8 @@ export default function WardrobePage() {
   });
   const { data: categoriesResponse } = useGetWardrobeCategories();
   const { mutate: deleteItem } = useDeleteWardrobeItemsId();
+  const { data: outfitsResponse, refetch: refetchOutfits } = useGetOutfits({ query: {} });
+  const { mutate: deleteOutfit } = useDeleteOutfitsId();
 
   const wardrobeData = Array.isArray(wardrobeResponse) ? wardrobeResponse : (wardrobeResponse as any)?.data && Array.isArray((wardrobeResponse as any).data) ? (wardrobeResponse as any).data : [];
   const categories = categoriesResponse?.categories ?? [];
@@ -82,6 +87,15 @@ export default function WardrobePage() {
   const handleRefresh = () => {
     setIsAddModalOpen(false);
     refetch();
+  };
+
+  const outfits = outfitsResponse?.outfits ?? [];
+
+  const handleDeleteOutfit = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (window.confirm('Delete this outfit?')) {
+      deleteOutfit({ id }, { onSuccess: () => refetchOutfits() });
+    }
   };
 
   return (
@@ -178,11 +192,80 @@ export default function WardrobePage() {
         </div>
       )}
 
+      {outfits.length > 0 && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">My Outfits</h2>
+            <button
+              onClick={() => setIsOutfitModalOpen(true)}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              + Create Outfit
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {outfits.map((outfit) => {
+              const firstItem = outfit.wearableItems?.[0];
+              const primaryImage = firstItem ? getPrimaryImage(firstItem as any) : null;
+              return (
+                <div
+                  key={outfit.id}
+                  className="relative group bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow"
+                >
+                  <div className="aspect-w-3 aspect-h-4 bg-gray-200">
+                    {primaryImage ? (
+                      <CachedImage src={primaryImage} cacheKey={outfit.id} alt={outfit.name || 'Outfit'} className="object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gray-100 text-gray-400 text-xs">No image</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">{outfit.name || 'Untitled Outfit'}</h3>
+                    <p className="text-xs text-gray-500">{outfit.wearableItems?.length ?? 0} items</p>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteOutfit(outfit.id, e)}
+                    className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {outfits.length === 0 && (
+        <div className="mt-8 bg-white shadow sm:rounded-lg p-6 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">No outfits yet</p>
+            <p className="text-xs text-gray-500">Group wardrobe items into outfits for quick try-ons.</p>
+          </div>
+          <button
+            onClick={() => setIsOutfitModalOpen(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+          >
+            Create Outfit
+          </button>
+        </div>
+      )}
+
       {isAddModalOpen && (
         <AddItemModal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={handleRefresh}
+        />
+      )}
+
+      {isOutfitModalOpen && (
+        <CreateOutfitModal
+          isOpen={isOutfitModalOpen}
+          onClose={() => setIsOutfitModalOpen(false)}
+          onSuccess={() => refetchOutfits()}
         />
       )}
 

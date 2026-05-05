@@ -5,7 +5,13 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './deleteOutfitsId200';
 export * from './deleteWardrobeItemsId200';
+export * from './getOutfits200';
+export * from './getOutfits200OutfitsItem';
+export * from './getOutfits200OutfitsItemWearableItemsItem';
+export * from './getOutfitsId200';
+export * from './getOutfitsId200WearableItemsItem';
 export * from './getUsersMe200';
 export * from './getUsersMe404';
 export * from './getVtoBasePhotos200Item';
@@ -28,6 +34,9 @@ export * from './getWeatherCurrent200ClothingIndex';
 export * from './getWeatherCurrent404';
 export * from './getWeatherTopCities200';
 export * from './getWeatherTopCities200LocationsItem';
+export * from './patchOutfitsId200';
+export * from './patchOutfitsId200WearableItemsItem';
+export * from './patchOutfitsIdBody';
 export * from './patchVtoBasePhotosId200';
 export * from './patchVtoBasePhotosIdBody';
 export * from './patchVtoGenerationsGenerationIdRatingBody';
@@ -35,6 +44,9 @@ export * from './patchWardrobeItemsId200';
 export * from './patchWardrobeItemsIdBody';
 export * from './patchWardrobeItemsIdBodyImageKeysItem';
 export * from './patchWardrobeItemsIdBodyStyleAttributes';
+export * from './postOutfits201';
+export * from './postOutfits201WearableItemsItem';
+export * from './postOutfitsBody';
 export * from './postVtoBasePhotos201';
 export * from './postVtoBasePhotosBody';
 export * from './postVtoGenerations202';
