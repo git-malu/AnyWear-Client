@@ -19,4 +19,5 @@ export type PatchWardrobeItemsId200 = {
   isPublic: boolean | null;
   /** @nullable */
   imageEmbedding: string | null;
+  createdAt: string;
 };

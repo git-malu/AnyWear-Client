@@ -19,4 +19,5 @@ export type GetWardrobe200Item = {
   isPublic: boolean | null;
   /** @nullable */
   imageEmbedding: string | null;
+  createdAt: string;
 };
