@@ -8,9 +8,11 @@ import type { GetWardrobeParams } from '../../api/model/getWardrobeParams';
 interface WearableItemMultiSelectorProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
+  outfitName?: string;
+  onOutfitNameChange?: (value: string) => void;
 }
 
-export default function WearableItemMultiSelector({ selectedIds, onSelectionChange }: WearableItemMultiSelectorProps) {
+export default function WearableItemMultiSelector({ selectedIds, onSelectionChange, outfitName, onOutfitNameChange }: WearableItemMultiSelectorProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
 
@@ -156,6 +158,19 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
               </div>
             );
           })}
+        </div>
+      )}
+
+      {onOutfitNameChange !== undefined && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <input
+            type="text"
+            maxLength={200}
+            value={outfitName ?? ''}
+            onChange={(e) => onOutfitNameChange(e.target.value)}
+            placeholder="Save as outfit (optional)"
+            className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 placeholder-gray-400"
+          />
         </div>
       )}
     </div>

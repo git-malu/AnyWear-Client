@@ -100,25 +100,12 @@ export default function MirrorPage() {
                 onSelect={setSelectedOutfitId}
               />
             ) : (
-              <>
-                <WearableItemMultiSelector
-                  selectedIds={selectedWearableItemIds}
-                  onSelectionChange={setSelectedWearableItemIds}
-                />
-                <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    Outfit Name (optional — auto-saved for reuse)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={200}
-                    value={outfitName}
-                    onChange={(e) => setOutfitName(e.target.value)}
-                    placeholder="e.g. Weekend Casual"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </>
+              <WearableItemMultiSelector
+                selectedIds={selectedWearableItemIds}
+                onSelectionChange={setSelectedWearableItemIds}
+                outfitName={outfitName}
+                onOutfitNameChange={setOutfitName}
+              />
             )}
           </div>
 

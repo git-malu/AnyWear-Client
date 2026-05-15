@@ -12,13 +12,15 @@ const mockItems = [
 
 vi.mock('../../api/endpoints/outfits/outfits', () => ({
   usePostOutfits: vi.fn(),
+  usePatchOutfitsId: vi.fn(),
+  useDeleteOutfitsId: vi.fn(),
 }));
 
 vi.mock('../../api/endpoints/wardrobe/wardrobe', () => ({
   useGetWardrobe: vi.fn(),
 }));
 
-import { usePostOutfits } from '../../api/endpoints/outfits/outfits';
+import { usePostOutfits, usePatchOutfitsId, useDeleteOutfitsId } from '../../api/endpoints/outfits/outfits';
 import { useGetWardrobe } from '../../api/endpoints/wardrobe/wardrobe';
 
 function setupMocks(items: typeof mockItems = mockItems) {
@@ -28,6 +30,14 @@ function setupMocks(items: typeof mockItems = mockItems) {
     isError: false,
   } as any);
   vi.mocked(usePostOutfits).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  } as any);
+  vi.mocked(usePatchOutfitsId).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  } as any);
+  vi.mocked(useDeleteOutfitsId).mockReturnValue({
     mutate: vi.fn(),
     isPending: false,
   } as any);
@@ -241,5 +251,129 @@ describe('CreateOutfitModal', () => {
     fireEvent.click(createButton);
 
     expect(mutate).not.toHaveBeenCalled();
+  });
+
+  // ---- Edit Mode Tests ----
+
+  const editOutfit = {
+    id: 'outfit-1',
+    userId: 'user-1',
+    name: 'Weekend Casual',
+    wearableItems: [
+      { id: 'item-1', name: 'T-Shirt', category: 'Top', imageKeys: null },
+      { id: 'item-2', name: 'Jeans', category: 'Bottom', imageKeys: null },
+    ],
+    createdAt: '2024-01-01T00:00:00Z',
+  };
+
+  it('renders edit mode title when outfit prop is provided', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+    expect(screen.getByRole('heading', { name: 'Edit Outfit' })).toBeDefined();
+  });
+
+  it('pre-fills name field from outfit prop', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    const nameInput = screen.getByPlaceholderText('e.g. Weekend Casual') as HTMLInputElement;
+    expect(nameInput.value).toBe('Weekend Casual');
+  });
+
+  it('pre-selects items from outfit prop', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    // Both items should be pre-selected
+    expect(screen.getByText(/2 selected/)).toBeDefined();
+  });
+
+  it('shows Save Changes button in edit mode', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDefined();
+  });
+
+  it('calls usePatchOutfitsId on save in edit mode', () => {
+    const mutate = vi.fn();
+    setupMocks();
+    vi.mocked(usePatchOutfitsId).mockReturnValue({
+      mutate,
+      isPending: false,
+    } as any);
+
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    const nameInput = screen.getByPlaceholderText('e.g. Weekend Casual');
+    fireEvent.change(nameInput, { target: { value: 'Updated Outfit' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(mutate).toHaveBeenCalledWith(
+      { id: 'outfit-1', data: { name: 'Updated Outfit', wearable_item_ids: ['item-1', 'item-2'] } },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+      }),
+    );
+  });
+
+  it('shows Delete Outfit button in edit mode', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+    expect(screen.getByRole('button', { name: 'Delete Outfit' })).toBeDefined();
+  });
+
+  it('shows delete confirmation when Delete Outfit is clicked', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Outfit' }));
+
+    expect(screen.getByText('Delete this outfit? This cannot be undone.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDefined();
+    // Two Cancel buttons: one in confirmation inline, one in footer; get them all
+    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' });
+    expect(cancelButtons.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('cancels delete confirmation when Cancel is clicked', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Outfit' }));
+    // Click the first Cancel button (inline deletion confirmation Cancel)
+    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButtons[0]);
+
+    // Back to delete button visible, confirmation text gone
+    expect(screen.getByRole('button', { name: 'Delete Outfit' })).toBeDefined();
+    expect(screen.queryByText('Delete this outfit? This cannot be undone.')).toBeNull();
+  });
+
+  it('calls useDeleteOutfitsId on confirm delete', () => {
+    const mutate = vi.fn();
+    setupMocks();
+    vi.mocked(useDeleteOutfitsId).mockReturnValue({
+      mutate,
+      isPending: false,
+    } as any);
+
+    render(<CreateOutfitModal {...defaultProps} outfit={editOutfit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Outfit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(mutate).toHaveBeenCalledWith(
+      { id: 'outfit-1' },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+      }),
+    );
+  });
+
+  it('does not show delete button in create mode', () => {
+    setupMocks();
+    render(<CreateOutfitModal {...defaultProps} />);
+    expect(screen.queryByRole('button', { name: 'Delete Outfit' })).toBeNull();
   });
 });
