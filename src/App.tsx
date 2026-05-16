@@ -14,6 +14,7 @@ import WardrobePage from './pages/wardrobe/WardrobePage';
 import MirrorPage from './pages/mirror/MirrorPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import NewsPage from './pages/news/NewsPage';
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/wardrobe" element={<WardrobePage />} />
             <Route path="/mirror" element={<MirrorPage />} />
+            <Route path="/news" element={<NewsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
