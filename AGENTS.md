@@ -114,9 +114,9 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 
 ---
 
-## 🧪 Agent-Driven E2E Testing (Playwright MCP)
+## 🧪 Agent-Driven E2E Testing (Playwright CLI)
 
-After implementing features, agents must drive the running application through Playwright MCP to verify end-to-end behavior. This replaces the need to write pre-scripted E2E tests for every feature — the agent explores the app autonomously.
+After implementing features, agents must drive the running application through `@playwright/cli` to verify end-to-end behavior. This replaces the need to write pre-scripted E2E tests for every feature — the agent explores the app autonomously.
 
 ### Prerequisites
 
@@ -127,29 +127,41 @@ pnpm dev
 
 The backend service (`AnyWear-Service`) must also be running with a database available. Ensure `VITE_API_BASE_URL` points to the running backend.
 
-### Launching Playwright MCP
-
-The agent connects to the app by invoking Playwright MCP as an MCP server tool. No project dependency is needed — it's invoked via `npx`:
-
+Install `@playwright/cli` (or use via `npx`):
 ```bash
-npx @playwright/mcp@latest --browser chromium --headless
+npm install -g @playwright/cli
+npx @playwright/cli install chromium
 ```
 
-The following MCP tools are available for interacting with the app:
+### Launching Playwright CLI
 
-| Tool | Usage |
-|------|-------|
-| `browser_navigate` | Navigate to a route: `browser_navigate("/login")` |
-| `browser_snapshot` | Capture a structured ARIA tree of the current page — the agent reads elements by `ref` and role |
-| `browser_click` | Click an element: `browser_click(ref="e12")` |
-| `browser_type` | Type into an input: `browser_type(ref="e28", text="hello")` |
-| `browser_fill_form` | Fill multiple fields at once |
-| `browser_wait_for` | Wait for text to appear/disappear |
-| `browser_evaluate` | Execute arbitrary JS in page context (for mocking, state injection) |
-| `browser_file_upload` | Upload files to file inputs |
-| `browser_console_messages` | Read all browser console output |
-| `browser_take_screenshot` | Capture a screenshot (PNG/JPEG) |
-| `browser_run_code_unsafe` | Run raw Playwright API code (escape hatch) |
+The agent drives the browser through `@playwright/cli` shell commands. **Always use `--headed` for local testing** — headless mode hides visual regressions, layout bugs, z-index issues, and loading states. You cannot debug what you cannot see.
+
+```bash
+npx @playwright/cli open http://localhost:1420/login --headed
+```
+
+For persistent browser state across commands (cookies, localStorage, session), use the `--session` flag:
+
+```bash
+npx @playwright/cli open http://localhost:1420/login --session anywear-test --headed
+```
+
+The following CLI subcommands are available for interacting with the app:
+
+| Command | Usage |
+|---------|-------|
+| `open <url>` | Navigate to a route: `npx @playwright/cli open http://localhost:1420/login --headed` |
+| `snapshot` | Capture a structured ARIA tree of the current page |
+| `click <selector>` | Click an element: `npx @playwright/cli click "text=Dashboard" --headed` |
+| `type <selector> <text>` | Type into an input: `npx @playwright/cli type "input[type='email']" "test@anywear.local" --headed` |
+| `fill` | Fill multiple form fields: `npx @playwright/cli fill --field "email=..." --field "password=..." --headed` |
+| `wait-for <selector>` | Wait for text/element to appear: `npx @playwright/cli wait-for "text=Dashboard" --headed` |
+| `eval <js>` | Execute arbitrary JS in page context (for mocking, state injection) |
+| `console` | Read all browser console output |
+| `screenshot` | Capture a screenshot: `npx @playwright/cli screenshot --output evidence.png --headed` |
+
+> **Headed mode rule**: Every interactive command (`open`, `click`, `type`, `fill`) MUST include `--headed` when testing locally. The only exception is CI pipelines where a display server is unavailable.
 
 ### Key Application Routes
 
@@ -162,36 +174,49 @@ The following MCP tools are available for interacting with the app:
 | `/mirror` | Virtual Try-On mirror (requires auth) |
 | `/settings` | User settings (requires auth) |
 
-### Authentication Bypass for Testing
+### Authentication for Testing
 
-Since the agent runs in standalone Chromium (not the Tauri WebView2), Cognito's hosted UI OAuth flow is not directly usable. Instead, inject auth state via `browser_evaluate`:
+The app uses AWS Amplify SDK for authentication. The E2E tests register and log in through the app's own `/register` and `/login` pages — same flow a real user follows. This works identically in Chromium, Tauri WebView2, or any browser.
 
-```js
-// Set localStorage to simulate authenticated state
-await browser_evaluate({ function: `() => window.localStorage.setItem('isAuthenticated', 'true')` });
+**For scripted Playwright tests** (CI/regression): Use the real register → login flow with unique test emails, then clean up via Cognito Admin API. See `e2e/auth.spec.ts` for the pattern.
+
+**For quick agentic smoke tests**: Inject auth state to skip the form flow:
+
+```bash
+# Set localStorage to simulate authenticated state
+npx @playwright/cli eval "window.localStorage.setItem('isAuthenticated', 'true')" --session anywear-test --headed
 ```
 
-If the backend requires a real JWT, obtain one via the Cognito Admin API or use the pre-registered test user pattern from `e2e/fixtures.ts`.
+If the backend requires a real JWT, register a real user through the app forms or use the Cognito Admin API.
 
 ### Mocking APIs
 
-Use `browser_evaluate` to patch `fetch` and return mock responses:
+Use `eval` to patch `fetch` and return mock responses:
 
-```js
-// See e2e/agent-helpers.ts for pre-built injectable helpers
-await browser_evaluate({ function: helpers.mockApiRoute('/users/me', { id: 'test', email: 'test@anywear.local' }) });
+```bash
+# See e2e/agent-helpers.ts for pre-built injectable helpers
+npx @playwright/cli eval "
+  const orig = window.fetch;
+  window.fetch = (url, ...args) => {
+    if (url.includes('/users/me')) {
+      return Promise.resolve(new Response(JSON.stringify({id:'test',email:'test@anywear.local'}), {status:200}));
+    }
+    return orig(url, ...args);
+  }
+" --session anywear-test --headed
 ```
 
 ### Testing Workflow
 
 After implementing a feature, follow this loop:
 
-1. **Navigate** — go to the relevant page
-2. **Snapshot** — capture the ARIA tree to understand the UI state
-3. **Interact** — click buttons, fill forms, upload files
-4. **Observe** — snapshot again, verify expected elements appeared
-5. **Check console** — read `browser_console_messages` for errors
-6. **Report** — log any anomalies found
+1. **Open** — `npx @playwright/cli open <route> --session <name> --headed`
+2. **Snapshot** — capture the ARIA tree to understand UI state
+3. **Interact** — `click`, `type`, `fill` to drive the UI
+4. **Observe** — `snapshot` again, verify expected elements appeared
+5. **Check console** — `console` for errors and warnings
+6. **Screenshot** — capture evidence with `screenshot --output ...`
+7. **Report** — log any anomalies found
 
 ### Smoke Test
 
@@ -201,8 +226,14 @@ To verify the pipeline is working before testing a specific feature:
 # 1. Start the dev server
 pnpm dev
 
-# 2. Run the smoke verification script
-node scripts/agent-smoke.mjs
+# 2. Open the app and verify it loads
+npx @playwright/cli open http://localhost:1420/login --session smoke --headed
+npx @playwright/cli wait-for "text=Sign in" --session smoke --headed
+npx @playwright/cli snapshot --session smoke --headed
+npx @playwright/cli console --session smoke
+
+# 3. Capture a screenshot for evidence
+npx @playwright/cli screenshot --output e2e/screenshots/smoke.png --session smoke --headed
 ```
 
-This confirms the dev server responds and required environment variables are set.
+This confirms the dev server responds and the login page renders correctly.
