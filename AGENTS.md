@@ -5,7 +5,7 @@ Welcome to the **AnyWear Client** repository. This document provides critical co
 ## 📌 Project Overview
 
 - **Purpose**: This repository focuses on building the frontend components for the AnyWear Application, targeting both Desktop and Mobile platforms using a single codebase.
-- **Core Stack**: Tauri (v2), React 19, TypeScript 5, Vite, Tailwind CSS v4, Zustand, TanStack Query (React Query v5), and Axios.
+- **Core Stack**: Tauri (v2), React 19, TypeScript 6, Vite, Tailwind CSS v4, Zustand, TanStack Query (React Query v5), and Axios.
 - **Related Repositories**:
     - `AnyWear-Service`: The backend service (Node.js/Hono/Drizzle).
     - `api`: A Git submodule utilized by this application for metadata management (OpenAPI definitions).
@@ -90,8 +90,9 @@ Vitest is the standard test runner for this repository. It is API-compatible wit
 
 1. **API Synchronization Workflow**:
    If a frontend feature requires a backend change:
-   - First, navigate to the `api` submodule.
-   - Edit the relevant OpenAPI specification (e.g., `api/anywear_openapi.yaml`).
+   - Make the route/schema change in `AnyWear-Service`, which is the API producer.
+   - Generate and commit `api/anywear_openapi.yaml` from `AnyWear-Service`.
+   - Update the Client's read-only `api` submodule pointer to that committed API revision.
    - Run `pnpm orval` in the `AnyWear-Client` root.
    - Inspect the newly generated interfaces in `src/api/model/` before utilizing the newly generated hook in your components.
 

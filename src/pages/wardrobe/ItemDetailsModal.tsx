@@ -5,6 +5,7 @@ import CachedImage from '../../components/CachedImage';
 import { parseImageKeys } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
+import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -185,6 +186,8 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
 
     setIsAddingImage(true);
     try {
+      validateImageFile(file);
+
       const ext = file.name.split('.').pop() || 'jpg';
       const { data: uploadData } = await AXIOS_INSTANCE.post(
         `/wardrobe/items/${item.id}/upload-url`,
@@ -197,11 +200,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
 
       if (!presignedUrl) throw new Error('Failed to get upload URL');
 
-      await fetch(presignedUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type || 'image/jpeg' },
-      });
+      await uploadImageToPresignedUrl(presignedUrl, file);
 
       setImages((prev) => [...prev, { key, isPrimary: prev.length === 0 }]);
       pendingDisplayUrls.current.set(key, downloadUrl);

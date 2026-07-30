@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
+import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
 
 interface Props {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
 
     setIsUploading(true);
     try {
+      validateImageFile(file);
+
       // 1. Get pre-signed URL (creates DB row, returns itemId)
       const ext = file.name.split('.').pop() || 'jpg';
       const uploadUrlResult = await getUploadUrl({
@@ -37,13 +40,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
       }
 
       // 2. Upload to S3
-      await fetch(presignedUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'image/jpeg',
-        },
-      });
+      await uploadImageToPresignedUrl(presignedUrl, file);
 
       // 3. Confirm upload and trigger auto-tagging
       await confirmUpload({

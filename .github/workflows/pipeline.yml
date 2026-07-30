@@ -25,5 +25,6 @@ jobs:
   e2e:
     name: E2E Tests
     needs: [test]
+    if: github.event_name == 'push'
     uses: ./.github/workflows/e2e.yml
     secrets: inherit

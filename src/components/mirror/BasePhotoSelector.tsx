@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useGetVtoBasePhotos, usePostVtoBasePhotos, usePatchVtoBasePhotosId, useDeleteVtoBasePhotosId } from '../../api/endpoints/vto/vto';
 import CachedImage from '../CachedImage';
 import { useQueryClient } from '@tanstack/react-query';
+import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
 
 interface BasePhotoSelectorProps {
   selectedPhotoId: string | null;
@@ -12,6 +13,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: photos, isLoading } = useGetVtoBasePhotos();
   const { mutateAsync: uploadPhoto } = usePostVtoBasePhotos();
@@ -23,7 +25,10 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
     if (!file) return;
 
     setIsUploading(true);
+    setUploadError(null);
     try {
+      validateImageFile(file);
+
       const ext = file.name.split('.').pop() || 'jpg';
       const uploadResult = await uploadPhoto({
         data: { contentType: file.type || 'image/jpeg', extension: ext },
@@ -32,13 +37,8 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
       const presignedUrl = (uploadResult as any).url || (uploadResult as any).uploadUrl;
       const photoId = uploadResult.id;
 
-      if (presignedUrl) {
-        await fetch(presignedUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type || 'image/jpeg' },
-        });
-      }
+      if (!presignedUrl) throw new Error('Failed to get upload URL');
+      await uploadImageToPresignedUrl(presignedUrl, file);
 
       queryClient.invalidateQueries({ queryKey: ['/vto/base-photos'] as const });
       if (!selectedPhotoId && photoId) {
@@ -46,6 +46,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
       }
     } catch (err) {
       console.error('Failed to upload base photo:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload base photo');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -106,6 +107,9 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
           <span className="text-xs text-gray-500">{photoList.length} photo{photoList.length !== 1 ? 's' : ''}</span>
         )}
       </div>
+      {uploadError && (
+        <p className="mb-3 text-sm text-red-600" role="alert">{uploadError}</p>
+      )}
 
       {photoList.length === 0 ? (
         <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-6 text-center">

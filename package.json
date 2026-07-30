@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -18,37 +19,37 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.96.1",
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-fs": "^2.5.0",
-    "@tauri-apps/plugin-log": "^2.8.0",
-    "@tauri-apps/plugin-opener": "^2.5.3",
-    "aws-amplify": "^6.16.3",
-    "axios": "^1.14.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-router-dom": "^7.14.0",
-    "zustand": "^5.0.12"
+    "@tanstack/react-query": "^5.101.4",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-log": "^2.9.0",
+    "@tauri-apps/plugin-opener": "^2.5.4",
+    "aws-amplify": "^6.19.0",
+    "axios": "^1.18.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1024.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1097.0",
     "@playwright/mcp": "^0.0.73",
-    "@playwright/test": "^1.59.1",
-    "@tailwindcss/vite": "^4.2.2",
-    "@tauri-apps/cli": "^2.10.1",
+    "@playwright/test": "^1.62.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.11.4",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "~24.12.0",
-    "@types/react": "^19.2.14",
+    "@types/node": "~24.12.4",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "dotenv": "^17.4.1",
-    "jsdom": "^29.0.2",
-    "orval": "^8.6.2",
-    "tailwindcss": "^4.2.2",
-    "typescript": "~6.0.2",
-    "vite": "^8.0.3",
-    "vitest": "^4.1.2"
+    "@vitejs/plugin-react": "^6.0.4",
+    "dotenv": "^17.4.2",
+    "jsdom": "^29.1.1",
+    "orval": "8.6.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "vite": "8.0.3",
+    "vitest": "^4.1.10"
   }
 }
