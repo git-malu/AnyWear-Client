@@ -130,7 +130,7 @@ test.describe('Wardrobe Auto-Tagging', () => {
     await expect(page.getByRole('heading', { name: 'Add Wardrobe Item' })).toBeVisible();
 
     const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles('e2e/fixtures/dummy.png');
+    await fileInput.setInputFiles('browser/fixtures/dummy.png');
 
     // Switch to returning items BEFORE clicking upload
     state.showItems = true;

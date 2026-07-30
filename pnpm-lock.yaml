@@ -42,9 +42,6 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.17)(immer@11.1.15)(react@19.2.8)
     devDependencies:
-      '@aws-sdk/client-cognito-identity-provider':
-        specifier: ^3.1097.0
-        version: 3.1097.0
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.8.0(jiti@2.7.0))
@@ -195,10 +192,6 @@ packages:
 
   '@aws-crypto/util@5.2.0':
     resolution: {integrity: sha512-4RkU9EsI6ZpBve5fseQlGNUWKMa1RLPQ1dnjnQoe07ldfIzcsGb5hC5W0Dm7u423KWzawlrpbjXBrXCEv9zazQ==}
-
-  '@aws-sdk/client-cognito-identity-provider@3.1097.0':
-    resolution: {integrity: sha512-ZVCOLDGTan3vwbjlvZyulFSlMWxdasb/FuUkJTDDyGCS38vC7IFVRlXQAmtH7yE6j7I0Z4hNKN7CimSDMKGfKg==}
-    engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-firehose@3.1097.0':
     resolution: {integrity: sha512-LctheSxyOXWYgacLZ19bw8+2PBpvcILxVCjVzCxooa3beLbJSx+pSWdQIEV1ZlE2aAsW8o58ileFfgxpFfONBA==}
@@ -2826,17 +2819,6 @@ snapshots:
     dependencies:
       '@aws-sdk/types': 3.974.2
       '@smithy/util-utf8': 2.3.0
-      tslib: 2.8.1
-
-  '@aws-sdk/client-cognito-identity-provider@3.1097.0':
-    dependencies:
-      '@aws-sdk/core': 3.977.2
-      '@aws-sdk/credential-provider-node': 3.972.74
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.0
-      '@smithy/fetch-http-handler': 5.6.12
-      '@smithy/node-http-handler': 4.9.12
-      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/client-firehose@3.1097.0':

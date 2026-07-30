@@ -46,8 +46,9 @@ Ensure you have the following installed:
 ### Testing
 - `pnpm test` - Run tests in watch mode
 - `pnpm test:run` - Run all tests once
-- `pnpm test:e2e` - Run Playwright End-to-End tests
-  - **Important:** Before running E2E tests for the first time, you must install the Playwright Chromium browser by running `pnpm exec playwright install chromium`.
+- `pnpm test:browser` - Run Client-owned Playwright browser integration tests with mocked service boundaries
+  - **Important:** Before running browser tests for the first time, install Chromium with `pnpm exec playwright install chromium`.
+  - Cross-repository system tests live in `AnyWear-E2E` and are executed from the AnyWear shell repository against pinned Client and Service revisions.
 
 ## 🏗️ Project Structure
 
@@ -62,4 +63,5 @@ Ensure you have the following installed:
 ## 🔗 Related Repositories
 
 - **AnyWear-Service**: The backend service (Node.js/Hono/Drizzle).
+- **AnyWear-E2E**: Cross-repository Playwright system tests.
 - **api**: A Git submodule utilized by this application for metadata management (OpenAPI definitions).

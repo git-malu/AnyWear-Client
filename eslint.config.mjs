@@ -24,14 +24,14 @@ export default tseslint.config(
   },
   {
     // Test doubles occasionally need to cross deliberately untyped boundaries.
-    files: ['**/*.test.{ts,tsx}', 'e2e/**/*.ts'],
+    files: ['**/*.test.{ts,tsx}', 'browser/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
     // Playwright fixtures name their callback argument `use`; browser mocks patch readonly APIs.
-    files: ['e2e/**/*.ts'],
+    files: ['browser/**/*.ts'],
     rules: {
       '@typescript-eslint/ban-ts-comment': 'off',
       'react-hooks/rules-of-hooks': 'off',

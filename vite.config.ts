@@ -12,7 +12,7 @@ export default defineConfig(async () => ({
 
   test: {
     environment: "jsdom",
-    exclude: ["e2e/**", "node_modules/**"],
+    exclude: ["browser/**", "node_modules/**"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

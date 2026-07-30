@@ -27,13 +27,13 @@ Agents must strictly use `pnpm` for all dependency management and script executi
   *CRITICAL: Agents must run this command after making modifications to TypeScript files to ensure no type regressions or interface mismatches occur.*
 - **Linting**: Run ESLint via `pnpm lint` (when configured).
 
-### Testing (Vitest & React Testing Library)
-Vitest is the standard test runner for this repository. It is API-compatible with Jest but optimized for Vite. Playwright is used for E2E testing.
+### Testing (Vitest, React Testing Library, and Playwright)
+Vitest is the standard unit/component test runner. Playwright is used here only for Client-owned browser integration tests whose Service boundary is mocked. Cross-repository system tests belong in `AnyWear-E2E`.
 - **Run Tests in Watch Mode**: `pnpm run test`
 - **Run All Tests Once**: `pnpm run test:run`
 - **Run a Single Test**: `pnpm run test:run path/to/file.test.ts`
 - **Run Coverage**: `pnpm run test:coverage`
-- **Run E2E Tests**: `pnpm run test:e2e` (Note: If you encounter a `browserType.launch` error, you must install the Playwright Chromium browser first by running `pnpm exec playwright install chromium`).
+- **Run Browser Integration Tests**: `pnpm run test:browser` (If Chromium is missing, run `pnpm exec playwright install chromium`).
 *Note: When generating or fixing tests, ensure you are mocking Axios/Orval hooks correctly using tools like MSW (Mock Service Worker) or `vi.mock()`.*
 
 ## 🏗️ Architecture & Directory Structure
@@ -179,7 +179,7 @@ The following CLI subcommands are available for interacting with the app:
 
 The app uses AWS Amplify SDK for authentication. The E2E tests register and log in through the app's own `/register` and `/login` pages — same flow a real user follows. This works identically in Chromium, Tauri WebView2, or any browser.
 
-**For scripted Playwright tests** (CI/regression): Use the real register → login flow with unique test emails, then clean up via Cognito Admin API. See `e2e/auth.spec.ts` for the pattern.
+**For scripted Playwright tests** (CI/regression): Client-owned tests mock Service and cloud boundaries and live in `browser/`. Real register-to-login and other Client + Service flows live in `AnyWear-E2E`.
 
 **For quick agentic smoke tests**: Inject auth state to skip the form flow:
 
@@ -195,7 +195,7 @@ If the backend requires a real JWT, register a real user through the app forms o
 Use `eval` to patch `fetch` and return mock responses:
 
 ```bash
-# See e2e/agent-helpers.ts for pre-built injectable helpers
+# See browser/agent-helpers.ts for pre-built injectable helpers
 npx @playwright/cli eval "
   const orig = window.fetch;
   window.fetch = (url, ...args) => {
@@ -234,7 +234,7 @@ npx @playwright/cli snapshot --session smoke --headed
 npx @playwright/cli console --session smoke
 
 # 3. Capture a screenshot for evidence
-npx @playwright/cli screenshot --output e2e/screenshots/smoke.png --session smoke --headed
+npx @playwright/cli screenshot --output browser/screenshots/smoke.png --session smoke --headed
 ```
 
 This confirms the dev server responds and the login page renders correctly.
