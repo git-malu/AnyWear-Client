@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
   CognitoIdentityProviderClient,
-  AdminConfirmSignUpCommand,
   AdminDeleteUserCommand
 } from '@aws-sdk/client-cognito-identity-provider';
 

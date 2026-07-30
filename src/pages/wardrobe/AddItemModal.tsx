@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
 import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
+import { getErrorMessage } from '../../lib/errors';
 
 interface Props {
   isOpen: boolean;
@@ -32,8 +33,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
         data: { contentType: file.type || 'image/jpeg', extension: ext },
       });
 
-      const presignedUrl = (uploadUrlResult as any).data?.url || (uploadUrlResult as any).url;
-      const itemId = (uploadUrlResult as any).data?.itemId || (uploadUrlResult as any).itemId;
+      const { url: presignedUrl, itemId } = uploadUrlResult;
 
       if (!presignedUrl || !itemId) {
         throw new Error('Failed to get upload URL');
@@ -49,9 +49,9 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
 
       // Close modal — auto-tagging runs async, wardrobe list will show 'processing' status
       onSuccess();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to add item:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+      const errorMessage = getErrorMessage(error, 'Unknown error');
       alert(`Failed to upload image: ${errorMessage}`);
     } finally {
       setIsUploading(false);

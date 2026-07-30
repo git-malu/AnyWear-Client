@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGetWardrobe, useDeleteWardrobeItemsId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
 import AddItemModal from './AddItemModal';
@@ -11,6 +11,10 @@ import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import { GetWardrobeParams } from '../../api/model/getWardrobeParams';
 import { GetOutfits200OutfitsItem } from '../../api/model/getOutfits200OutfitsItem';
 import { useQueryClient } from '@tanstack/react-query';
+
+interface WardrobeStreamEvent {
+  tagging_status?: 'ready' | 'failed' | 'processing' | 'uploading';
+}
 
 function getTagStatusBadge(status: string | undefined) {
   switch (status) {
@@ -55,7 +59,10 @@ export default function WardrobePage() {
   const { mutate: deleteItem } = useDeleteWardrobeItemsId();
   const { data: outfitsResponse } = useGetOutfits({ query: {} });
 
-  const wardrobeData: GetWardrobe200Item[] = Array.isArray(wardrobeResponse) ? wardrobeResponse : [];
+  const wardrobeData = useMemo<GetWardrobe200Item[]>(
+    () => (Array.isArray(wardrobeResponse) ? wardrobeResponse : []),
+    [wardrobeResponse],
+  );
   const categories = categoriesResponse?.categories ?? [];
 
   useEffect(() => {
@@ -65,7 +72,7 @@ export default function WardrobePage() {
 
     for (const item of wardrobeData as GetWardrobe200Item[]) {
       if (item.taggingStatus === 'processing' || item.taggingStatus === 'uploading') {
-        const conn = connectSse(
+        const conn = connectSse<WardrobeStreamEvent>(
           `/wardrobe/items/${item.id}/stream`,
           (data) => {
             if (data.tagging_status === 'ready' || data.tagging_status === 'failed') {

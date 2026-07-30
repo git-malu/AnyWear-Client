@@ -1,6 +1,7 @@
 import { useGetWeatherCurrent } from '../../api/endpoints/weather/weather';
 import type { GetWeatherCurrent200 } from '../../api/model';
 import { useNavigate } from 'react-router-dom';
+import { getHttpStatus } from '../../lib/errors';
 
 /**
  * Maps QWeather icon codes to emoji representations.
@@ -134,7 +135,7 @@ export default function WeatherWidget() {
 
   // 404 means no location configured
   if (isError) {
-    const status = (error as any)?.response?.status ?? (error as any)?.status;
+    const status = getHttpStatus(error);
     if (status === 404) {
       return <WeatherWidgetEmpty />;
     }

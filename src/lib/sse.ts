@@ -1,6 +1,6 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-type SseEventCallback<T = any> = (data: T) => void;
+type SseEventCallback<T = unknown> = (data: T) => void;
 
 interface SseConnection {
   close: () => void;
@@ -11,7 +11,7 @@ interface SseConnection {
  * Automatically injects the Bearer token via Authorization header.
  * Returns a close() function for cleanup.
  */
-export function connectSse<T = any>(
+export function connectSse<T = unknown>(
   path: string,
   onEvent: SseEventCallback<T>,
 ): SseConnection {
@@ -73,8 +73,8 @@ export function connectSse<T = any>(
           }
         }
       }
-    } catch (err: any) {
-      if (err?.name !== 'AbortError') {
+    } catch (err) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
         console.error('[SSE] Stream error:', err);
       }
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signIn, fetchAuthSession, signOut } from 'aws-amplify/auth';
 import { useAuthStore } from '../../store/authStore';
+import { getErrorMessage } from '../../lib/errors';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -50,9 +51,9 @@ export default function LoginPage() {
       } else if (nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
         navigate(`/verify?email=${encodeURIComponent(email)}`);
       }
-    } catch (err: any) {
+    } catch (err) {
       // If we still get the already signed in error despite the useEffect, try one more time
-      if (err.message === 'There is already a signed in user.') {
+      if (getErrorMessage(err, '') === 'There is already a signed in user.') {
         try {
           await signOut();
           const retryResult = await signIn({ username: email, password });
@@ -68,11 +69,11 @@ export default function LoginPage() {
             navigate(`/verify?email=${encodeURIComponent(email)}`);
             return;
           }
-        } catch (retryErr: any) {
-          setAuthError(retryErr.message || 'Invalid email or password.');
+        } catch (retryErr) {
+          setAuthError(getErrorMessage(retryErr, 'Invalid email or password.'));
         }
       } else {
-        setAuthError(err.message || 'Invalid email or password.');
+        setAuthError(getErrorMessage(err, 'Invalid email or password.'));
       }
     } finally {
       setIsPending(false);

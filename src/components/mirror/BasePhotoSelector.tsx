@@ -3,6 +3,7 @@ import { useGetVtoBasePhotos, usePostVtoBasePhotos, usePatchVtoBasePhotosId, use
 import CachedImage from '../CachedImage';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
+import { getStringProperty } from '../../lib/errors';
 
 interface BasePhotoSelectorProps {
   selectedPhotoId: string | null;
@@ -34,7 +35,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
         data: { contentType: file.type || 'image/jpeg', extension: ext },
       });
 
-      const presignedUrl = (uploadResult as any).url || (uploadResult as any).uploadUrl;
+      const presignedUrl = getStringProperty(uploadResult, 'uploadUrl');
       const photoId = uploadResult.id;
 
       if (!presignedUrl) throw new Error('Failed to get upload URL');

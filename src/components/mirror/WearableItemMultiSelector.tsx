@@ -20,7 +20,10 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
   const { data: wardrobeData, isLoading } = useGetWardrobe(filters);
   const { data: categoriesResponse } = useGetWardrobeCategories();
 
-  const items = Array.isArray(wardrobeData) ? wardrobeData : [];
+  const items = useMemo(
+    () => (Array.isArray(wardrobeData) ? wardrobeData : []),
+    [wardrobeData],
+  );
   const categories = categoriesResponse?.categories ?? [];
 
   const filteredItems = useMemo(() => {

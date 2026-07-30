@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signUp } from 'aws-amplify/auth';
+import { getErrorMessage } from '../../lib/errors';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -31,8 +32,8 @@ export default function RegisterPage() {
       } else if (isSignUpComplete) {
         navigate('/login');
       }
-    } catch (err: any) {
-      setAuthError(err.message || 'Failed to register. Please check your details.');
+    } catch (err) {
+      setAuthError(getErrorMessage(err, 'Failed to register. Please check your details.'));
     } finally {
       setIsPending(false);
     }

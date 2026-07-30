@@ -13,7 +13,11 @@ interface ResultAreaProps {
   currentRating: number | null;
 }
 
-export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: ResultAreaProps) {
+export default function ResultArea(props: ResultAreaProps) {
+  return <ResultAreaContent key={props.vtoId ?? 'empty'} {...props} />;
+}
+
+function ResultAreaContent({ vtoId, onRetry, onRate, currentRating }: ResultAreaProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const queryClient = useQueryClient();
   const sseRef = useRef<ReturnType<typeof connectSse> | null>(null);
@@ -23,6 +27,10 @@ export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: Re
       enabled: !!vtoId,
     },
   });
+
+  const status = statusData?.status;
+  const imageUrl = statusData?.image_key ?? null;
+  const errorMessage = statusData?.error_message ?? null;
 
   useEffect(() => {
     sseRef.current?.close();
@@ -47,18 +55,10 @@ export default function ResultArea({ vtoId, onRetry, onRate, currentRating }: Re
   }, [vtoId, queryClient]);
 
   useEffect(() => {
-    if (!vtoId) {
-      setElapsedSeconds(0);
-      return;
-    }
-    if (!statusData || statusData.status === 'Complete' || statusData.status === 'Failed') return;
+    if (!vtoId || !status || status === 'Complete' || status === 'Failed') return;
     const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
-  }, [vtoId, statusData?.status]);
-
-  const status = statusData?.status;
-  const imageUrl = statusData?.image_key ?? null;
-  const errorMessage = statusData?.error_message ?? null;
+  }, [vtoId, status]);
 
   if (!vtoId) {
     return (

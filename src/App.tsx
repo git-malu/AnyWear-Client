@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,13 +8,14 @@ import { useGetUsersMe } from './api/endpoints/users/users';
 import FullPageLoading from './components/FullPageLoading';
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
-import RegisterPage from './pages/auth/RegisterPage';
-import VerifyEmailPage from './pages/auth/VerifyEmailPage';
-import LoginPage from './pages/auth/LoginPage';
-import WardrobePage from './pages/wardrobe/WardrobePage';
-import MirrorPage from './pages/mirror/MirrorPage';
-import DashboardPage from './pages/dashboard/DashboardPage';
-import SettingsPage from './pages/settings/SettingsPage';
+
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const WardrobePage = lazy(() => import('./pages/wardrobe/WardrobePage'));
+const MirrorPage = lazy(() => import('./pages/mirror/MirrorPage'));
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 
 const queryClient = new QueryClient();
 
@@ -22,9 +24,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoading, isError, data } = useGetUsersMe({
     query: {
       enabled: isAuthenticated,
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Only retry a few times if it's a 404, giving the dev-fallback time to work
-        if (error?.response?.status === 404) return failureCount < 2;
+        if (axios.isAxiosError(error) && error.response?.status === 404) return failureCount < 2;
         return failureCount < 1;
       }
     }
@@ -85,7 +87,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthListener />
       <Router>
-        <Routes>
+        <Suspense fallback={<FullPageLoading />}>
+          <Routes>
           {/* Auth Routes */}
           <Route element={<AuthLayout />}>
             <Route path="/register" element={<RegisterPage />} />
@@ -107,7 +110,8 @@ function App() {
             <Route path="/mirror" element={<MirrorPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
-        </Routes>
+          </Routes>
+        </Suspense>
       </Router>
     </QueryClientProvider>
   );

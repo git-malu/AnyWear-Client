@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import CachedImage from '../../components/CachedImage';
@@ -72,33 +72,38 @@ const ATTRIBUTE_FIELDS: { key: keyof StyleAttributeFields; label: string; placeh
 const VIEW_OPTIONS = ['', 'front', 'back', 'side', 'detail', 'tag'];
 
 export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: Props) {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [attrs, setAttrs] = useState<StyleAttributeFields>({ color: '', material: '', design: '', fit: '', pattern: '', neckline: '', sleeveLength: '', pockets: '', hemline: '', vibe: '', brand: '' });
-  const [weatherTagsInput, setWeatherTagsInput] = useState('');
-  const [images, setImages] = useState<ImageEntry[]>([]);
+  if (!isOpen || !item) return null;
+
+  return (
+    <ItemDetailsEditor
+      key={item.id}
+      item={item}
+      onClose={onClose}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+interface ItemDetailsEditorProps {
+  item: GetWardrobe200Item;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps) {
+  const [name, setName] = useState(item.name || '');
+  const [category, setCategory] = useState(item.category || '');
+  const [attrs, setAttrs] = useState<StyleAttributeFields>(() => parseStyleAttributes(item.styleAttributes));
+  const [weatherTagsInput, setWeatherTagsInput] = useState(() => parseWeatherTags(item.weatherTags).join(', '));
+  const [images, setImages] = useState<ImageEntry[]>(() => parseImageKeys(item.imageKeys));
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isAddingImage, setIsAddingImage] = useState(false);
   const addImageInputRef = useRef<HTMLInputElement>(null);
-  const pendingDisplayUrls = useRef<Map<string, string>>(new Map());
+  const [pendingDisplayUrls, setPendingDisplayUrls] = useState<Record<string, string>>({});
 
   const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
   const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
   const { mutateAsync: retagItem, isPending: isRetagging } = usePostWardrobeItemsItemIdRetag();
-
-  useEffect(() => {
-    if (item) {
-      setName(item.name || '');
-      setCategory(item.category || '');
-      setAttrs(parseStyleAttributes(item.styleAttributes));
-      setWeatherTagsInput(parseWeatherTags(item.weatherTags).join(', '));
-      const parsed = parseImageKeys(item.imageKeys);
-      setImages(parsed);
-      setSelectedImageIndex(0);
-    }
-  }, [item]);
-
-  if (!isOpen || !item) return null;
 
   const currentImage = images[selectedImageIndex];
 
@@ -203,9 +208,9 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
       await uploadImageToPresignedUrl(presignedUrl, file);
 
       setImages((prev) => [...prev, { key, isPrimary: prev.length === 0 }]);
-      pendingDisplayUrls.current.set(key, downloadUrl);
+      setPendingDisplayUrls((current) => ({ ...current, [key]: downloadUrl }));
       setSelectedImageIndex(images.length);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to add image:', error);
       alert('Failed to upload additional image');
     } finally {
@@ -215,7 +220,7 @@ export default function ItemDetailsModal({ item, isOpen, onClose, onSuccess }: P
   };
 
   const getDisplayUrl = (rawUrl: string): string => {
-    return pendingDisplayUrls.current.get(rawUrl) || rawUrl;
+    return pendingDisplayUrls[rawUrl] || rawUrl;
   };
 
   const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';

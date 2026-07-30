@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { confirmSignUp } from 'aws-amplify/auth';
+import { getErrorMessage } from '../../lib/errors';
 
 export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
@@ -25,8 +26,8 @@ export default function VerifyEmailPage() {
       if (isSignUpComplete) {
         navigate('/login');
       }
-    } catch (err: any) {
-      setAuthError(err.message || 'Invalid verification code.');
+    } catch (err) {
+      setAuthError(getErrorMessage(err, 'Invalid verification code.'));
     } finally {
       setIsPending(false);
     }

@@ -73,11 +73,11 @@ jobs:
 
       - name: Install Client Dependencies
         working-directory: ./client
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Install Service Dependencies
         working-directory: ./service
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Setup Database
         working-directory: ./service

@@ -42,7 +42,13 @@ jobs:
           version: 11.18.0
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type Check
+        run: pnpm run typecheck
 
       - name: Generate API Client (Orval)
         run: pnpm run orval
@@ -56,3 +62,29 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+  rust-check:
+    name: Rust Check
+    runs-on: windows-latest
+
+    steps:
+      - name: Generate token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ steps.generate-token.outputs.token }}
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Tauri
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
