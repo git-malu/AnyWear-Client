@@ -16,6 +16,10 @@ export default function useVtoGeneration() {
   const statusQuery = useGetVtoGenerationsGenerationId(vtoId ?? '', {
     query: {
       enabled: !!vtoId,
+      refetchInterval: (query) => {
+        const data = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
+        return data?.status === 'Pending' || data?.status === 'Processing' ? 10_000 : false;
+      },
     },
   });
 
@@ -32,6 +36,10 @@ export default function useVtoGeneration() {
           [`/vto/generations/${vtoId}`],
           data,
         );
+        if (data.status === 'Complete' || data.status === 'Failed') {
+          sseRef.current?.close();
+          sseRef.current = null;
+        }
       },
     );
 

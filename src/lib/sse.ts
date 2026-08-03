@@ -2,90 +2,145 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 type SseEventCallback<T = unknown> = (data: T) => void;
 
+export type SseConnectionState = 'connecting' | 'open' | 'reconnecting' | 'closed';
+
 interface SseConnection {
   close: () => void;
 }
 
+interface SseConnectionOptions {
+  initialRetryMs?: number;
+  maxRetryMs?: number;
+  onError?: (error: unknown) => void;
+  onStateChange?: (state: SseConnectionState) => void;
+}
+
+function parseEventFrame<T>(frame: string, onEvent: SseEventCallback<T>): void {
+  const dataLines = frame
+    .split('\n')
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).replace(/^ /, ''));
+
+  if (dataLines.length === 0) return;
+
+  try {
+    onEvent(JSON.parse(dataLines.join('\n')) as T);
+  } catch {
+    // Heartbeats and malformed events are ignored; the stream remains usable.
+  }
+}
+
+async function consumeEventStream<T>(
+  response: Response,
+  signal: AbortSignal,
+  onEvent: SseEventCallback<T>,
+): Promise<void> {
+  if (!response.body) throw new Error('SSE response has no body');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (!signal.aborted) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, '\n');
+    let boundary = buffer.indexOf('\n\n');
+    while (boundary >= 0) {
+      const frame = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      parseEventFrame(frame, onEvent);
+      boundary = buffer.indexOf('\n\n');
+    }
+  }
+}
+
 /**
- * Opens an SSE connection to the given URL (relative to API base).
- * Automatically injects the Bearer token via Authorization header.
- * Returns a close() function for cleanup.
+ * Opens an authenticated, reconnecting SSE connection to the API.
  */
 export function connectSse<T = unknown>(
   path: string,
   onEvent: SseEventCallback<T>,
+  options: SseConnectionOptions = {},
 ): SseConnection {
-  let aborted = false;
-  const abortController = new AbortController();
+  const initialRetryMs = options.initialRetryMs ?? 1_000;
+  const maxRetryMs = options.maxRetryMs ?? 30_000;
+  let closed = false;
+  let retryAttempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let activeController: AbortController | null = null;
 
-  async function run() {
+  const setState = (state: SseConnectionState) => options.onStateChange?.(state);
+
+  const scheduleReconnect = (): void => {
+    if (closed || retryTimer) return;
+
+    setState('reconnecting');
+    const exponentialDelay = Math.min(initialRetryMs * (2 ** retryAttempt), maxRetryMs);
+    const jitteredDelay = Math.round(exponentialDelay * (0.8 + Math.random() * 0.4));
+    retryAttempt += 1;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      void run(false);
+    }, jitteredDelay);
+  };
+
+  const run = async (forceRefresh: boolean): Promise<void> => {
+    if (closed) return;
+
+    setState(retryAttempt === 0 ? 'connecting' : 'reconnecting');
+    const controller = new AbortController();
+    activeController = controller;
+
     try {
-      const session = await fetchAuthSession();
+      const session = forceRefresh
+        ? await fetchAuthSession({ forceRefresh: true })
+        : await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
-      if (!token) {
-        console.warn('[SSE] No auth token available, connection skipped');
-        return;
-      }
+      if (!token) throw new Error('No access token is available for SSE');
+      if (closed) return;
 
-      if (aborted) return;
-
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-      const url = `${baseUrl}${path}`;
-
-      const response = await fetch(url, {
+      const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      const response = await fetch(`${baseUrl}${normalizedPath}`, {
         headers: {
+          Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
         },
-        signal: abortController.signal,
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        console.error(`[SSE] Connection failed: ${response.status}`);
+      if ((response.status === 401 || response.status === 403) && !forceRefresh) {
+        await run(true);
         return;
       }
+      if (!response.ok) throw new Error(`SSE connection failed with status ${response.status}`);
 
-      if (!response.body) return;
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (!aborted) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const content = trimmed.slice(6).trim();
-            if (!content) continue;
-            try {
-              const data = JSON.parse(content) as T;
-              console.log('[SSE] Event received:', data);
-              onEvent(data);
-            } catch {
-              // skip non-JSON lines
-            }
-          }
-        }
-      }
-    } catch (err) {
-      if (!(err instanceof Error && err.name === 'AbortError')) {
-        console.error('[SSE] Stream error:', err);
-      }
+      retryAttempt = 0;
+      setState('open');
+      await consumeEventStream(response, controller.signal, onEvent);
+      scheduleReconnect();
+    } catch (error) {
+      if (closed || (error instanceof Error && error.name === 'AbortError')) return;
+      options.onError?.(error);
+      scheduleReconnect();
+    } finally {
+      if (activeController === controller) activeController = null;
     }
-  }
+  };
 
-  run();
+  void run(false);
 
   return {
     close: () => {
-      aborted = true;
-      abortController.abort();
+      if (closed) return;
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      activeController?.abort();
+      activeController = null;
+      setState('closed');
     },
   };
 }

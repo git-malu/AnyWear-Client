@@ -1,13 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useGetVtoGenerationsGenerationId } from '../../api/endpoints/vto/vto';
-import { useQueryClient } from '@tanstack/react-query';
-import { connectSse } from '../../lib/sse';
+import { useState, useEffect } from 'react';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
 import type { GetVtoGenerationsGenerationId200 } from '../../api/model/getVtoGenerationsGenerationId200';
 
 interface ResultAreaProps {
   vtoId: string | null;
+  result: GetVtoGenerationsGenerationId200 | null;
   onRetry: () => void;
   onRate: (rating: number) => void;
   currentRating: number | null;
@@ -17,42 +15,11 @@ export default function ResultArea(props: ResultAreaProps) {
   return <ResultAreaContent key={props.vtoId ?? 'empty'} {...props} />;
 }
 
-function ResultAreaContent({ vtoId, onRetry, onRate, currentRating }: ResultAreaProps) {
+function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: ResultAreaProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const queryClient = useQueryClient();
-  const sseRef = useRef<ReturnType<typeof connectSse> | null>(null);
-
-  const { data: statusData } = useGetVtoGenerationsGenerationId(vtoId ?? '', {
-    query: {
-      enabled: !!vtoId,
-    },
-  });
-
-  const status = statusData?.status;
-  const imageUrl = statusData?.image_key ?? null;
-  const errorMessage = statusData?.error_message ?? null;
-
-  useEffect(() => {
-    sseRef.current?.close();
-    sseRef.current = null;
-
-    if (!vtoId) return;
-
-    sseRef.current = connectSse<GetVtoGenerationsGenerationId200>(
-      `/vto/generations/${vtoId}/stream`,
-      (data) => {
-        queryClient.setQueryData(
-          [`/vto/generations/${vtoId}`],
-          data,
-        );
-      },
-    );
-
-    return () => {
-      sseRef.current?.close();
-      sseRef.current = null;
-    };
-  }, [vtoId, queryClient]);
+  const status = result?.status;
+  const imageUrl = result?.image_key ?? null;
+  const errorMessage = result?.error_message ?? null;
 
   useEffect(() => {
     if (!vtoId || !status || status === 'Complete' || status === 'Failed') return;

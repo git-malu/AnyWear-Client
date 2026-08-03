@@ -13,6 +13,12 @@ export type GetWardrobe200Item = {
   imageKeys?: unknown | null;
   category: string;
   taggingStatus: string;
+  /** @exclusiveMinimum 0 */
+  taggingStateVersion: number;
+  /** @nullable */
+  taggingErrorCode: string | null;
+  /** @nullable */
+  taggingErrorMessage: string | null;
   weatherTags?: unknown | null;
   styleAttributes?: unknown | null;
   /** @nullable */
@@ -20,4 +26,5 @@ export type GetWardrobe200Item = {
   /** @nullable */
   imageEmbedding: string | null;
   createdAt: string;
+  updatedAt: string;
 };

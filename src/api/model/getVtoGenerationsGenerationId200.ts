@@ -9,6 +9,8 @@ import type { GetVtoGenerationsGenerationId200Status } from './getVtoGenerations
 export type GetVtoGenerationsGenerationId200 = {
   generation_id: string;
   status: GetVtoGenerationsGenerationId200Status;
+  /** @exclusiveMinimum 0 */
+  state_version: number;
   /** @nullable */
   image_key?: string | null;
   /** @nullable */

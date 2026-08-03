@@ -145,6 +145,7 @@ export default function MirrorPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Result</h2>
           <ResultArea
             vtoId={vtoId}
+            result={result}
             onRetry={handleGenerate}
             onRate={() => {}}
             currentRating={result?.image_key ? null : null}
