@@ -1,11 +1,30 @@
-import Axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import Axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { useAuthStore } from '../store/authStore';
 
 export const AXIOS_INSTANCE = Axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000' });
 
+interface RetriableRequestConfig extends InternalAxiosRequestConfig {
+  anywearNetworkRetry?: boolean;
+}
+
+function isAsyncTaskCreationRequest(config: InternalAxiosRequestConfig): boolean {
+  if (config.method?.toUpperCase() !== 'POST' || !config.url) return false;
+  const path = new URL(config.url, 'http://anywear.local').pathname;
+  return path === '/vto/generations'
+    || path === '/wardrobe/upload'
+    || /^\/wardrobe\/items\/[^/]+\/retag$/.test(path);
+}
+
+function hasIdempotencyKey(config: InternalAxiosRequestConfig): boolean {
+  return typeof config.headers.get('Idempotency-Key') === 'string';
+}
+
 AXIOS_INSTANCE.interceptors.request.use(
   async (config) => {
+    if (isAsyncTaskCreationRequest(config) && !hasIdempotencyKey(config)) {
+      config.headers.set('Idempotency-Key', crypto.randomUUID());
+    }
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
@@ -22,13 +41,24 @@ AXIOS_INSTANCE.interceptors.request.use(
 
 AXIOS_INSTANCE.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register') {
         useAuthStore.getState().logout();
         window.location.href = '/login';
       }
+    }
+    const config = error.config as RetriableRequestConfig | undefined;
+    if (
+      !error.response
+      && config
+      && hasIdempotencyKey(config)
+      && !config.anywearNetworkRetry
+      && !Axios.isCancel(error)
+    ) {
+      config.anywearNetworkRetry = true;
+      return AXIOS_INSTANCE.request(config);
     }
     return Promise.reject(error);
   }
