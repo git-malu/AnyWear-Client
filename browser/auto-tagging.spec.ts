@@ -53,6 +53,18 @@ async function setupMock(page: Page, state: MockState) {
     await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
   });
 
+  // WardrobePage also loads the outfit summary. Keep this test focused on
+  // auto-tagging instead of letting the unmocked request trigger the global
+  // 401 auth redirect.
+  await page.route('**/outfits', async (route, request) => {
+    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outfits: [] }),
+    });
+  });
+
   // Mock all wardrobe API calls
   await page.route('**/wardrobe**', async (route, request) => {
     const url = new URL(request.url());
