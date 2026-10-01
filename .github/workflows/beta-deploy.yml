@@ -1,0 +1,79 @@
+name: Deploy Beta Web Client
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy the reviewed Beta web client
+    if: vars.ENABLE_BETA_DEPLOY == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: beta
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.18.0
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure Beta AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/beta-github-actions-pipeline-role
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve Beta deployment settings
+        id: settings
+        shell: bash
+        run: |
+          platform_outputs="$(aws cloudformation describe-stacks \
+            --stack-name AnyWearPlatformStack-beta --query 'Stacks[0].Outputs' --output json)"
+          workload_outputs="$(aws cloudformation describe-stacks \
+            --stack-name AnyWearWorkloadStack-beta --query 'Stacks[0].Outputs' --output json)"
+          bucket="$(jq -er '.[] | select(.OutputKey=="ClientBucketName") | .OutputValue' <<<"$platform_outputs")"
+          distribution="$(jq -er '.[] | select(.OutputKey=="ClientDistributionId") | .OutputValue' <<<"$platform_outputs")"
+          api_url="$(jq -er '.[] | select(.OutputKey=="ApiBaseUrl") | .OutputValue' <<<"$workload_outputs")"
+          pool_id="$(aws ssm get-parameter --name /anywear/beta/cognito_user_pool_id --query Parameter.Value --output text)"
+          client_id="$(aws ssm get-parameter --name /anywear/beta/cognito_client_id --query Parameter.Value --output text)"
+          {
+            echo "bucket=$bucket"
+            echo "distribution=$distribution"
+            echo "api_url=$api_url"
+            echo "pool_id=$pool_id"
+            echo "client_id=$client_id"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build Beta web client
+        env:
+          VITE_API_BASE_URL: ${{ steps.settings.outputs.api_url }}
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.settings.outputs.pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.settings.outputs.client_id }}
+          VITE_COGNITO_IDENTITY_POOL_ID: ''
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: pnpm build
+
+      - name: Publish static assets
+        env:
+          CLIENT_BUCKET: ${{ steps.settings.outputs.bucket }}
+          CLIENT_DISTRIBUTION: ${{ steps.settings.outputs.distribution }}
+        run: |
+          aws s3 sync dist "s3://$CLIENT_BUCKET" --delete
+          aws cloudfront create-invalidation --distribution-id "$CLIENT_DISTRIBUTION" --paths '/*'
