@@ -57,7 +57,13 @@ export default function SettingsPage() {
             },
           },
           {
-            onSuccess: () => {
+            onSuccess: (updatedUser) => {
+              if (!updatedUser.locationId || !updatedUser.locationName) {
+                setGeoStatus('error');
+                setGeoError('The server could not resolve your location. Please use the city search below.');
+                return;
+              }
+
               setGeoStatus('success');
               invalidateWeather();
               // Refetch user profile to update displayed location

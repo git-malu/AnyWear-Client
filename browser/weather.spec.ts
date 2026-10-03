@@ -103,7 +103,11 @@ test.describe('Weather Integration', () => {
         updatedLat = body.latitude;
         updatedLon = body.longitude;
       }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'test-user-id', locationId: '101210101', locationName: 'Hangzhou, Zhejiang' }),
+      });
     });
 
     // 3. Go to settings and click auto-detect
@@ -114,6 +118,97 @@ test.describe('Weather Integration', () => {
     await expect(page.getByText('Location updated successfully')).toBeVisible();
     expect(updatedLat).toBeCloseTo(30.27);
     expect(updatedLon).toBeCloseTo(120.15);
+  });
+
+  test('should refresh the dashboard location after auto-detecting from settings', async ({ authenticatedPage: page, mockGeolocation }) => {
+    let locationName = 'Old City, Old Region';
+    let weatherRequests = 0;
+    const weatherLocations: string[] = [];
+
+    await mockGeolocation({ latitude: 30.27, longitude: 120.15 });
+    await page.context().grantPermissions(['geolocation']);
+    await page.route('**/users/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'test-user-id', locationId: 'old-id', locationName }),
+      });
+    });
+    await page.route('**/weather/current', async (route) => {
+      weatherRequests += 1;
+      weatherLocations.push(locationName);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          locationName,
+          temperature: '22',
+          feelsLike: '24',
+          icon: '100',
+          conditionText: 'Sunny',
+          humidity: '45',
+          windDir: 'North',
+          windScale: '1',
+          obsTime: new Date().toISOString(),
+          clothingIndex: { suggestion: 'A light layer is fine.' },
+        }),
+      });
+    });
+    await page.route('**/users/profile', async (route) => {
+      locationName = 'New City, New Region';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'test-user-id', locationId: 'new-id', locationName }),
+      });
+    });
+
+    await page.goto('/dashboard');
+    await expect(page.getByText('Old City, Old Region')).toBeVisible();
+    await page.getByRole('link', { name: 'Settings' }).first().click();
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+    await expect(page.getByText('Location updated successfully')).toBeVisible();
+    await page.getByRole('link', { name: 'Dashboard' }).first().click();
+
+    await expect(page.getByText('New City, New Region')).toBeVisible();
+    await expect.poll(() => weatherLocations).toContain('New City, New Region');
+    expect(weatherRequests).toBeGreaterThan(1);
+  });
+
+  test('should not report success when the profile response has no resolved location', async ({ authenticatedPage: page, mockGeolocation }) => {
+    await mockGeolocation({ latitude: 30.27, longitude: 120.15 });
+    await page.context().grantPermissions(['geolocation']);
+    await page.route('**/users/profile', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true }),
+      });
+    });
+
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+
+    await expect(page.getByText(/server could not resolve your location/i)).toBeVisible();
+    await expect(page.getByText('Location updated successfully')).not.toBeVisible();
+  });
+
+  test('should show an error when saving the detected location fails', async ({ authenticatedPage: page, mockGeolocation }) => {
+    await mockGeolocation({ latitude: 30.27, longitude: 120.15 });
+    await page.context().grantPermissions(['geolocation']);
+    await page.route('**/users/profile', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'DATABASE_ERROR' }),
+      });
+    });
+
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Auto-Detect My Location' }).click();
+
+    await expect(page.getByText('Failed to update location on server.')).toBeVisible();
+    await expect(page.getByText('Location updated successfully')).not.toBeVisible();
   });
 
   test('should show helpful error when geolocation permission is denied', async ({ authenticatedPage: page }) => {
