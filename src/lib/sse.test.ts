@@ -72,4 +72,20 @@ describe('connectSse', () => {
     await vi.waitFor(() => expect(onEvent).toHaveBeenCalledWith({ status: 'Processing' }));
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('reconnects after the server disconnects an open stream', async () => {
+    const receivedStatuses: string[] = [];
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(eventStream(['data: {"status":"Processing"}\n\n']))
+      .mockResolvedValueOnce(eventStream(['data: {"status":"Complete"}\n\n'])));
+
+    const connection = connectSse<{ status: string }>('/events', (event) => {
+      receivedStatuses.push(event.status);
+      if (event.status === 'Complete') connection.close();
+    }, { initialRetryMs: 1, maxRetryMs: 1 });
+
+    await vi.waitFor(() => expect(receivedStatuses).toEqual(['Processing', 'Complete']));
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });
