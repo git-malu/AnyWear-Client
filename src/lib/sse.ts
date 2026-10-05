@@ -40,19 +40,25 @@ async function consumeEventStream<T>(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let trailingCr = false;
 
   while (!signal.aborted) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (signal.aborted) break;
 
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, '\n');
+    // A trailing CR may be the first half of a CRLF split across chunks.
+    let chunk: string = (trailingCr ? '\r' : '') + decoder.decode(value, { stream: !done });
+    trailingCr = !done && chunk.endsWith('\r');
+    if (trailingCr) chunk = chunk.slice(0, -1);
+    buffer += chunk.replace(/\r\n?/g, '\n');
     let boundary = buffer.indexOf('\n\n');
-    while (boundary >= 0) {
+    while (!signal.aborted && boundary >= 0) {
       const frame = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
       parseEventFrame(frame, onEvent);
       boundary = buffer.indexOf('\n\n');
     }
+    if (done) break;
   }
 }
 

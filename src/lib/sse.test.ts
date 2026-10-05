@@ -88,4 +88,36 @@ describe('connectSse', () => {
     await vi.waitFor(() => expect(receivedStatuses).toEqual(['Processing', 'Complete']));
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ['split CRLF within multiline JSON', ['data: {"status":\r', '\ndata: "Complete"}\r\n\r\n']],
+    ['split CRLF at the frame boundary', ['data: {"status":"Complete"}\r\n\r', '\n']],
+    ['CR-only frame boundary at EOF', ['data: {"status":"Complete"}\r\r']],
+  ])('parses %s', async (_name, chunks) => {
+    const onEvent = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(eventStream(chunks as string[])));
+    const connection = connectSse('/events', onEvent, { initialRetryMs: 60_000 });
+    try {
+      await vi.waitFor(() => expect(onEvent).toHaveBeenCalledExactlyOnceWith({ status: 'Complete' }));
+    } finally {
+      connection.close();
+    }
+  });
+
+  it('does not dispatch another buffered frame after a terminal callback closes the connection', async () => {
+    const onEvent = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(eventStream([
+      'data: {"status":"Complete","state_version":3}\n\n'
+      + 'data: {"status":"Processing","state_version":2}\n\n',
+    ])));
+    const connection = connectSse('/events', (event) => {
+      onEvent(event);
+      connection.close();
+    });
+    try {
+      await vi.waitFor(() => expect(onEvent).toHaveBeenCalledExactlyOnceWith({ status: 'Complete', state_version: 3 }));
+    } finally {
+      connection.close();
+    }
+  });
 });
