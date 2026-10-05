@@ -1,23 +1,14 @@
 import type { PropsWithChildren } from 'react';
-import { act, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import useVtoGeneration from './useVtoGeneration';
-import {
-  useGetVtoGenerationsGenerationId,
-  usePostVtoGenerations,
-} from '../api/endpoints/vto/vto';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GetVtoGenerationsGenerationId200 } from '../api/model/getVtoGenerationsGenerationId200';
-import { connectSse } from '../lib/sse';
+import { customInstance } from '../api/custom-instance';
+import useVtoGeneration from './useVtoGeneration';
 
-vi.mock('../api/endpoints/vto/vto', () => ({
-  useGetVtoGenerationsGenerationId: vi.fn(),
-  usePostVtoGenerations: vi.fn(),
-}));
-
-vi.mock('../lib/sse', () => ({
-  connectSse: vi.fn(),
-}));
+vi.mock('../api/custom-instance', () => ({ customInstance: vi.fn() }));
+vi.mock('aws-amplify/auth', () => ({ fetchAuthSession: vi.fn() }));
 
 const pendingStatus: GetVtoGenerationsGenerationId200 = {
   generation_id: 'generation-1',
@@ -26,84 +17,180 @@ const pendingStatus: GetVtoGenerationsGenerationId200 = {
   created_at: '2026-10-03T00:00:00.000Z',
 };
 
-function createStatusQuery(data: GetVtoGenerationsGenerationId200 | undefined) {
-  return {
-    data,
-    queryKey: ['/vto/generations/generation-1'],
-  } as unknown as ReturnType<typeof useGetVtoGenerationsGenerationId>;
-}
-
 function createWrapper(queryClient: QueryClient) {
   return function QueryClientWrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
-describe('useVtoGeneration', () => {
+describe('useVtoGeneration recovery lifecycle', () => {
+  const clients: QueryClient[] = [];
+  let getStatus: ReturnType<typeof vi.fn<() => Promise<GetVtoGenerationsGenerationId200>>>;
+  let streamFetch: ReturnType<typeof vi.fn<typeof fetch>>;
+  let streamSignals: AbortSignal[];
+  let streamControllers: ReadableStreamDefaultController<Uint8Array>[];
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(useGetVtoGenerationsGenerationId).mockReturnValue(createStatusQuery(undefined));
-    vi.mocked(usePostVtoGenerations).mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue({ generation_id: 'generation-1', outfit_id: 'outfit-1' }),
-      isError: false,
-      isPending: false,
-    } as unknown as ReturnType<typeof usePostVtoGenerations>);
-    vi.mocked(connectSse).mockImplementation(() => ({ close: vi.fn() }));
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    getStatus = vi.fn().mockResolvedValue(pendingStatus);
+    streamSignals = [];
+    streamControllers = [];
+    vi.mocked(customInstance).mockImplementation((config) => {
+      if (config.method === 'POST') {
+        return Promise.resolve({ generation_id: 'generation-1', outfit_id: 'outfit-1' });
+      }
+      return getStatus();
+    });
+    vi.mocked(fetchAuthSession).mockResolvedValue({
+      tokens: { accessToken: { toString: () => 'access-token' } },
+    } as Awaited<ReturnType<typeof fetchAuthSession>>);
+    // Real SSE stays open without events: only reconciliation GETs can finish the task.
+    streamFetch = vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
+      streamSignals.push(options?.signal as AbortSignal);
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) { streamControllers.push(controller); },
+      }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    });
+    vi.stubGlobal('fetch', streamFetch);
   });
 
-  it('owns one SSE connection and keeps polling while the task is non-terminal', async () => {
-    const queryOptions: Array<{ query?: { refetchInterval?: unknown } }> = [];
-    vi.mocked(useGetVtoGenerationsGenerationId).mockImplementation((_generationId, options) => {
-      queryOptions.push(options ?? {});
-      return createStatusQuery(pendingStatus);
-    });
+  afterEach(() => {
+    cleanup();
+    clients.splice(0).forEach((client) => client.clear());
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
+  function renderGeneration() {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
     });
-    const { result } = renderHook(() => useVtoGeneration(), {
-      wrapper: createWrapper(queryClient),
-    });
+    clients.push(queryClient);
+    return {
+      queryClient,
+      ...renderHook(() => useVtoGeneration(), { wrapper: createWrapper(queryClient) }),
+    };
+  }
 
+  async function advance(ms: number) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  }
+
+  async function start(result: { current: ReturnType<typeof useVtoGeneration> }) {
     await act(async () => {
       await result.current.generate({ base_photo_id: 'photo-1', outfit_id: 'outfit-1' });
     });
+    await advance(0);
+  }
 
-    expect(connectSse).toHaveBeenCalledTimes(1);
-    const refetchInterval = queryOptions[0]?.query?.refetchInterval;
-    expect(refetchInterval).toBeTypeOf('function');
-    expect((refetchInterval as (query: never) => number | false)({
-      state: { data: pendingStatus },
-    } as never)).toBe(10_000);
-    expect((refetchInterval as (query: never) => number | false)({
-      state: { data: { ...pendingStatus, status: 'Complete' } },
-    } as never)).toBe(false);
+  it('does not poll or open SSE before a generation exists', async () => {
+    const { result } = renderGeneration();
+    await advance(30_000);
+    expect(getStatus).not.toHaveBeenCalled();
+    expect(streamFetch).not.toHaveBeenCalled();
+    expect(result.current.isPolling).toBe(false);
   });
 
-  it('closes the owned SSE connection when a terminal event arrives', async () => {
-    const close = vi.fn();
-    let onEvent: ((event: GetVtoGenerationsGenerationId200) => void) | undefined;
-    vi.mocked(connectSse).mockImplementation((_path, callback) => {
-      onEvent = callback as (event: GetVtoGenerationsGenerationId200) => void;
-      return { close };
-    });
+  it.each(['Pending', 'Processing'] as const)('polls every ten seconds with one SSE owner while %s', async (status) => {
+    getStatus.mockResolvedValue({ ...pendingStatus, status });
+    const { result, unmount } = renderGeneration();
+    await start(result);
+    expect(result.current.status).toBe(status);
+    expect(result.current.isPolling).toBe(true);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    await advance(9_999);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    await advance(1);
+    expect(getStatus).toHaveBeenCalledTimes(2);
+    expect(streamFetch).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(streamSignals[0].aborted).toBe(true);
+  });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const { result } = renderHook(() => useVtoGeneration(), {
-      wrapper: createWrapper(queryClient),
-    });
+  it.each(['Complete', 'Failed'] as const)('stops polling and aborts active SSE after GET-only %s', async (status) => {
+    getStatus.mockResolvedValueOnce(pendingStatus)
+      .mockResolvedValue({ ...pendingStatus, status, state_version: 2 });
+    const { result } = renderGeneration();
+    await start(result);
+    expect(streamSignals[0].aborted).toBe(false);
+    await advance(10_000);
+    // Query notifications scheduled inside the polling tick run on the next clock tick.
+    await advance(1);
+    expect(result.current.status).toBe(status);
+    expect(result.current.isPolling).toBe(false);
+    expect(streamSignals[0].aborted).toBe(true);
+    await advance(60_000);
+    expect(getStatus).toHaveBeenCalledTimes(2);
+    expect(streamFetch).toHaveBeenCalledTimes(1);
+  });
 
+  it('recovers from an initial GET failure without SSE and cancels pending reconnects at terminal', async () => {
+    getStatus.mockRejectedValueOnce(new Error('GET temporarily unavailable'))
+      .mockResolvedValueOnce(pendingStatus)
+      .mockResolvedValue({ ...pendingStatus, status: 'Complete', state_version: 2 });
+    streamFetch.mockResolvedValue(new Response(null, { status: 503 }));
+    const { result, queryClient } = renderGeneration();
+    await start(result);
+    expect(queryClient.getQueryState(['/vto/generations/generation-1'])?.status).toBe('error');
+    await advance(9_999);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    await advance(1);
+    expect(getStatus).toHaveBeenCalledTimes(2);
+    await advance(1);
+    expect(result.current.status).toBe('Processing');
+    expect(result.current.isPolling).toBe(true);
+    await advance(10_000);
+    await advance(1);
+    expect(result.current.status).toBe('Complete');
+    expect(result.current.isPolling).toBe(false);
+    const attempts = streamFetch.mock.calls.length;
+    expect(attempts).toBeGreaterThan(1);
+    await advance(60_000);
+    expect(getStatus).toHaveBeenCalledTimes(3);
+    expect(streamFetch).toHaveBeenCalledTimes(attempts);
+  });
+
+  it('keeps the loading state while the initial GET has no data', async () => {
+    getStatus.mockRejectedValue(new Error('GET temporarily unavailable'));
+    const { result } = renderGeneration();
+    await start(result);
+    expect(result.current.status).toBeNull();
+    expect(result.current.isPolling).toBe(true);
+  });
+
+  it.each(['Complete', 'Failed'] as const)('closes real SSE immediately on %s and ignores a buffered stale frame', async (status) => {
+    const { result } = renderGeneration();
+    await start(result);
     await act(async () => {
-      await result.current.generate({ base_photo_id: 'photo-1', outfit_id: 'outfit-1' });
+      streamControllers[0].enqueue(new TextEncoder().encode(
+        `data: ${JSON.stringify({ ...pendingStatus, status, state_version: 3 })}\n\n`
+        + `data: ${JSON.stringify({ ...pendingStatus, state_version: 2 })}\n\n`,
+      ));
     });
+    await advance(1);
+    expect(result.current.status).toBe(status);
+    expect(result.current.result?.state_version).toBe(3);
+    expect(streamSignals[0].aborted).toBe(true);
+    await advance(30_000);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    expect(streamFetch).toHaveBeenCalledTimes(1);
+  });
 
-    expect(onEvent).toBeDefined();
-    act(() => {
-      onEvent?.({ ...pendingStatus, status: 'Complete' });
-    });
-
-    expect(close).toHaveBeenCalledTimes(1);
+  it('aborts on unmount and ignores a frame arriving after the pending read', async () => {
+    const { result, unmount, queryClient } = renderGeneration();
+    await start(result);
+    unmount();
+    expect(streamSignals[0].aborted).toBe(true);
+    streamControllers[0].enqueue(new TextEncoder().encode(
+      `data: ${JSON.stringify({ ...pendingStatus, status: 'Complete', state_version: 2 })}\n\n`,
+    ));
+    await advance(30_000);
+    expect(queryClient.getQueryData(['/vto/generations/generation-1'])).toEqual(pendingStatus);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    expect(streamFetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,17 +17,21 @@ export default function useVtoGeneration() {
     query: {
       enabled: !!vtoId,
       refetchInterval: (query) => {
+        if (!vtoId) return false;
         const data = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
-        return data?.status === 'Pending' || data?.status === 'Processing' ? 10_000 : false;
+        return data?.status === 'Complete' || data?.status === 'Failed' ? false : 10_000;
       },
     },
   });
+
+  const status: GetVtoGenerationsGenerationId200Status | null = statusQuery.data?.status ?? null;
+  const isTerminal = status === 'Complete' || status === 'Failed';
 
   useEffect(() => {
     sseRef.current?.close();
     sseRef.current = null;
 
-    if (!vtoId) return;
+    if (!vtoId || isTerminal) return;
 
     sseRef.current = connectSse<GetVtoGenerationsGenerationId200>(
       `/vto/generations/${vtoId}/stream`,
@@ -47,12 +51,11 @@ export default function useVtoGeneration() {
       sseRef.current?.close();
       sseRef.current = null;
     };
-  }, [vtoId, queryClient]);
+  }, [vtoId, queryClient, isTerminal]);
 
-  const status: GetVtoGenerationsGenerationId200Status | null = statusQuery.data?.status ?? null;
   const result: GetVtoGenerationsGenerationId200 | null = statusQuery.data ?? null;
   const errorMessage: string | null = statusQuery.data?.error_message ?? (generateMutation.isError ? 'Failed to start generation' : null);
-  const isPolling = status === 'Pending' || status === 'Processing';
+  const isPolling = !!vtoId && !isTerminal;
 
   const generate = useCallback(async (params: PostVtoGenerationsBody) => {
     setVtoId(null);
