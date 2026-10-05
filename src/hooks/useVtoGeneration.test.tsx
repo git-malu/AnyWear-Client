@@ -79,4 +79,31 @@ describe('useVtoGeneration', () => {
       state: { data: { ...pendingStatus, status: 'Complete' } },
     } as never)).toBe(false);
   });
+
+  it('closes the owned SSE connection when a terminal event arrives', async () => {
+    const close = vi.fn();
+    let onEvent: ((event: GetVtoGenerationsGenerationId200) => void) | undefined;
+    vi.mocked(connectSse).mockImplementation((_path, callback) => {
+      onEvent = callback as (event: GetVtoGenerationsGenerationId200) => void;
+      return { close };
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useVtoGeneration(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.generate({ base_photo_id: 'photo-1', outfit_id: 'outfit-1' });
+    });
+
+    expect(onEvent).toBeDefined();
+    act(() => {
+      onEvent?.({ ...pendingStatus, status: 'Complete' });
+    });
+
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });
