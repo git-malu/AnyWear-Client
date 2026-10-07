@@ -52,6 +52,12 @@ Ensure you have the following installed:
   - **Important:** Before running browser tests for the first time, install Chromium with `pnpm exec playwright install chromium`.
   - Cross-repository system tests live in `AnyWear-E2E` and are executed from the AnyWear shell repository against pinned Client and Service revisions.
 
+### Beta web publication
+
+See the [Beta publication runbook](docs/beta-web-publication.md) for the dedicated
+Client role, manager-assigned writer window, protected environment configuration,
+and verified handoff required by the manual web publisher.
+
 ## 🏗️ Project Structure
 
 - `src/api/`: API integration layer. Includes auto-generated models and endpoints from Orval, and a custom Axios instance (`custom-instance.ts`).
