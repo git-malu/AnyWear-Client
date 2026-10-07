@@ -10,9 +10,16 @@ checkout or Client-owned Infra pin.
 
 ## Protected Beta configuration
 
-Configure these variables in the protected `beta` environment after the new role
-has been provisioned and its effective policy reviewed. Missing configuration
-fails before AWS credentials are assumed; there is no legacy-role fallback.
+Before activating the new role's consumer, the manager reviews and reads back the
+`beta` environment's actual protection rules and deployment branch policy. Use
+reviewed protection rules and a `main`-restricted policy where the repository plan
+supports them. If required reviewers or branch policies are unavailable, record
+the limitation and the accepted explicit freeze, dispatch review and handoff
+procedure in the issue before activation. The workflow still enforces `main` and
+the exact assigned SHA. An environment named `beta` alone does not prove configured
+protections. Configure these variables after the new role has been provisioned and
+its effective policy reviewed. Missing configuration fails before AWS credentials
+are assumed; there is no legacy-role fallback.
 
 | Variable | Value |
 | --- | --- |
@@ -41,10 +48,10 @@ assume infrastructure deployment roles or push Service images.
    and nested helpers; verify cessation. A timeout or switch change alone does not
    prove that a prior writer stopped.
 2. Set and read back the protected environment variables above and the existing
-   activation switches. Keep protected-environment reviewers and `main` branch
-   restrictions. Dispatch `beta-deploy.yml` from `main` with the exact
-   `writer_window` ID. Review the actual run ID/attempt and SHA before allowing the
-   protected job to start.
+   activation switches. Verify the configured environment protections or the
+   manager's recorded supported operational gates. Dispatch `beta-deploy.yml` from
+   `main` with the exact `writer_window` ID. Review the actual run ID/attempt and SHA
+   through the configured approval procedure.
 3. The workflow validates its configuration snapshot before AWS access and again
    immediately before S3 publication. It requires the selected SHA, exact window,
    valid deadline and dedicated role. Its concurrency group serializes only Client
