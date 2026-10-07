@@ -2,6 +2,8 @@
 
 Welcome to the **AnyWear Client** repository. This is the frontend application for the AnyWear ecosystem, targeting both Desktop and Mobile platforms using a single codebase.
 
+See [DESIGN.md](DESIGN.md) for the current UI's source-grounded visual reference, component variants/states, responsive behavior, and known accessibility gaps. Update it alongside relevant UI changes.
+
 ## 🚀 Tech Stack
 
 - **Framework**: [Tauri v2](https://v2.tauri.app/)
