@@ -28,7 +28,7 @@ Agents must strictly use `pnpm` for all dependency management and script executi
 - **Linting**: Run ESLint via `pnpm lint` (when configured).
 
 ### Testing (Vitest, React Testing Library, and Playwright)
-Vitest is the standard unit/component test runner. Playwright is used here only for Client-owned browser integration tests whose Service boundary is mocked. Cross-repository system tests belong in `AnyWear-E2E`.
+Vitest is the standard unit/component test runner. Client-owned Playwright browser integration tests mock Service and cloud boundaries; they do not require a running Service or database. Optional local browser exploration is supplementary UI feedback. Real cross-repository system tests and release evidence belong in `AnyWear-E2E` and run only in Beta and later stages; do not run or gate that suite in dev.
 - **Run Tests in Watch Mode**: `pnpm run test`
 - **Run All Tests Once**: `pnpm run test:run`
 - **Run a Single Test**: `pnpm run test:run path/to/file.test.ts`
@@ -58,7 +58,7 @@ Vitest is the standard unit/component test runner. Playwright is used here only 
 ### 2. State Management
 - **Server State**: Always rely on TanStack Query (`useQuery`, `useMutation`) for remote data fetching, caching, loading states, and synchronization. Do not duplicate server state in Zustand.
 - **Client/Global State**: Use Zustand (`src/store/`) for cross-component global state (like user authentication status or UI theme).
-- **Authentication State (Event-Driven)**: AWS Amplify is the single source of truth for authentication. Zustand acts as a synchronous UI mirror. The `AuthListener` in `App.tsx` listens to Amplify Hub events (`signedOut`, `tokenRefresh_failure`) and automatically clears Zustand's memory. Always use `logout()` in `useAuthStore` to explicitly trigger `signOut()` from Amplify.
+- **Authentication State (Event-Driven)**: AWS Amplify is the single source of truth for authentication. Zustand acts as a synchronous UI mirror. The `AuthListener` in `App.tsx` listens to Amplify Hub events (`signedOut`, `tokenRefresh_failure`) and automatically clears the local UI auth state. Always use `logout()` in `useAuthStore` to explicitly trigger `signOut()` from Amplify.
 - **Local State**: Use `useState` or `useReducer` for simple, isolated UI state (e.g., modal visibility, form inputs).
 
 ### 3. Styling (Tailwind CSS v4)
@@ -103,7 +103,7 @@ Vitest is the standard unit/component test runner. Playwright is used here only 
    After writing or refactoring code, run `pnpm tsc --noEmit` to ensure you haven't introduced type errors. Do not declare a task "complete" without verifying the types align.
 
 4. **Preserve Submodule Integrity**:
-   Treat the `api` submodule as a critical architectural boundary. Follow the documentation and guidelines inside `api/AGENTS.md` when making cross-repository changes.
+   Treat the `api` submodule as a critical architectural boundary. Follow its `AGENTS.md` if present; the root workflow and Service producer instructions govern cross-repository changes when it has no instruction file. Client only consumes a published exact API revision and must not edit or generate the shared specification.
 
 5. **CI/CD Pipeline Monitoring**:
    Agents can use the `gh` CLI to check the status of GitHub Actions workflows. This is useful for verifying whether builds, tests, or deployments have succeeded or failed after pushing changes.
@@ -115,9 +115,9 @@ Vitest is the standard unit/component test runner. Playwright is used here only 
 
 ---
 
-## 🧪 Agent-Driven E2E Testing (Playwright CLI)
+## 🧪 Optional Local Browser Exploration (Playwright CLI)
 
-After implementing features, agents must drive the running application through `@playwright/cli` to verify end-to-end behavior. This replaces the need to write pre-scripted E2E tests for every feature — the agent explores the app autonomously.
+Agents may drive the running application through `@playwright/cli` to inspect UI behavior, layout, loading states, and console errors. This exploratory smoke is optional and non-gating; it supplements applicable automated checks and does not replace regression tests or produce system release evidence. Record whether boundaries were mocked and any limitations. The real system E2E suite remains owned by `AnyWear-E2E` for Beta and later stages.
 
 ### Prerequisites
 
@@ -126,43 +126,43 @@ The Vite dev server must be running (serves the React frontend at `http://localh
 pnpm dev
 ```
 
-The backend service (`AnyWear-Service`) must also be running with a database available. Ensure `VITE_API_BASE_URL` points to the running backend.
+For Client-only validation, mock Service and cloud boundaries using the existing browser fixtures or network interception; no real Service or database is required. If the assigned scope includes exploratory interaction with an already available Service, verify its environment and resource ownership, point `VITE_API_BASE_URL` to it, and record that the observations are exploratory rather than release qualification.
 
-Install `@playwright/cli` (or use via `npx`):
+Use pnpm for the CLI and browser installation:
 ```bash
-npm install -g @playwright/cli
-npx @playwright/cli install chromium
+pnpm exec playwright install chromium
+pnpm dlx @playwright/cli --help
 ```
 
 ### Launching Playwright CLI
 
-The agent drives the browser through `@playwright/cli` shell commands. **Always use `--headed` for local testing** — headless mode hides visual regressions, layout bugs, z-index issues, and loading states. You cannot debug what you cannot see.
+The agent drives the browser through `@playwright/cli` shell commands. Use `--headed` for this interactive local exploration, and inspect screenshots for visual regressions, layout bugs, z-index issues, and loading states. Automated browser checks may run headless.
 
 ```bash
-npx @playwright/cli open http://localhost:1420/login --headed
+pnpm dlx @playwright/cli open http://localhost:1420/login --headed
 ```
 
 For persistent browser state across commands (cookies, localStorage, session), use the `--session` flag:
 
 ```bash
-npx @playwright/cli open http://localhost:1420/login --session anywear-test --headed
+pnpm dlx @playwright/cli open http://localhost:1420/login --session anywear-test --headed
 ```
 
 The following CLI subcommands are available for interacting with the app:
 
 | Command | Usage |
 |---------|-------|
-| `open <url>` | Navigate to a route: `npx @playwright/cli open http://localhost:1420/login --headed` |
+| `open <url>` | Navigate to a route: `pnpm dlx @playwright/cli open http://localhost:1420/login --headed` |
 | `snapshot` | Capture a structured ARIA tree of the current page |
-| `click <selector>` | Click an element: `npx @playwright/cli click "text=Dashboard" --headed` |
-| `type <selector> <text>` | Type into an input: `npx @playwright/cli type "input[type='email']" "test@anywear.local" --headed` |
-| `fill` | Fill multiple form fields: `npx @playwright/cli fill --field "email=..." --field "password=..." --headed` |
-| `wait-for <selector>` | Wait for text/element to appear: `npx @playwright/cli wait-for "text=Dashboard" --headed` |
+| `click <selector>` | Click an element: `pnpm dlx @playwright/cli click "text=Dashboard" --headed` |
+| `type <selector> <text>` | Type into an input: `pnpm dlx @playwright/cli type "input[type='email']" "test@anywear.local" --headed` |
+| `fill` | Fill multiple form fields: `pnpm dlx @playwright/cli fill --field "email=..." --field "password=..." --headed` |
+| `wait-for <selector>` | Wait for text/element to appear: `pnpm dlx @playwright/cli wait-for "text=Dashboard" --headed` |
 | `eval <js>` | Execute arbitrary JS in page context (for mocking, state injection) |
 | `console` | Read all browser console output |
-| `screenshot` | Capture a screenshot: `npx @playwright/cli screenshot --output evidence.png --headed` |
+| `screenshot` | Capture a screenshot: `pnpm dlx @playwright/cli screenshot --output evidence.png --headed` |
 
-> **Headed mode rule**: Every interactive command (`open`, `click`, `type`, `fill`) MUST include `--headed` when testing locally. The only exception is CI pipelines where a display server is unavailable.
+> For interactive local exploration, include `--headed` on `open`, `click`, `type`, and `fill`. This guidance does not change automated test or CI browser settings.
 
 ### Key Application Routes
 
@@ -177,41 +177,32 @@ The following CLI subcommands are available for interacting with the app:
 
 ### Authentication for Testing
 
-The app uses AWS Amplify SDK for authentication. The E2E tests register and log in through the app's own `/register` and `/login` pages — same flow a real user follows. This works identically in Chromium, Tauri WebView2, or any browser.
+The app uses AWS Amplify SDK for authentication and obtains access tokens through `fetchAuthSession()`. Real identity flows use the app's `/register` and `/login` pages and belong in `AnyWear-E2E` for Beta and later stages.
 
 **For scripted Playwright tests** (CI/regression): Client-owned tests mock Service and cloud boundaries and live in `browser/`. Real register-to-login and other Client + Service flows live in `AnyWear-E2E`.
 
-**For quick agentic smoke tests**: Inject auth state to skip the form flow:
-
-```bash
-# Set localStorage to simulate authenticated state
-npx @playwright/cli eval "window.localStorage.setItem('isAuthenticated', 'true')" --session anywear-test --headed
-```
-
-If the backend requires a real JWT, register a real user through the app forms or use the Cognito Admin API.
+**For mocked authenticated UI**: Reuse `authenticatedPage` from `browser/fixtures.ts`. It sets the current store's localStorage UI flag before navigation and mocks common Service endpoints. The flag alone creates no Amplify session or JWT; changing it after the store initializes does not update the in-memory state. Keep every Service/cloud call exercised by the scenario mocked. `browser/agent-helpers.ts` auth helpers only manipulate this UI flag and must not be treated as authentication evidence.
 
 ### Mocking APIs
 
-Use `eval` to patch `fetch` and return mock responses:
+Use Playwright's `page.route()` before navigation, following `browser/fixtures.ts` and the existing `browser/*.spec.ts` examples. For example, a Client browser test can override the fixture's weather response:
 
-```bash
-# See browser/agent-helpers.ts for pre-built injectable helpers
-npx @playwright/cli eval "
-  const orig = window.fetch;
-  window.fetch = (url, ...args) => {
-    if (url.includes('/users/me')) {
-      return Promise.resolve(new Response(JSON.stringify({id:'test',email:'test@anywear.local'}), {status:200}));
-    }
-    return orig(url, ...args);
-  }
-" --session anywear-test --headed
+```ts
+await page.route('**/weather/current', (route) => route.fulfill({
+  status: 200,
+  contentType: 'application/json',
+  body: 'null',
+}));
+await page.goto('/dashboard');
 ```
 
-### Testing Workflow
+Orval requests use Axios in `src/api/custom-instance.ts`; patching `window.fetch` does not reliably intercept them. The `mockApiRoute` helper in `browser/agent-helpers.ts` patches only fetch and is not an Axios/Orval mock. Use network interception for browser scenarios and MSW or `vi.mock()` for applicable unit/component tests.
 
-After implementing a feature, follow this loop:
+### Exploration Workflow
 
-1. **Open** — `npx @playwright/cli open <route> --session <name> --headed`
+When local exploration is useful for the assigned change, follow this loop:
+
+1. **Open** — `pnpm dlx @playwright/cli open <route> --session <name> --headed`
 2. **Snapshot** — capture the ARIA tree to understand UI state
 3. **Interact** — `click`, `type`, `fill` to drive the UI
 4. **Observe** — `snapshot` again, verify expected elements appeared
@@ -221,20 +212,20 @@ After implementing a feature, follow this loop:
 
 ### Smoke Test
 
-To verify the pipeline is working before testing a specific feature:
+To inspect the dev server and login rendering before exploring a specific feature:
 
 ```bash
 # 1. Start the dev server
 pnpm dev
 
 # 2. Open the app and verify it loads
-npx @playwright/cli open http://localhost:1420/login --session smoke --headed
-npx @playwright/cli wait-for "text=Sign in" --session smoke --headed
-npx @playwright/cli snapshot --session smoke --headed
-npx @playwright/cli console --session smoke
+pnpm dlx @playwright/cli open http://localhost:1420/login --session smoke --headed
+pnpm dlx @playwright/cli wait-for "text=Sign in" --session smoke --headed
+pnpm dlx @playwright/cli snapshot --session smoke --headed
+pnpm dlx @playwright/cli console --session smoke
 
 # 3. Capture a screenshot for evidence
-npx @playwright/cli screenshot --output browser/screenshots/smoke.png --session smoke --headed
+pnpm dlx @playwright/cli screenshot --output browser/screenshots/smoke.png --session smoke --headed
 ```
 
-This confirms the dev server responds and the login page renders correctly.
+This checks only that the dev server responds and the login page renders. It is optional local UI feedback and cannot satisfy a Beta or Production system release gate.
