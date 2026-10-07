@@ -62,6 +62,7 @@ Vitest is the standard unit/component test runner. Client-owned Playwright brows
 - **Local State**: Use `useState` or `useReducer` for simple, isolated UI state (e.g., modal visibility, form inputs).
 
 ### 3. Styling (Tailwind CSS v4)
+- **Design Reference**: Read [DESIGN.md](DESIGN.md) for implemented colors, typography, components/states, and explicit gaps. Update affected sections with UI changes; keep future targets distinct from current behavior. Meta owns the reusable template and cross-project principles linked there.
 - **Utility-First**: Strictly adhere to Tailwind utility classes.
 - **Tailwind v4 Setup**: Note that v4 uses `@import "tailwindcss";` in the CSS file rather than the older `@tailwind` directives.
 - **No Custom CSS**: Avoid adding styles to `index.css` or creating `.css` modules unless absolutely necessary. Rely entirely on Tailwind v4's arbitrary values (e.g., `w-[150px]`) if standard utilities fall short.
