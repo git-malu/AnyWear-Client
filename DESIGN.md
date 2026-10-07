@@ -4,6 +4,8 @@
 
 This document describes the **implemented** Client UI at source revision [`d2a21a747c04d5b0075b8db1f54f58df65424a5a`](https://github.com/git-malu/AnyWear-Client/tree/d2a21a747c04d5b0075b8db1f54f58df65424a5a), reviewed on **2026-10-07** for [AnyWear #10](https://github.com/git-malu/AnyWear/issues/10). Relative source links below follow this document's checkout. The baseline identifies the source used for this snapshot; later UI changes should update the relevant sections and this review record together.
 
+The **Target brand and UX direction** below was accepted on **2026-10-07** in [AnyWear #85](https://github.com/git-malu/AnyWear/issues/85). It adds product guidance to the implementation snapshot; it does not change that source baseline or claim a UI redesign has been implemented. Permanent principles are published in [Meta frontend architecture §7](https://github.com/git-malu/AnyWear-Meta/blob/f49ed8323011ea9e0bfaddf4e0cf5d2e7448fc0b/architecture/system-component-architecture/application-architecture/frontend_architecture.md#7-design-and-ux-principles) at immutable revision `f49ed8323011ea9e0bfaddf4e0cf5d2e7448fc0b`.
+
 Covered surfaces are auth (`/login`, `/register`, `/verify`), `/dashboard`, `/wardrobe`, `/mirror`, `/settings`, and their shared shells. Desktop/mobile/web observations below describe the shared source rules; no device-specific rendering check was performed.
 
 The section order follows the [Meta DESIGN template](https://github.com/git-malu/AnyWear-Meta/blob/309c5e15cd75ffc43390003025b7800cfeb6b869/architecture/templates/DESIGN_TEMPLATE.md) at immutable revision `309c5e15cd75ffc43390003025b7800cfeb6b869`. Meta owns cross-project principles and reusable documentation conventions; this repository owns concrete classes, components, and observed implementation gaps. This is a source review, not a browser/device accessibility or visual certification.
@@ -25,6 +27,17 @@ When changing UI, read the affected component **and its callers**, update varian
 AnyWear uses a quiet light interface around wardrobe and virtual try-on photography: white cards, gray page surfaces, dark gray text, compact controls, and restrained colored feedback. This reflects Meta's visual-dominance principle; it is not a new redesign. “AnyWear” is rendered as text in [AuthLayout](src/layouts/AuthLayout.tsx) and [MainLayout](src/layouts/MainLayout.tsx), without an implemented logo component.
 
 Indigo identifies most primary actions, input focus, and image selections. Blue appears in weather/location actions and saved-outfit selection. Red identifies failure and destructive actions; yellow identifies processing; amber and green distinguish credit levels. Garment and generated images use `CachedImage`, commonly cropped with `object-cover`; result previews use `object-contain`. Inline SVGs, emoji, and text provide iconography; there is no shared icon library contract.
+
+### Target brand and UX direction
+
+**Target:** a **clean, approachable, aesthetically considered personal wardrobe and fitting mirror**. The product helps people choose satisfying outfits from their own clothes more quickly for their situation. The following guidance applies to future UI decisions; the current values, component inventory, and gaps in this document remain implementation facts.
+
+- **Prioritize clothing and try-on imagery.** Keep near-neutral white and gray backgrounds, with clothing, personal photos, and results supplying the main color and visual focus. Improve image presentation, proportion, spacing, typography, and outfit composition to build visual character. Image and action hierarchy takes priority over changing the primary color.
+- **Make selection and the next action clear.** Reduce unnecessary switching and comparison work. Current indigo can remain; use a consistent, restrained accent rule for primary actions and selections. Preserve meaningful error, warning, and success colors. This direction selects no new brand hex value, theme token, type scale, spacing scale, or component geometry.
+- **Set hierarchy by screen and task.** Evaluate card/grouping weight for each screen rather than giving every card equal emphasis. Weather may be prominent when choosing an outfit for conditions. Available credits and expected consumption should be clear near the generation action, where they inform the decision.
+- **Keep interaction calm and AI feedback understandable.** Use restrained decoration and motion while making progress, failures, and results easy to understand. Let feedback support the choice and help people identify their next action.
+
+Before selecting final visual parameters, evaluate **wardrobe, fitting mirror, and try-on result prototypes** using the questions in the pinned [Meta principles](https://github.com/git-malu/AnyWear-Meta/blob/f49ed8323011ea9e0bfaddf4e0cf5d2e7448fc0b/architecture/system-component-architecture/application-architecture/frontend_architecture.md#design-evaluation): can people identify their clothes, selection and result, see the next action, understand relevant weather/credits/consumption, and interpret AI feedback? These are future evaluation criteria; no prototypes, rendering checks, usability research, or accessibility audits are asserted here.
 
 ## Color and theme
 
