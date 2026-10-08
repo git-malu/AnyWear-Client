@@ -2,14 +2,8 @@ name: Deploy Beta Web Client
 
 on:
   workflow_dispatch:
-    inputs:
-      writer_window:
-        description: Manager-assigned Client publish window ID
-        required: true
-        type: string
 
-# This queue only serializes Client runs. Cross-repository writers must be frozen
-# and handed off by the manager before this workflow is dispatched.
+# This queue serializes Client publication, independently of Infra's queue.
 concurrency:
   group: beta-client-publish
   cancel-in-progress: false
@@ -32,15 +26,11 @@ jobs:
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ vars.AWS_REGION }}
       CLIENT_PUBLISH_ROLE_ARN: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
-      CLIENT_PUBLISH_WINDOW_INPUT: ${{ inputs.writer_window }}
-      CLIENT_PUBLISH_WINDOW_ID: ${{ vars.CLIENT_PUBLISH_WINDOW_ID }}
-      CLIENT_PUBLISH_WINDOW_CLIENT_SHA: ${{ vars.CLIENT_PUBLISH_WINDOW_CLIENT_SHA }}
-      CLIENT_PUBLISH_WINDOW_EXPIRES_AT: ${{ vars.CLIENT_PUBLISH_WINDOW_EXPIRES_AT }}
-      CLIENT_PUBLISH_WINDOW_RECORD_URL: ${{ vars.CLIENT_PUBLISH_WINDOW_RECORD_URL }}
 
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - uses: pnpm/action-setup@v6
@@ -52,8 +42,8 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Validate manager-assigned Client publish window
-        run: node .github/scripts/assert-client-publish-window.mjs preflight
+      - name: Validate Beta Client publication identity
+        run: node .github/scripts/assert-client-publication.mjs preflight
 
       - run: pnpm install --frozen-lockfile
 
@@ -107,7 +97,7 @@ jobs:
           CLIENT_BUCKET: ${{ steps.settings.outputs.bucket }}
           CLIENT_DISTRIBUTION: ${{ steps.settings.outputs.distribution }}
         run: |
-          node .github/scripts/assert-client-publish-window.mjs publish
+          node .github/scripts/assert-client-publication.mjs publish
           aws s3 sync dist "s3://$CLIENT_BUCKET" --delete
           invalidation="$(aws cloudfront create-invalidation \
             --distribution-id "$CLIENT_DISTRIBUTION" --paths '/*' \
