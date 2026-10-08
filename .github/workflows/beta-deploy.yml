@@ -2,6 +2,17 @@ name: Deploy Beta Web Client
 
 on:
   workflow_dispatch:
+    inputs:
+      writer_window:
+        description: Manager-assigned Client publish window ID
+        required: true
+        type: string
+
+# This queue only serializes Client runs. Cross-repository writers must be frozen
+# and handed off by the manager before this workflow is dispatched.
+concurrency:
+  group: beta-client-publish
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -17,6 +28,15 @@ jobs:
       contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BETA_DEPLOY_ENABLED: ${{ vars.ENABLE_BETA_DEPLOY }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLIENT_PUBLISH_ROLE_ARN: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+      CLIENT_PUBLISH_WINDOW_INPUT: ${{ inputs.writer_window }}
+      CLIENT_PUBLISH_WINDOW_ID: ${{ vars.CLIENT_PUBLISH_WINDOW_ID }}
+      CLIENT_PUBLISH_WINDOW_CLIENT_SHA: ${{ vars.CLIENT_PUBLISH_WINDOW_CLIENT_SHA }}
+      CLIENT_PUBLISH_WINDOW_EXPIRES_AT: ${{ vars.CLIENT_PUBLISH_WINDOW_EXPIRES_AT }}
+      CLIENT_PUBLISH_WINDOW_RECORD_URL: ${{ vars.CLIENT_PUBLISH_WINDOW_RECORD_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -32,13 +52,25 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - name: Validate manager-assigned Client publish window
+        run: node .github/scripts/assert-client-publish-window.mjs preflight
+
       - run: pnpm install --frozen-lockfile
 
       - name: Configure Beta AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/beta-github-actions-pipeline-role
+          role-to-assume: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+          role-session-name: client-publish-${{ github.run_id }}-${{ github.run_attempt }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify Beta Client principal
+        shell: bash
+        run: |
+          aws sts get-caller-identity --output json | jq -e \
+            --arg account "$AWS_ACCOUNT_ID" \
+            --arg arn "arn:aws:sts::$AWS_ACCOUNT_ID:assumed-role/beta-client-publish-role/client-publish-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            '.Account == $account and .Arn == $arn'
 
       - name: Resolve Beta deployment settings
         id: settings
@@ -75,5 +107,15 @@ jobs:
           CLIENT_BUCKET: ${{ steps.settings.outputs.bucket }}
           CLIENT_DISTRIBUTION: ${{ steps.settings.outputs.distribution }}
         run: |
+          node .github/scripts/assert-client-publish-window.mjs publish
           aws s3 sync dist "s3://$CLIENT_BUCKET" --delete
-          aws cloudfront create-invalidation --distribution-id "$CLIENT_DISTRIBUTION" --paths '/*'
+          invalidation="$(aws cloudfront create-invalidation \
+            --distribution-id "$CLIENT_DISTRIBUTION" --paths '/*' \
+            --query Invalidation.Id --output text)"
+          {
+            echo '### Client publish request'
+            echo "- Client source: \`$GITHUB_SHA\`"
+            echo "- Bucket: \`$CLIENT_BUCKET\`"
+            echo "- Distribution: \`$CLIENT_DISTRIBUTION\`"
+            echo "- Invalidation: \`$invalidation\`"
+          } >> "$GITHUB_STEP_SUMMARY"
