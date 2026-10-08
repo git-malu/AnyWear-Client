@@ -92,20 +92,6 @@ describe('OutfitPicker', () => {
     expect(screen.getByText('0 items')).toBeDefined();
   });
 
-  it('shows item count for each outfit', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: mockOutfits,
-      isLoading: false,
-      isError: false,
-    } as any);
-
-    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
-
-    // First outfit has 2 items, second has 0
-    const itemCounts = screen.getAllByText(/items/);
-    expect(itemCounts).toHaveLength(2);
-  });
-
   it('calls onSelect when an outfit is clicked', () => {
     const onSelect = vi.fn();
     vi.mocked(useGetOutfits).mockReturnValue({
@@ -133,18 +119,22 @@ describe('OutfitPicker', () => {
     expect(selectedButton?.className).toContain('border-blue-500');
   });
 
-  it('renders first outfit image when available', () => {
+  it.each([
+    ['JSON', JSON.stringify([{ key: 'other.jpg' }, { key: 'primary.jpg', isPrimary: true }])],
+    ['array', [{ key: 'other.jpg' }, { key: 'primary.jpg', isPrimary: true }]],
+  ])('renders the designated primary thumbnail from %s image keys', (_format, imageKeys) => {
+    const data = structuredClone(mockOutfits);
+    Object.assign(data.outfits[0].wearableItems[0], { imageKeys });
     vi.mocked(useGetOutfits).mockReturnValue({
-      data: mockOutfits,
+      data,
       isLoading: false,
       isError: false,
     } as any);
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
 
-    // Outfits render; verify the CachedImage component is rendered
-    const outfit1 = screen.getByText('Weekend Casual');
-    expect(outfit1).toBeDefined();
-    expect(screen.getByText('2 items')).toBeDefined();
+    const image = screen.getByAltText('');
+    expect(image).toHaveAttribute('src', 'primary.jpg');
+    expect(image).toHaveAttribute('alt', '');
   });
 });

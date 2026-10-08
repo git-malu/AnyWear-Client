@@ -31,7 +31,7 @@ Agents must strictly use `pnpm` for all dependency management and script executi
 Vitest is the standard unit/component test runner. Client-owned Playwright browser integration tests mock Service and cloud boundaries; they do not require a running Service or database. Optional local browser exploration is supplementary UI feedback. Real cross-repository system tests and release evidence belong in `AnyWear-E2E` and run only in Beta and later stages; do not run or gate that suite in dev.
 - **Run Tests in Watch Mode**: `pnpm run test`
 - **Run All Tests Once**: `pnpm run test:run`
-- **Run a Single Test**: `pnpm run test:run path/to/file.test.ts`
+- **Run a Single Test**: `pnpm exec vitest run path/to/file.test.ts`
 - **Run Coverage**: `pnpm run test:coverage`
 - **Run Browser Integration Tests**: `pnpm run test:browser` (If Chromium is missing, run `pnpm exec playwright install chromium`).
 *Note: When generating or fixing tests, ensure you are mocking Axios/Orval hooks correctly using tools like MSW (Mock Service Worker) or `vi.mock()`.*
@@ -182,7 +182,7 @@ The app uses AWS Amplify SDK for authentication and obtains access tokens throug
 
 **For scripted Playwright tests** (CI/regression): Client-owned tests mock Service and cloud boundaries and live in `browser/`. Real register-to-login and other Client + Service flows live in `AnyWear-E2E`.
 
-**For mocked authenticated UI**: Reuse `authenticatedPage` from `browser/fixtures.ts`. It sets the current store's localStorage UI flag before navigation and mocks common Service endpoints. The flag alone creates no Amplify session or JWT; changing it after the store initializes does not update the in-memory state. Keep every Service/cloud call exercised by the scenario mocked. `browser/agent-helpers.ts` auth helpers only manipulate this UI flag and must not be treated as authentication evidence.
+**For mocked authenticated UI**: Reuse `authenticatedPage` from `browser/fixtures.ts`. It sets the current store's localStorage UI flag before navigation and mocks common Service endpoints. The flag alone creates no Amplify session or JWT; changing it after the store initializes does not update the in-memory state. Keep every Service/cloud call exercised by the scenario mocked. The fixture and outfit/auto-tagging scenarios use `browser/mock-boundaries.ts` to intercept fixture images and reject unexpected external calls. Playwright's test server fixes the mocked API origin to `http://localhost:3000`.
 
 ### Mocking APIs
 
@@ -197,7 +197,7 @@ await page.route('**/weather/current', (route) => route.fulfill({
 await page.goto('/dashboard');
 ```
 
-Orval requests use Axios in `src/api/custom-instance.ts`; patching `window.fetch` does not reliably intercept them. The `mockApiRoute` helper in `browser/agent-helpers.ts` patches only fetch and is not an Axios/Orval mock. Use network interception for browser scenarios and MSW or `vi.mock()` for applicable unit/component tests.
+Orval requests use Axios in `src/api/custom-instance.ts`; patching `window.fetch` does not reliably intercept them. Use network interception for browser scenarios and MSW or `vi.mock()` for applicable unit/component tests. The unconnected legacy MCP harness, injected-string helpers and dated screenshot were retired; optional exploration uses the Playwright CLI instructions above and is not release evidence.
 
 ### Exploration Workflow
 

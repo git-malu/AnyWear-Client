@@ -47,9 +47,10 @@ Ensure you have the following installed:
 
 ### Testing
 - `pnpm test` - Run tests in watch mode
-- `pnpm test:run` - Run all tests once
+- `pnpm test:run` - Run Vitest tests and the explicitly listed build-identity Node test once
 - `pnpm test:browser` - Run Client-owned Playwright browser integration tests with mocked service boundaries
   - **Important:** Before running browser tests for the first time, install Chromium with `pnpm exec playwright install chromium`.
+  - Scenarios mock API/image/upload boundaries and fail unexpected external calls; the test server fixes the API origin to localhost:3000.
   - `AnyWear-E2E` owns the cross-repository system test pipeline and versioned compatibility pins. The AnyWear shell holds local workspace submodule pins and does not run CI.
 
 ### Beta web publication

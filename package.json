@@ -17,7 +17,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run && node --test scripts/*.node-test.mjs",
+    "test:run": "vitest run && node --test scripts/write-build-metadata.node-test.mjs",
     "test:coverage": "vitest run --coverage",
     "test:browser": "playwright test"
   },
@@ -36,7 +36,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/mcp": "^0.0.73",
     "@playwright/test": "^1.62.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
