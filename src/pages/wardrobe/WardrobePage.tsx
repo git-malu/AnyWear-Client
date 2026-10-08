@@ -248,7 +248,7 @@ export default function WardrobePage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {outfits.map((outfit) => {
               const firstItem = outfit.wearableItems?.[0];
-              const primaryImage = firstItem ? getPrimaryImage(firstItem) : null;
+              const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
               return (
                 <div
                   key={outfit.id}

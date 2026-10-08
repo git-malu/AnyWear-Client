@@ -37,6 +37,7 @@ export default defineConfig({
     timeout: 120 * 1000,
     env: {
       ...process.env,
+      VITE_API_BASE_URL: 'http://localhost:3000',
       VITE_COGNITO_USER_POOL_ID: process.env.VITE_COGNITO_USER_POOL_ID || process.env.USER_POOL_ID || '',
       VITE_COGNITO_CLIENT_ID: process.env.VITE_COGNITO_CLIENT_ID || '',
       VITE_COGNITO_IDENTITY_POOL_ID: process.env.VITE_COGNITO_IDENTITY_POOL_ID || '',

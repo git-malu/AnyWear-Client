@@ -29,7 +29,7 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
     <div className="space-y-2 max-h-[320px] overflow-y-auto">
       {outfits.map((outfit) => {
         const firstItem = outfit.wearableItems?.[0];
-        const primaryImage = firstItem ? getPrimaryImage(firstItem) : null;
+        const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
         const isSelected = outfit.id === selectedOutfitId;
 
         return (

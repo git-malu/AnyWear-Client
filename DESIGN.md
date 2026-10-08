@@ -215,6 +215,8 @@ Use [App.tsx](src/App.tsx) for route/layout/Suspense and profile-sync fallback w
 
 Existing focused checks include [CachedImage tests](src/components/CachedImage.test.tsx), [OutfitPicker tests](src/components/mirror/OutfitPicker.test.tsx), and [CreateOutfitModal tests](src/pages/wardrobe/CreateOutfitModal.test.tsx). Their tested behavior should be read before changing those components; their presence does not establish visual or accessibility coverage of every state documented here.
 
+Saved-outfit thumbnails in the picker and Wardrobe cards resolve the first wearable item's `imageKeys`, selecting its designated primary image before the first-image fallback. Focused component and mocked browser tests assert the thumbnail source; they do not certify live media access.
+
 Cross-project references: [Meta architecture principles](https://github.com/git-malu/AnyWear-Meta/blob/309c5e15cd75ffc43390003025b7800cfeb6b869/architecture/architecture_principles.md) and [frontend design/UX principles](https://github.com/git-malu/AnyWear-Meta/blob/309c5e15cd75ffc43390003025b7800cfeb6b869/architecture/system-component-architecture/application-architecture/frontend_architecture.md#7-design-and-ux-principles). They provide architectural direction; planned architecture/features must not be inferred as current component behavior.
 
 Current gaps are intentional records, not accepted design targets: no semantic project tokens/dark theme/font delivery; inconsistent focus/labels/dialog semantics; no reduced motion/safe-area clearance; legacy backdrop/aspect classes; dormant MirrorPageSkeleton; and feature-specific query/mutation failures without dedicated feedback. Do not silently convert these statements into implemented behavior.

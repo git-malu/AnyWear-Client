@@ -1,254 +1,167 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
+import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
 
 const ITEM_ID = '11111111-1111-1111-8111-111111111111';
-
-const mockItem = {
-  id: ITEM_ID,
-  ownerId: 'test-user-id',
-  name: 'My T-Shirt',
+const mockItem: GetWardrobe200Item = {
+  id: ITEM_ID, ownerId: 'test-user-id', name: 'My T-Shirt',
   imageKeys: [{ key: 'https://example.com/test.jpg', isPrimary: true }],
-  category: 'Top',
-  taggingStatus: 'processing',
-  weatherTags: ['Warm', 'Temperate'],
-  styleAttributes: {
-    color: 'Black',
-    material: 'Cotton',
-    design: 'Short-sleeve T-shirt',
-    fit: 'Regular',
-    pattern: 'Solid',
-    neckline: 'Crew Neck',
-    vibe: 'Casual',
-  },
-  isPublic: false,
-  imageEmbedding: null,
+  category: 'Top', taggingStatus: 'ready', weatherTags: ['Warm', 'Temperate'],
+  styleAttributes: { color: 'Black', material: 'Cotton', design: 'Short-sleeve T-shirt', fit: 'Regular', pattern: 'Solid', neckline: 'Crew Neck', vibe: 'Casual' },
+  isPublic: false, imageEmbedding: null,
+  taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null,
+  createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z',
 };
 
 interface MockState {
-  showItems: boolean;
-  status: string;
+  items: GetWardrobe200Item[];
+  mutations: Array<{ method: string; path: string; body: unknown }>;
+  categories: Array<string | null>;
+  uploadedImage?: Buffer;
+}
+
+function stateWithItem(item = structuredClone(mockItem)): MockState {
+  return { items: [item], mutations: [], categories: [] };
 }
 
 async function setupMock(page: Page, state: MockState) {
-  // Mock the S3 upload fetch (the presigned URL PUT)
-  await page.route('**/s3.example.com/**', async (route) => {
-    await route.fulfill({ status: 200 });
+  await mockClientBoundaries(page);
+  await page.route('https://s3.example.com/upload', async (route, request) => {
+    state.uploadedImage = request.postDataBuffer() ?? undefined;
+    state.mutations.push({ method: request.method(), path: '/upload', body: { contentType: request.headers()['content-type'] } });
+    return route.fulfill({ status: 200 });
   });
-
-  // Mock auth
-  await page.route('**/users/me', async (route, request) => {
-    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        id: 'test-user-id', email: 'test@anywear.local',
-        locationId: null, locationName: null, createdAt: new Date().toISOString(),
-      }),
-    });
-  });
-
-  // Mock weather
-  await page.route('**/weather/**', async (route, request) => {
-    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
-  });
-
-  // WardrobePage also loads the outfit summary. Keep this test focused on
-  // auto-tagging instead of letting the unmocked request trigger the global
-  // 401 auth redirect.
-  await page.route('**/outfits', async (route, request) => {
-    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ outfits: [] }),
-    });
-  });
-
-  // Mock all wardrobe API calls
-  await page.route('**/wardrobe**', async (route, request) => {
+  await page.route('http://localhost:3000/**', async (route, request) => {
     const url = new URL(request.url());
-    if (url.port !== '3000') { await route.continue(); return; }
-
     const path = url.pathname;
     const method = request.method();
-
-    if (method === 'POST' && path.endsWith('/upload-url')) {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ url: 'https://s3.example.com/upload', key: 'wardrobe/test.png', itemId: ITEM_ID }),
-      });
+    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (method === 'GET' && path === '/users/me') return json({ id: 'test-user-id', email: 'test@anywear.local' });
+    if (method === 'GET' && path === '/outfits') return json({ outfits: [] });
+    if (method === 'GET' && path === '/wardrobe/categories') return json({ categories: ['Top', 'Bottom'] });
+    if (method === 'GET' && path === '/wardrobe') {
+      const category = url.searchParams.get('category');
+      state.categories.push(category);
+      return json(state.items.filter(item => !category || item.category === category));
     }
-    if (method === 'POST' && path.endsWith('/upload')) {
-      return route.fulfill({
-        status: 202,
-        contentType: 'application/json',
-        body: JSON.stringify({ itemId: ITEM_ID, taggingStatus: 'processing' }),
-      });
+    if (method === 'POST' && path === '/wardrobe/upload-url') {
+      state.mutations.push({ method, path, body: request.postDataJSON() });
+      return json({ url: 'https://s3.example.com/upload', key: 'wardrobe/test.png', itemId: ITEM_ID });
     }
-    if (method === 'POST' && path.endsWith('/retag')) {
-      return route.fulfill({
-        status: 202,
-        contentType: 'application/json',
-        body: JSON.stringify({ itemId: ITEM_ID, taggingStatus: 'processing' }),
-      });
+    if (method === 'POST' && path === '/wardrobe/upload') {
+      state.mutations.push({ method, path, body: request.postDataJSON() });
+      state.items = [{ ...structuredClone(mockItem), taggingStatus: 'processing' }];
+      return json({ itemId: ITEM_ID, taggingStatus: 'processing' }, 202);
     }
-    if (method === 'PATCH') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockItem) });
+    if (method === 'PATCH' && path === `/wardrobe/items/${ITEM_ID}`) {
+      const body = request.postDataJSON();
+      state.mutations.push({ method, path, body });
+      const item = state.items.find(item => item.id === ITEM_ID);
+      if (!item) return json({ error: 'NOT_FOUND' }, 404);
+      Object.assign(item, body);
+      return json(item);
     }
-    if (method === 'DELETE') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+    if (method === 'POST' && path === `/wardrobe/items/${ITEM_ID}/retag`) {
+      state.mutations.push({ method, path, body: request.postData() ? request.postDataJSON() : undefined });
+      state.items = state.items.map(item => ({ ...item, taggingStatus: 'processing' }));
+      return json({ itemId: ITEM_ID, taggingStatus: 'processing' }, 202);
     }
-    if (method === 'GET' && path.endsWith('/categories')) {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ categories: ['Top', 'Bottom', 'Outerwear'] }),
-      });
+    if (method === 'GET' && path === `/wardrobe/items/${ITEM_ID}/stream`) {
+      return route.fulfill({ contentType: 'text/event-stream', body: '' });
     }
-    if (method === 'GET') {
-      if (state.showItems) {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([{ ...mockItem, taggingStatus: state.status }]),
-        });
-      }
-      return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-    }
-
-    await route.continue();
+    return route.fallback();
   });
 }
 
-test.describe('Wardrobe Auto-Tagging', () => {
+test.describe('Wardrobe Auto-Tagging (mocked Client integration)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      window.localStorage.setItem('isAuthenticated', 'true');
-    });
+    await page.addInitScript(() => window.localStorage.setItem('isAuthenticated', 'true'));
+  });
+  test.afterEach(({ page }) => expectOnlyMockedCalls(page));
+
+  test('uploads an image, shows processing and polls the ready item without reload', async ({ page }) => {
+    const state: MockState = { items: [], mutations: [], categories: [] };
+    await setupMock(page, state);
+    await page.clock.install();
+    await page.goto('/wardrobe');
+    await expect(page.getByText('Your wardrobe is empty.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Item', exact: true }).click();
+    await page.locator('input[type="file"]').setInputFiles('browser/fixtures/dummy.png');
+    await page.getByRole('button', { name: 'Upload & Auto-Tag', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Add Wardrobe Item' })).not.toBeVisible();
+    await expect(page.getByText('My T-Shirt', { exact: true })).toBeVisible();
+    await expect(page.getByText('Analyzing...', { exact: true })).toBeVisible();
+    expect(state.mutations).toEqual([
+      { method: 'POST', path: '/wardrobe/upload-url', body: { contentType: 'image/png', extension: 'png' } },
+      { method: 'PUT', path: '/upload', body: { contentType: 'image/png' } },
+      { method: 'POST', path: '/wardrobe/upload', body: { itemId: ITEM_ID } },
+    ]);
+    expect(state.uploadedImage).toEqual(await readFile('browser/fixtures/dummy.png'));
+    state.items[0] = { ...structuredClone(mockItem), taggingStatus: 'ready' };
+    await page.clock.fastForward(10_000);
+    await expect(page.getByText('Analyzing...', { exact: true })).not.toBeVisible();
+    await expect(page.getByText('Black • Cotton', { exact: true })).toBeVisible();
   });
 
-  test('should show processing badge after upload and transition to ready', async ({ page }) => {
-    const state: MockState = { showItems: false, status: 'processing' };
+  test('populates auto-tagged values, saves edits and refreshes the item', async ({ page }) => {
+    const state = stateWithItem();
     await setupMock(page, state);
-
     await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible();
-    await expect(page.getByText('Your wardrobe is empty.')).toBeVisible();
-
-    // Add item — upload flow
-    await page.getByRole('button', { name: 'Add Item' }).click();
-    await expect(page.getByRole('heading', { name: 'Add Wardrobe Item' })).toBeVisible();
-
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles('browser/fixtures/dummy.png');
-
-    // Switch to returning items BEFORE clicking upload
-    state.showItems = true;
-    state.status = 'processing';
-
-    await page.getByRole('button', { name: 'Upload & Auto-Tag' }).click();
-
-    // Item should appear with Analyzing badge
-    await expect(page.getByText('My T-Shirt')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Analyzing...')).toBeVisible({ timeout: 5000 });
-
-    // Switch to ready
-    state.status = 'ready';
-    await page.reload();
-    await expect(page.getByText('My T-Shirt')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Analyzing...')).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Black • Cotton')).toBeVisible({ timeout: 5000 });
+    await page.getByText('My T-Shirt', { exact: true }).click();
+    await expect(page.getByPlaceholder('e.g. My favorite hoodie')).toHaveValue('My T-Shirt');
+    await expect(page.getByPlaceholder('e.g. Top', { exact: true })).toHaveValue('Top');
+    await expect(page.getByPlaceholder('e.g. Black, White')).toHaveValue('Black');
+    await expect(page.getByPlaceholder('e.g. Cotton', { exact: true })).toHaveValue('Cotton');
+    await expect(page.getByPlaceholder('e.g. Cold, Windy, Warm')).toHaveValue('Warm, Temperate');
+    await page.getByPlaceholder('e.g. My favorite hoodie').fill('My Favorite Hoodie');
+    await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Item Details' })).not.toBeVisible();
+    await expect(page.getByText('My Favorite Hoodie', { exact: true })).toBeVisible();
+    expect(state.mutations).toEqual([{ method: 'PATCH', path: `/wardrobe/items/${ITEM_ID}`, body: {
+      name: 'My Favorite Hoodie', category: 'Top', imageKeys: mockItem.imageKeys,
+      styleAttributes: mockItem.styleAttributes, weatherTags: ['Warm', 'Temperate'],
+    } }]);
   });
 
-  test('should show item details with auto-tagged attributes', async ({ page }) => {
-    const state: MockState = { showItems: true, status: 'ready' };
+  test('requests re-tagging and refreshes the processing badge', async ({ page }) => {
+    const state = stateWithItem();
     await setupMock(page, state);
-
     await page.goto('/wardrobe');
-    await expect(page.getByText('My T-Shirt')).toBeVisible({ timeout: 5000 });
-
-    await page.getByText('My T-Shirt').click();
-    await expect(page.getByRole('heading', { name: 'Item Details' })).toBeVisible({ timeout: 3000 });
-
-    // Verify auto-tagged fields are populated
-    await expect(page.locator('input[placeholder="e.g. My favorite hoodie"]')).toBeVisible();
-    await expect(page.locator('input[placeholder="e.g. Top"]')).toBeVisible();
-    await expect(page.locator('input[placeholder="e.g. Black, White"]')).toBeVisible();
-
-    // Edit and save
-    await page.locator('input[placeholder="e.g. My favorite hoodie"]').fill('My Favorite Hoodie');
-    await page.getByRole('button', { name: 'Save Changes' }).click();
-  });
-
-  test('should allow re-tagging from item details', async ({ page }) => {
-    const state: MockState = { showItems: true, status: 'ready' };
-    await setupMock(page, state);
-
-    await page.goto('/wardrobe');
-    await page.getByText('My T-Shirt').click();
-    await expect(page.getByRole('heading', { name: 'Item Details' })).toBeVisible({ timeout: 3000 });
-
-    const retagButton = page.getByRole('button', { name: 'Re-tag' });
-    await expect(retagButton).toBeVisible();
+    await page.getByText('My T-Shirt', { exact: true }).click();
+    const retagButton = page.getByRole('button', { name: 'Re-tag', exact: true });
     await expect(retagButton).toBeEnabled();
-
-    page.on('dialog', (dialog) => dialog.accept());
+    const messages: string[] = [];
+    page.on('dialog', async dialog => { messages.push(dialog.message()); await dialog.accept(); });
     await retagButton.click();
+    await expect(page.getByRole('heading', { name: 'Item Details' })).not.toBeVisible();
+    await expect(page.getByText('Analyzing...', { exact: true })).toBeVisible();
+    expect(messages).toEqual(['Re-tagging started. Check back shortly.']);
+    expect(state.mutations).toEqual([{ method: 'POST', path: `/wardrobe/items/${ITEM_ID}/retag`, body: undefined }]);
   });
 
-  test('should filter items by category chip', async ({ page }) => {
-    const state: MockState = { showItems: true, status: 'ready' };
+  test('filters by the category query and restores all items', async ({ page }) => {
+    const state = stateWithItem();
+    state.items.push({ ...structuredClone(mockItem), id: '22222222-2222-4222-8222-222222222222', name: 'My Jeans', category: 'Bottom' });
     await setupMock(page, state);
-
     await page.goto('/wardrobe');
-    await expect(page.getByText('My T-Shirt')).toBeVisible({ timeout: 5000 });
-
-    const allButton = page.getByRole('button', { name: 'All' });
-    const topButton = page.getByRole('button', { name: 'Top' });
-
-    await expect(allButton).toBeVisible();
-    await expect(topButton).toBeVisible();
-    await expect(allButton).toHaveClass(/bg-indigo-600/);
-
-    await topButton.click();
-    await expect(topButton).toHaveClass(/bg-indigo-600/);
-    await expect(allButton).not.toHaveClass(/bg-indigo-600/);
+    await expect(page.getByText('My T-Shirt', { exact: true })).toBeVisible();
+    await expect(page.getByText('My Jeans', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Top', exact: true }).click();
+    await expect(page.getByText('My T-Shirt', { exact: true })).toBeVisible();
+    await expect(page.getByText('My Jeans', { exact: true })).not.toBeVisible();
+    expect(state.categories).toContain('Top');
+    await page.getByRole('button', { name: 'All', exact: true }).click();
+    await expect(page.getByText('My Jeans', { exact: true })).toBeVisible();
   });
 
-  test('should show "Failed" badge for failed items', async ({ page }) => {
-    const state: MockState = { showItems: true, status: 'failed' };
+  test('shows the failed badge and opens failed item details', async ({ page }) => {
+    const state = stateWithItem({ ...structuredClone(mockItem), name: 'Bad Upload', taggingStatus: 'failed', styleAttributes: {} });
     await setupMock(page, state);
-    // Override name
-    const failItem = { ...mockItem, name: 'Bad Upload', styleAttributes: {} };
-
-    // Re-route with failed item
-    await page.unroute('**/wardrobe**');
-    await page.route('**/s3.example.com/**', async (route) => { await route.fulfill({ status: 200 }); });
-    await page.route('**/users/me', async (route, request) => {
-      if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'test-user-id', email: 'test@anywear.local', locationId: null, locationName: null, createdAt: new Date().toISOString() }) });
-    });
-    await page.route('**/weather/**', async (route, request) => {
-      if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
-    });
-    await page.route('**/wardrobe**', async (route, request) => {
-      const url = new URL(request.url());
-      if (url.port !== '3000') { await route.continue(); return; }
-      const method = request.method();
-      if (method === 'GET' && url.pathname.endsWith('/categories')) {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ categories: ['Top'] }) });
-      }
-      if (method === 'GET') {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ ...failItem, taggingStatus: 'failed' }]) });
-      }
-      await route.continue();
-    });
-
     await page.goto('/wardrobe');
-    await expect(page.getByText('Bad Upload')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Failed')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Failed', { exact: true })).toBeVisible();
+    await page.getByText('Bad Upload', { exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Item Details' })).toBeVisible();
+    await expect(page.getByText('Tagging Failed', { exact: true })).toBeVisible();
   });
 });

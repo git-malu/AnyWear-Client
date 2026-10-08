@@ -85,14 +85,6 @@ describe('CreateOutfitModal', () => {
     expect(screen.getByText('Shoes')).toBeDefined();
   });
 
-  it('shows item category when name is null', () => {
-    setupMocks();
-    render(<CreateOutfitModal {...defaultProps} />);
-
-    // Item-3 has null name, should show category "Shoes"
-    expect(screen.getByText('Shoes')).toBeDefined();
-  });
-
   it('shows empty state when no wardrobe items', () => {
     vi.mocked(useGetWardrobe).mockReturnValue({
       data: [],
@@ -134,12 +126,16 @@ describe('CreateOutfitModal', () => {
     expect(screen.getByText(/2 selected/)).toBeDefined();
   });
 
-  it('disables create button when no items selected', () => {
+  it('disables create and does not submit when no items are selected', () => {
     setupMocks();
+    const mutate = vi.fn();
+    vi.mocked(usePostOutfits).mockReturnValue({ mutate, isPending: false } as any);
     render(<CreateOutfitModal {...defaultProps} />);
 
     const createButton = screen.getByRole('button', { name: 'Create Outfit' });
     expect(createButton).toBeDisabled();
+    fireEvent.click(createButton);
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it('enables create button when items selected', () => {
@@ -234,23 +230,6 @@ describe('CreateOutfitModal', () => {
       { data: { name: undefined, wearable_item_ids: ['item-1'] } },
       expect.any(Object),
     );
-  });
-
-  it('does not call mutate when no items selected', () => {
-    const mutate = vi.fn();
-    setupMocks();
-    vi.mocked(usePostOutfits).mockReturnValue({
-      mutate,
-      isPending: false,
-    } as any);
-
-    render(<CreateOutfitModal {...defaultProps} />);
-
-    // Button is disabled, but try clicking anyway
-    const createButton = screen.getByRole('button', { name: 'Create Outfit' });
-    fireEvent.click(createButton);
-
-    expect(mutate).not.toHaveBeenCalled();
   });
 
   // ---- Edit Mode Tests ----

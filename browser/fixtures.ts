@@ -1,4 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
+import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
 
 type MyFixtures = {
   authenticatedPage: Page;
@@ -8,6 +9,7 @@ type MyFixtures = {
 export const test = base.extend<MyFixtures>({
   // 1. Authenticated Page Fixture
   authenticatedPage: async ({ page }, use) => {
+    await mockClientBoundaries(page);
     // Set authentication state in localStorage before any navigation
     await page.addInitScript(() => {
       window.localStorage.setItem('isAuthenticated', 'true');
@@ -44,7 +46,11 @@ export const test = base.extend<MyFixtures>({
       });
     });
 
-    await use(page);
+    try {
+      await use(page);
+    } finally {
+      expectOnlyMockedCalls(page);
+    }
   },
 
   // 2. Geolocation Mocking Helper

@@ -1,247 +1,150 @@
 import { test, expect, type Page } from '@playwright/test';
+import type { GetOutfits200OutfitsItem } from '../src/api/model/getOutfits200OutfitsItem';
+import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
+import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
 
 const OUTFIT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ITEM_ID_1 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const ITEM_ID_2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const PRIMARY_IMAGE = 'https://example.com/tshirt-primary.jpg';
 
-const mockOutfit = {
-  id: OUTFIT_ID,
-  userId: 'test-user-id',
-  name: 'Weekend Casual',
-  createdAt: new Date().toISOString(),
+const mockOutfit: GetOutfits200OutfitsItem = {
+  id: OUTFIT_ID, userId: 'test-user-id', name: 'Weekend Casual', createdAt: '2026-05-05T00:00:00.000Z',
   wearableItems: [
-    {
-      id: ITEM_ID_1,
-      name: 'T-Shirt',
-      category: 'Top',
-      imageKeys: JSON.stringify([{ key: 'https://example.com/tshirt.jpg', isPrimary: true }]),
-    },
-    {
-      id: ITEM_ID_2,
-      name: 'Jeans',
-      category: 'Bottom',
-      imageKeys: JSON.stringify([{ key: 'https://example.com/jeans.jpg', isPrimary: true }]),
-    },
+    { id: ITEM_ID_1, name: 'T-Shirt', category: 'Top', imageKeys: JSON.stringify([
+      { key: 'https://example.com/tshirt-other.jpg' }, { key: PRIMARY_IMAGE, isPrimary: true },
+    ]) },
+    { id: ITEM_ID_2, name: 'Jeans', category: 'Bottom', imageKeys: null },
   ],
 };
 
-const mockWardrobeItems = [
-  {
-    id: ITEM_ID_1,
-    ownerId: 'test-user-id',
-    name: 'T-Shirt',
-    category: 'Top',
-    imageKeys: [{ key: 'https://example.com/tshirt.jpg', isPrimary: true }],
-    taggingStatus: 'ready',
-    weatherTags: [],
-    styleAttributes: {},
-    isPublic: false,
-    imageEmbedding: null,
-  },
-  {
-    id: ITEM_ID_2,
-    ownerId: 'test-user-id',
-    name: 'Jeans',
-    category: 'Bottom',
-    imageKeys: [{ key: 'https://example.com/jeans.jpg', isPrimary: true }],
-    taggingStatus: 'ready',
-    weatherTags: [],
-    styleAttributes: {},
-    isPublic: false,
-    imageEmbedding: null,
-  },
-  {
-    id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-    ownerId: 'test-user-id',
-    name: 'Sneakers',
-    category: 'Shoes',
-    imageKeys: [{ key: 'https://example.com/sneakers.jpg', isPrimary: true }],
-    taggingStatus: 'ready',
-    weatherTags: [],
-    styleAttributes: {},
-    isPublic: false,
-    imageEmbedding: null,
-  },
+const mockWardrobeItems: GetWardrobe200Item[] = [
+  { id: ITEM_ID_1, ownerId: 'test-user-id', name: 'T-Shirt', category: 'Top', imageKeys: [{ key: PRIMARY_IMAGE, isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+  { id: ITEM_ID_2, ownerId: 'test-user-id', name: 'Jeans', category: 'Bottom', imageKeys: [{ key: 'https://example.com/jeans.jpg', isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
 ];
 
 interface MockState {
-  outfits: typeof mockOutfit[];
-  wardrobeItems: typeof mockWardrobeItems;
+  outfits: GetOutfits200OutfitsItem[];
+  mutations: Array<{ method: string; path: string; body: unknown }>;
+}
+
+function outfitItems(ids: string[]) {
+  return mockWardrobeItems.filter(item => ids.includes(item.id)).map(({ id, name, category, imageKeys }) => ({ id, name, category, imageKeys }));
 }
 
 async function setupOutfitMocks(page: Page, state: MockState) {
-  // Auth
-  await page.route('**/users/me', async (route, request) => {
-    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-    await route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ id: 'test-user-id', email: 'test@anywear.local', locationId: null, locationName: null, createdAt: new Date().toISOString() }),
-    });
-  });
-
-  // Weather
-  await page.route('**/weather/**', async (route, request) => {
-    if (new URL(request.url()).port !== '3000') { await route.continue(); return; }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
-  });
-
-  // Wardrobe items
-  await page.route('**/wardrobe**', async (route, request) => {
-    const url = new URL(request.url());
-    if (url.port !== '3000') { await route.continue(); return; }
-    const path = url.pathname;
+  await mockClientBoundaries(page);
+  await page.route('http://localhost:3000/**', async (route, request) => {
+    const path = new URL(request.url()).pathname;
     const method = request.method();
-
-    if (method === 'GET' && path.endsWith('/categories')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ categories: ['Top', 'Bottom', 'Shoes'] }) });
-    }
-    if (method === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(state.wardrobeItems) });
-    }
-    if (method === 'POST' && path.endsWith('/upload-url')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://s3.example.com/upload', key: 'wardrobe/new.jpg', itemId: ITEM_ID_1 }) });
-    }
-    if (method === 'POST' && path.endsWith('/upload')) {
-      return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ itemId: ITEM_ID_1, taggingStatus: 'processing' }) });
-    }
-    await route.continue();
-  });
-
-  // Outfits API
-  await page.route('**/outfits**', async (route, request) => {
-    const url = new URL(request.url());
-    if (url.port !== '3000') { await route.continue(); return; }
-    const path = url.pathname;
-    const method = request.method();
-
-    // POST /outfits — create
+    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (method === 'GET' && path === '/users/me') return json({ id: 'test-user-id', email: 'test@anywear.local', dailyCredits: 10 });
+    if (method === 'GET' && path === '/wardrobe') return json(mockWardrobeItems);
+    if (method === 'GET' && path === '/wardrobe/categories') return json({ categories: ['Top', 'Bottom'] });
+    if (method === 'GET' && path === '/outfits') return json({ outfits: state.outfits });
+    if (method === 'GET' && path === '/vto/base-photos') return json([]);
+    if (method === 'GET' && path === '/vto/generations') return json({ generations: [], total: 0, page: 1, limit: 12, nextPage: null });
+    const id = path.match(/^\/outfits\/([^/]+)$/)?.[1];
     if (method === 'POST' && path === '/outfits') {
       const body = request.postDataJSON();
-      const newOutfit = {
-        id: OUTFIT_ID,
-        userId: 'test-user-id',
-        name: body.name || null,
-        createdAt: new Date().toISOString(),
-        wearableItems: state.wardrobeItems
-          .filter(i => body.wearable_item_ids.includes(i.id))
-          .map(i => ({ id: i.id, name: i.name, category: i.category, imageKeys: i.imageKeys })),
-      };
-      state.outfits.push(newOutfit);
-      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(newOutfit) });
+      state.mutations.push({ method, path, body });
+      const outfit = { ...structuredClone(mockOutfit), name: body.name ?? null, wearableItems: outfitItems(body.wearable_item_ids) };
+      state.outfits.push(outfit);
+      return json(outfit, 201);
     }
-
-    // GET /outfits — list
-    if (method === 'GET' && path === '/outfits') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ outfits: state.outfits }) });
+    if (id && method === 'PATCH') {
+      const body = request.postDataJSON();
+      state.mutations.push({ method, path, body });
+      const outfit = state.outfits.find(outfit => outfit.id === id);
+      if (!outfit) return json({ error: 'NOT_FOUND' }, 404);
+      outfit.name = body.name ?? outfit.name;
+      outfit.wearableItems = outfitItems(body.wearable_item_ids);
+      return json(outfit);
     }
-
-    // GET /outfits/{id} — single
-    const match = path.match(/^\/outfits\/(.+)$/);
-    if (match && method === 'GET') {
-      const outfit = state.outfits.find(o => o.id === match[1]);
-      if (outfit) {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(outfit) });
-      }
-      return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'NOT_FOUND', message: 'Outfit not found' }) });
+    if (id && method === 'DELETE') {
+      state.mutations.push({ method, path, body: undefined });
+      state.outfits = state.outfits.filter(outfit => outfit.id !== id);
+      return json({ success: true });
     }
-
-    // DELETE /outfits/{id}
-    if (match && method === 'DELETE') {
-      state.outfits = state.outfits.filter(o => o.id !== match[1]);
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
-    }
-
-    await route.continue();
+    return route.fallback();
   });
 }
 
-test.describe('Outfit Management', () => {
+function outfitCard(page: Page, name: string) {
+  return page.getByRole('heading', { name, exact: true }).locator('..').locator('..');
+}
+
+test.describe('Outfit Management (mocked Client integration)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      window.localStorage.setItem('isAuthenticated', 'true');
-    });
+    await page.addInitScript(() => window.localStorage.setItem('isAuthenticated', 'true'));
+  });
+  test.afterEach(({ page }) => expectOnlyMockedCalls(page));
+
+  test('creates an outfit from selected wardrobe items and shows the saved card', async ({ page }) => {
+    const state: MockState = { outfits: [], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/wardrobe');
+    await page.getByRole('button', { name: 'Create Outfit', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Create Outfit' })).toBeVisible();
+    await page.getByPlaceholder('e.g. Weekend Casual').fill('Office Ready');
+    await page.getByRole('button', { name: 'T-Shirt', exact: true }).click();
+    await page.getByRole('button', { name: 'Jeans', exact: true }).click();
+    await page.getByRole('button', { name: 'Create Outfit', exact: true }).last().click();
+    await expect(page.getByRole('heading', { name: 'Create Outfit' })).not.toBeVisible();
+    await expect(outfitCard(page, 'Office Ready').getByText('2 items', { exact: true })).toBeVisible();
+    expect(state.mutations).toEqual([{ method: 'POST', path: '/outfits', body: { name: 'Office Ready', wearable_item_ids: [ITEM_ID_1, ITEM_ID_2] } }]);
   });
 
-  test('should create an outfit from wardrobe items', async ({ page }) => {
-    const state: MockState = { outfits: [], wardrobeItems: mockWardrobeItems };
+  test('selects a saved outfit in the Mirror picker with its primary thumbnail', async ({ page }) => {
+    const state: MockState = { outfits: [structuredClone(mockOutfit)], mutations: [] };
     await setupOutfitMocks(page, state);
-
-    await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible({ timeout: 5000 });
-
-    // Click "Create Outfit" button (if it exists) or navigate to outfits
-    // The create outfit modal is usually accessible from wardrobe
-    // Look for a button or trigger element
-    await page.getByText('T-Shirt').first().isVisible({ timeout: 5000 });
-
-    // Verify items are listed
-    await expect(page.getByText('T-Shirt').first()).toBeVisible();
-    await expect(page.getByText('Jeans').first()).toBeVisible();
+    await page.goto('/mirror');
+    await page.getByRole('button', { name: 'Saved', exact: true }).click();
+    const picker = page.getByRole('button', { name: 'Weekend Casual 2 items', exact: true });
+    await expect(picker).toBeVisible();
+    await expect(picker.locator('img')).toHaveAttribute('src', PRIMARY_IMAGE);
+    await picker.click();
+    await expect(picker).toHaveClass(/border-blue-500/);
+    expect(state.mutations).toEqual([]);
   });
 
-  test('should show outfit in outfit picker', async ({ page }) => {
-    const state: MockState = { outfits: [mockOutfit], wardrobeItems: mockWardrobeItems };
+  test('edits an outfit name and refreshes its card', async ({ page }) => {
+    const state: MockState = { outfits: [{ ...structuredClone(mockOutfit), name: 'Old Name' }], mutations: [] };
     await setupOutfitMocks(page, state);
-
     await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible({ timeout: 5000 });
-
-    // Verify wardrobe items are visible
-    await expect(page.getByText('T-Shirt').first()).toBeVisible({ timeout: 5000 });
+    await page.getByRole('heading', { name: 'Old Name', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Outfit' })).toBeVisible();
+    await expect(page.getByPlaceholder('e.g. Weekend Casual')).toHaveValue('Old Name');
+    await page.getByPlaceholder('e.g. Weekend Casual').fill('Updated Name');
+    await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Outfit' })).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Updated Name', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Old Name', exact: true })).not.toBeVisible();
+    expect(state.mutations).toEqual([{ method: 'PATCH', path: `/outfits/${OUTFIT_ID}`, body: { name: 'Updated Name', wearable_item_ids: [ITEM_ID_1, ITEM_ID_2] } }]);
   });
 
-  test('should edit outfit name', async ({ page }) => {
-    const state: MockState = {
-      outfits: [{ ...mockOutfit, name: 'Old Name' }],
-      wardrobeItems: mockWardrobeItems,
-    };
+  test('deletes an outfit after confirmation and shows the empty state', async ({ page }) => {
+    const state: MockState = { outfits: [structuredClone(mockOutfit)], mutations: [] };
     await setupOutfitMocks(page, state);
-
-    // Mock PATCH endpoint
-    await page.route('**/outfits/**', async (route, request) => {
-      const url = new URL(request.url());
-      if (url.port !== '3000') { await route.continue(); return; }
-      const method = request.method();
-
-      if (method === 'PATCH') {
-        const body = request.postDataJSON();
-        const outfit = state.outfits[0];
-        if (outfit) {
-          outfit.name = body.name ?? outfit.name;
-        }
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(outfit) });
-      }
-
-      await route.continue();
-    });
-
     await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('T-Shirt').first()).toBeVisible({ timeout: 5000 });
+    await page.getByRole('heading', { name: 'Weekend Casual', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete Outfit', exact: true }).click();
+    await expect(page.getByText('Delete this outfit? This cannot be undone.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(page.getByText('No outfits yet', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Weekend Casual', exact: true })).not.toBeVisible();
+    expect(state.mutations).toEqual([{ method: 'DELETE', path: `/outfits/${OUTFIT_ID}`, body: undefined }]);
   });
 
-  test('should delete an outfit', async ({ page }) => {
-    const state: MockState = { outfits: [mockOutfit], wardrobeItems: mockWardrobeItems };
+  test('shows outfit-specific counts, fallback name and primary image', async ({ page }) => {
+    const state: MockState = { outfits: [structuredClone(mockOutfit), { ...structuredClone(mockOutfit), id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: null, wearableItems: [] }], mutations: [] };
     await setupOutfitMocks(page, state);
-
     await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('T-Shirt').first()).toBeVisible({ timeout: 5000 });
-
-    // Verify state after navigation
-    expect(state.outfits).toHaveLength(1);
-  });
-
-  test('should display outfit info with item count', async ({ page }) => {
-    const state: MockState = { outfits: [mockOutfit], wardrobeItems: mockWardrobeItems };
-    await setupOutfitMocks(page, state);
-
-    await page.goto('/wardrobe');
-    await expect(page.getByRole('heading', { name: 'Wardrobe' })).toBeVisible({ timeout: 5000 });
-
-    // Verify the outfits API was called and items are present
-    await expect(page.getByText('T-Shirt').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Jeans').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Sneakers').first()).toBeVisible({ timeout: 5000 });
+    const saved = outfitCard(page, 'Weekend Casual');
+    await expect(saved.getByText('2 items', { exact: true })).toBeVisible();
+    await expect(saved.getByRole('img', { name: 'Weekend Casual' })).toHaveAttribute('src', PRIMARY_IMAGE);
+    const empty = outfitCard(page, 'Untitled Outfit');
+    await expect(empty.getByText('0 items', { exact: true })).toBeVisible();
+    await expect(empty.getByText('No image', { exact: true })).toBeVisible();
   });
 });
