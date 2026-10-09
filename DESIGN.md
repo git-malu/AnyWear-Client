@@ -2,7 +2,7 @@
 
 ## Provenance and maintenance
 
-This document describes the **implemented** Client UI updated for [AnyWear #98](https://github.com/git-malu/AnyWear/issues/98) on **2026-10-09**, based on Client main `8320db0816b1c2d36e79a583160548744fd3d8c0`. The final implementation revision will be added when published. Earlier findings from [AnyWear #10](https://github.com/git-malu/AnyWear/issues/10) remain historical; the current sections below record changed and remaining behavior.
+This document describes the **implemented** Client UI delivered for [AnyWear #98](https://github.com/git-malu/AnyWear/issues/98) on **2026-10-09**, based on Client main merge commit `7e48ce44755181ed36d1068679ceb8af612f6eb1`. The implementation source was developed from base `8320db0816b1c2d36e79a583160548744fd3d8c0`; earlier findings from [AnyWear #10](https://github.com/git-malu/AnyWear/issues/10) remain historical, and the current sections below record changed and remaining behavior.
 
 The **Target brand and UX direction** below was accepted on **2026-10-07** in [AnyWear #85](https://github.com/git-malu/AnyWear/issues/85). Issue #98 implements source-grounded image hierarchy and interaction improvements without adding a palette, token system, font, or product behavior. Permanent principles are published in [Meta frontend architecture §7](https://github.com/git-malu/AnyWear-Meta/blob/f49ed8323011ea9e0bfaddf4e0cf5d2e7448fc0b/architecture/system-component-architecture/application-architecture/frontend_architecture.md#7-design-and-ux-principles) at immutable revision `f49ed8323011ea9e0bfaddf4e0cf5d2e7448fc0b`.
 
