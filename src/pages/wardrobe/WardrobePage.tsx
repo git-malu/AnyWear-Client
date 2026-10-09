@@ -139,25 +139,29 @@ export default function WardrobePage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Wardrobe</h1>
+      <div className="flex justify-between items-center gap-4 mb-6">
+        <div>
+          <p className="text-sm font-medium text-indigo-700">Your collection</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">Wardrobe</h1>
+        </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
         >
           Add Item
         </button>
       </div>
 
       {categories.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter wardrobe by category">
           <button
             onClick={() => handleCategoryFilter('all')}
             className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
               activeCategory === 'all'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2`}
+            aria-pressed={activeCategory === 'all'}
           >
             All
           </button>
@@ -169,7 +173,8 @@ export default function WardrobePage() {
                 activeCategory === cat
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2`}
+              aria-pressed={activeCategory === cat}
             >
               {cat}
             </button>
@@ -180,11 +185,11 @@ export default function WardrobePage() {
       {isLoading ? (
         <div className="text-center py-12">Loading...</div>
       ) : wardrobeData.length === 0 ? (
-        <div className="text-center py-12 bg-white shadow sm:rounded-lg">
-          <p className="text-gray-500">Your wardrobe is empty. Tap "Add Item" to get started.</p>
+        <div className="text-center py-16 px-6 bg-white border border-gray-200 rounded-xl">
+          <p className="text-gray-600">Your wardrobe is empty. Tap "Add Item" to get started.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
           {(wardrobeData as GetWardrobe200Item[]).map((item) => {
             const color = getColorFromAttributes(item.styleAttributes);
             const material = getMaterialFromAttributes(item.styleAttributes);
@@ -192,40 +197,42 @@ export default function WardrobePage() {
             const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';
 
             return (
-              <div
+              <article
                 key={item.id}
-                className={`relative group bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow ${isProcessing ? 'cursor-default' : 'cursor-pointer'}`}
-                onClick={() => !isProcessing && setSelectedItem(item)}
+                className="relative group overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
               >
-                <div className="aspect-w-3 aspect-h-4 bg-gray-200">
-                  {getPrimaryImage(item.imageKeys) ? (
-                    <CachedImage src={getPrimaryImage(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="object-cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400">
-                      No Image
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="flex items-center gap-1">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">{item.name || item.category || 'Unknown'}</h3>
-                    {statusBadge}
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  aria-label={`View ${item.name || item.category || 'wardrobe item'} details`}
+                  onClick={() => setSelectedItem(item)}
+                  className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 disabled:cursor-default"
+                >
+                  <div className="aspect-[4/5] bg-gray-100">
+                    {getPrimaryImage(item.imageKeys) ? (
+                      <CachedImage src={getPrimaryImage(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">No Image</div>
+                    )}
                   </div>
-                  {color && (
-                    <p className="text-xs text-gray-500">
-                      {[color, material].filter(Boolean).join(' • ')}
-                    </p>
-                  )}
-                </div>
+                  <div className="min-h-20 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="min-w-0 truncate text-sm font-medium text-gray-900">{item.name || item.category || 'Unknown'}</h3>
+                      {statusBadge}
+                    </div>
+                    {(color || material) && <p className="mt-1 text-xs text-gray-500">{[color, material].filter(Boolean).join(' • ')}</p>}
+                  </div>
+                </button>
                 <button
                   onClick={(e) => item.id && handleDelete(item.id, e)}
-                  className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Delete ${item.name || item.category || 'wardrobe item'}`}
+                  className="absolute right-2 top-2 rounded-full bg-white/95 p-2 text-red-700 shadow-sm opacity-100 transition-opacity hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -234,7 +241,7 @@ export default function WardrobePage() {
       {outfits.length > 0 && (
         <div className="mt-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">My Outfits</h2>
+            <h2 className="text-xl font-semibold tracking-tight text-gray-900">My Outfits</h2>
             <button
               onClick={() => {
                 setSelectedOutfit(null);
@@ -245,28 +252,25 @@ export default function WardrobePage() {
               + Create Outfit
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
             {outfits.map((outfit) => {
               const firstItem = outfit.wearableItems?.[0];
               const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
               return (
-                <div
+                <article
                   key={outfit.id}
-                  onClick={() => handleOutfitClick(outfit)}
-                  className="cursor-pointer bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow"
+                  className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
                 >
-                  <div className="aspect-w-3 aspect-h-4 bg-gray-200">
-                    {primaryImage ? (
-                      <CachedImage src={primaryImage} cacheKey={outfit.id} alt={outfit.name || 'Outfit'} className="object-cover" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-gray-100 text-gray-400 text-xs">No image</div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">{outfit.name || 'Untitled Outfit'}</h3>
-                    <p className="text-xs text-gray-500">{outfit.wearableItems?.length ?? 0} items</p>
-                  </div>
-                </div>
+                  <button type="button" onClick={() => handleOutfitClick(outfit)} aria-label={`Edit ${outfit.name || 'outfit'}`} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
+                    <div className="aspect-[4/5] bg-gray-100">
+                      {primaryImage ? <CachedImage src={primaryImage} cacheKey={outfit.id} alt={outfit.name || 'Outfit'} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-gray-400">No image</div>}
+                    </div>
+                    <div className="p-3">
+                      <h3 className="truncate text-sm font-medium text-gray-900">{outfit.name || 'Untitled Outfit'}</h3>
+                      <p className="mt-1 text-xs text-gray-500">{outfit.wearableItems?.length ?? 0} items</p>
+                    </div>
+                  </button>
+                </article>
               );
             })}
           </div>

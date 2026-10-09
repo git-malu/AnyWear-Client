@@ -57,37 +57,45 @@ export default function MirrorPage() {
 
   return (
     <MirrorErrorBoundary>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">The Mirror</h1>
-            <p className="mt-1 text-sm text-gray-500">Virtual try-on for your wardrobe items.</p>
+            <p className="text-sm font-medium text-indigo-700">Your fitting room</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">The Mirror</h1>
+            <p className="mt-1 text-sm text-gray-600">Choose a photo and pieces from your wardrobe.</p>
           </div>
-          <CreditDisplay />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Base Photo</h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Step 1</p>
+              <h2 className="mt-1 text-lg font-semibold text-gray-900">Choose a base photo</h2>
+            </div>
             <BasePhotoSelector
               selectedPhotoId={selectedBasePhotoId}
               onSelect={setSelectedBasePhotoId}
             />
           </div>
 
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Outfit</h2>
-              <div className="flex rounded-lg bg-gray-100 p-0.5">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Step 2</p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900">Choose an outfit</h2>
+              </div>
+              <div className="flex rounded-lg bg-gray-100 p-0.5" role="group" aria-label="Outfit selection mode">
                 <button
                   onClick={() => { setMode('outfit'); setSelectedWearableItemIds([]); }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${mode === 'outfit' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                  aria-pressed={mode === 'outfit'}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${mode === 'outfit' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
                 >
                   Saved
                 </button>
                 <button
                   onClick={() => { setMode('items'); setSelectedOutfitId(null); }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${mode === 'items' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                  aria-pressed={mode === 'items'}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${mode === 'items' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
                 >
                   Select Items
                 </button>
@@ -109,13 +117,19 @@ export default function MirrorPage() {
             )}
           </div>
 
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Style Prompt (Optional)</h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Style Prompt <span className="text-sm font-normal text-gray-500">(optional)</span></h2>
             <StylePromptInput value={prompt} onChange={setPrompt} />
           </div>
 
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Try On</h2>
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:p-6">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Step 3</p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900">Create your preview</h2>
+              </div>
+              <CreditDisplay />
+            </div>
             <div className="space-y-3">
               <TryOnButton
                 onGenerate={handleGenerate}
@@ -124,10 +138,10 @@ export default function MirrorPage() {
                 credits={credits}
               />
               {!selectedBasePhotoId && (
-                <p className="text-xs text-gray-400 text-center">Select a base photo to start</p>
+                <p className="text-xs text-gray-600 text-center">Select a base photo to start</p>
               )}
               {selectedBasePhotoId && !hasItems && (
-                <p className="text-xs text-gray-400 text-center">
+                <p className="text-xs text-gray-600 text-center">
                   {mode === 'outfit' ? 'Select an outfit' : 'Select at least one wearable item'}
                 </p>
               )}
@@ -135,14 +149,15 @@ export default function MirrorPage() {
                 <p className="text-xs text-red-500 text-center">Out of daily credits. Credits reset at midnight.</p>
               )}
               {errorMessage && (
-                <p className="text-xs text-red-600 text-center">{errorMessage}</p>
+                <p role="alert" className="text-sm text-red-700 text-center">{errorMessage}</p>
               )}
             </div>
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Result</h2>
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="mirror-result-heading">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Step 4</p>
+          <h2 id="mirror-result-heading" className="mb-4 mt-1 text-lg font-semibold text-gray-900">Your try-on result</h2>
           <ResultArea
             vtoId={vtoId}
             result={result}
@@ -150,9 +165,9 @@ export default function MirrorPage() {
             onRate={() => {}}
             currentRating={result?.image_key ? null : null}
           />
-        </div>
+        </section>
 
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">History</h2>
           <VtoHistorySection onReuseOutfit={handleReuseOutfit} />
         </div>

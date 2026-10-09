@@ -134,15 +134,15 @@ export default function SettingsPage() {
           <button
             onClick={handleAutoDetect}
             disabled={geoStatus === 'loading' || updateProfile.isPending}
-            className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full inline-flex justify-center items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-600 disabled:opacity-50"
           >
             {geoStatus === 'loading' ? 'Detecting...' : 'Auto-Detect My Location'}
           </button>
           {geoStatus === 'success' && (
-            <p className="mt-2 text-sm text-green-600">Location updated successfully.</p>
+            <p role="status" className="mt-2 text-sm text-green-700">Location updated successfully.</p>
           )}
           {geoStatus === 'error' && (
-            <p className="mt-2 text-sm text-red-500">{geoError}</p>
+            <p role="alert" className="mt-2 text-sm text-red-700">{geoError}</p>
           )}
         </div>
 
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                   key={city.id}
                   onClick={() => handleSelectCity(city)}
                   disabled={updateProfile.isPending}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-800 transition-colors border border-gray-200 disabled:opacity-50"
+                  className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-800 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-50"
                 >
                   {city.name}
                 </button>
@@ -178,8 +178,10 @@ export default function SettingsPage() {
         )}
 
         {/* City search form */}
-        <form onSubmit={handleCitySearch} className="flex gap-2 mb-4">
+        <form onSubmit={handleCitySearch} className="mb-4 flex flex-wrap gap-2 sm:flex-nowrap">
+          <label htmlFor="settings-city-search" className="sr-only">Search for a city</label>
           <input
+            id="settings-city-search"
             type="text"
             value={cityQuery}
             onChange={(e) => {
@@ -187,12 +189,12 @@ export default function SettingsPage() {
               setSearchEnabled(false);
             }}
             placeholder="Search for a city..."
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
           <button
             type="submit"
             disabled={cityQuery.length < 2}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-600 disabled:opacity-50"
           >
             Search
           </button>
@@ -209,7 +211,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => handleSelectCity(city)}
                   disabled={updateProfile.isPending}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm transition-colors disabled:opacity-50"
+                  className="w-full px-4 py-3 text-left text-sm transition-colors hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 disabled:opacity-50"
                 >
                   <span className="font-medium text-gray-900">{city.name}</span>
                   <span className="text-gray-500 ml-1">

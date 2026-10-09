@@ -26,7 +26,7 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
   }
 
   return (
-    <div className="space-y-2 max-h-[320px] overflow-y-auto">
+    <div className="max-h-[320px] space-y-2 overflow-y-auto">
       {outfits.map((outfit) => {
         const firstItem = outfit.wearableItems?.[0];
         const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
@@ -36,7 +36,8 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
           <button
             key={outfit.id}
             onClick={() => onSelect(outfit.id)}
-            className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
+            aria-pressed={isSelected}
+            className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${isSelected ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white hover:border-gray-400'}`}
           >
             <div className="w-12 h-12 rounded-md bg-gray-100 flex-shrink-0 overflow-hidden">
               {primaryImage ? (

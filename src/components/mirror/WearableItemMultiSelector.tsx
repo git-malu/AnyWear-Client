@@ -53,7 +53,7 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className={`text-sm font-medium ${selectedIds.length > 0 ? 'text-indigo-600' : 'text-gray-500'}`}>
+        <span aria-live="polite" className={`text-sm font-medium ${selectedIds.length > 0 ? 'text-indigo-700' : 'text-gray-600'}`}>
           {selectedIds.length > 0 ? `${selectedIds.length} selected` : 'No wearable items selected'}
         </span>
       </div>
@@ -68,7 +68,8 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
               {item.name || item.category}
               <button
                 onClick={() => removeSelected(item.id)}
-                className="text-indigo-500 hover:text-indigo-700"
+                aria-label={`Remove ${item.name || item.category} from selection`}
+                className="rounded-full p-1 text-indigo-700 hover:bg-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -79,8 +80,10 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
         </div>
       )}
 
+      <label htmlFor="mirror-item-search" className="sr-only">Search wardrobe items</label>
       <input
-        type="text"
+        id="mirror-item-search"
+        type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search wearable items..."
@@ -95,7 +98,8 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
               activeCategory === 'all'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2`}
+            aria-pressed={activeCategory === 'all'}
           >
             All
           </button>
@@ -107,7 +111,8 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
                 activeCategory === cat
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2`}
+              aria-pressed={activeCategory === cat}
             >
               {cat}
             </button>
@@ -126,39 +131,43 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
           <p className="text-sm text-gray-500">Your wardrobe is empty. Add items first.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+        <div className="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
           {filteredItems.map((item: GetWardrobe200Item) => {
             const isSelected = selectedIds.includes(item.id);
             const imageKey = getPrimaryImage(item.imageKeys);
             return (
-              <div
+              <button
+                type="button"
                 key={item.id}
                 onClick={() => toggleItem(item.id)}
-                className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                aria-pressed={isSelected}
+                aria-label={`${isSelected ? 'Remove' : 'Select'} ${item.name || item.category}`}
+                className={`relative block w-full overflow-hidden rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 ${
                   isSelected
-                    ? 'border-indigo-500 ring-2 ring-indigo-500'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-indigo-600 bg-indigo-50/40'
+                    : 'border-gray-200 bg-white hover:border-gray-400'
                 }`}
               >
-                <div className="aspect-[3/4] bg-gray-200">
+                <div className="aspect-[4/5] bg-gray-100">
                   {imageKey ? (
                     <CachedImage src={imageKey} cacheKey={item.id} alt={item.name || item.category} className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400 text-xs">No Image</div>
                   )}
                 </div>
-                <div className="p-1.5">
-                  <p className="text-xs font-medium text-gray-900 truncate">{item.name || item.category}</p>
-                  <span className="text-xs text-gray-500">{item.category}</span>
+                <div className="p-2">
+                  <p className="truncate text-xs font-medium text-gray-900">{item.name || item.category}</p>
+                  <span className="text-xs text-gray-600">{item.category}</span>
                 </div>
                 {isSelected && (
-                  <div className="absolute top-1.5 right-1.5 bg-indigo-600 text-white rounded-full p-0.5">
+                  <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-indigo-700 px-2 py-1 text-[11px] font-medium text-white">
+                    Selected
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                  </div>
+                  </span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -166,7 +175,9 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
 
       {onOutfitNameChange !== undefined && (
         <div className="mt-3 border-t border-gray-100 pt-3">
+          <label htmlFor="mirror-outfit-name" className="mb-1 block text-xs font-medium text-gray-700">Outfit name (optional)</label>
           <input
+            id="mirror-outfit-name"
             type="text"
             maxLength={200}
             value={outfitName ?? ''}

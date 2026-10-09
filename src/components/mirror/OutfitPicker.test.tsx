@@ -116,7 +116,8 @@ describe('OutfitPicker', () => {
     render(<OutfitPicker selectedOutfitId="outfit-1" onSelect={() => {}} />);
 
     const selectedButton = screen.getByText('Weekend Casual').closest('button');
-    expect(selectedButton?.className).toContain('border-blue-500');
+    expect(selectedButton?.getAttribute('aria-pressed')).toBe('true');
+    expect(selectedButton?.className).toContain('border-indigo-600');
   });
 
   it.each([

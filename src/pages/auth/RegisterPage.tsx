@@ -42,7 +42,8 @@ export default function RegisterPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium leading-6 text-gray-900">
+        <p className="text-sm font-medium text-indigo-700">Your personal wardrobe</p>
+        <h3 className="mt-1 text-xl font-semibold tracking-tight leading-6 text-gray-900">
           Create an account
         </h3>
         <p className="mt-1 text-sm text-gray-500">
@@ -51,10 +52,11 @@ export default function RegisterPage() {
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="register-email" className="block text-sm font-medium text-gray-700">
             Email
           </label>
           <input
+            id="register-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -63,11 +65,12 @@ export default function RegisterPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="register-password" className="block text-sm font-medium text-gray-700">
             Password
           </label>
           <div className="relative mt-1">
             <input
+              id="register-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -76,7 +79,8 @@ export default function RegisterPage() {
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500 focus:outline-none"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (

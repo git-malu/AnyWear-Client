@@ -10,7 +10,9 @@ export default function CreditDisplay() {
 
   return (
     <div
-      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+      role="status"
+      aria-label={`${credits} of 10 daily credits remaining`}
+      className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium ${
         isError
           ? 'bg-red-100 text-red-800'
           : isWarning

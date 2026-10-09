@@ -103,8 +103,77 @@ test.describe('Outfit Management (mocked Client integration)', () => {
     const picker = page.getByRole('button', { name: 'Weekend Casual 2 items', exact: true });
     await expect(picker).toBeVisible();
     await expect(picker.locator('img')).toHaveAttribute('src', PRIMARY_IMAGE);
+    await expect(picker).toHaveAttribute('aria-pressed', 'false');
     await picker.click();
-    await expect(picker).toHaveClass(/border-blue-500/);
+    await expect(picker).toHaveAttribute('aria-pressed', 'true');
+    await expect(picker).toHaveClass(/border-indigo-600/);
+    expect(state.mutations).toEqual([]);
+  });
+
+  test('selects wardrobe pieces with the keyboard and exposes the pressed state', async ({ page }) => {
+    const state: MockState = { outfits: [], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/mirror');
+
+    const shirt = page.getByRole('button', { name: 'Select T-Shirt' });
+    await shirt.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByRole('button', { name: 'Remove T-Shirt', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('1 selected', { exact: true })).toBeVisible();
+    expect(state.mutations).toEqual([]);
+  });
+
+  test('opens wardrobe item details from the keyboard and restores focus after Escape', async ({ page }) => {
+    const state: MockState = { outfits: [], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/wardrobe');
+
+    const itemButton = page.getByRole('button', { name: 'View T-Shirt details' });
+    await itemButton.focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Item Details' });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(dialog).not.toBeVisible();
+    await expect(itemButton).toBeFocused();
+    expect(state.mutations).toEqual([]);
+  });
+
+  test('keeps keyboard focus inside the add-item dialog', async ({ page }) => {
+    const state: MockState = { outfits: [], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/wardrobe');
+
+    await page.getByRole('button', { name: 'Add Item', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add Wardrobe Item' });
+    const close = dialog.getByRole('button', { name: 'Close' });
+    const cancel = dialog.getByRole('button', { name: 'Cancel' });
+    await expect(dialog).toBeVisible();
+    await expect(close).toBeFocused();
+
+    await cancel.focus();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(cancel).toBeFocused();
+    expect(state.mutations).toEqual([]);
+  });
+
+  test('closes the outfit dialog with Escape and restores focus to its opener', async ({ page }) => {
+    const state: MockState = { outfits: [], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/wardrobe');
+
+    const opener = page.getByRole('button', { name: 'Create Outfit', exact: true }).first();
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: 'Create Outfit' });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
     expect(state.mutations).toEqual([]);
   });
 

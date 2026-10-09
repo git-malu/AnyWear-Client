@@ -3,6 +3,7 @@ import { usePostOutfits, usePatchOutfitsId, useDeleteOutfitsId } from '../../api
 import { useGetWardrobe } from '../../api/endpoints/wardrobe/wardrobe';
 import type { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import type { GetOutfits200OutfitsItem } from '../../api/model/getOutfits200OutfitsItem';
+import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 
 interface CreateOutfitModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface CreateOutfitModalProps {
 }
 
 export default function CreateOutfitModal({ isOpen, onClose, onSuccess, outfit }: CreateOutfitModalProps) {
+  const dialogRef = useAccessibleDialog(onClose, isOpen);
   const isEditMode = !!outfit;
   const [name, setName] = useState(outfit?.name ?? '');
   const [selectedIds, setSelectedIds] = useState<string[]>(
@@ -80,9 +82,9 @@ export default function CreateOutfitModal({ isOpen, onClose, onSuccess, outfit }
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={onClose} />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="outfit-dialog-title" tabIndex={-1} className="relative bg-white rounded-xl shadow-xl max-w-lg w-full p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 id="outfit-dialog-title" className="text-lg font-semibold text-gray-900">
               {isEditMode ? 'Edit Outfit' : 'Create Outfit'}
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
