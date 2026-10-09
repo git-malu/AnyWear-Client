@@ -6,6 +6,7 @@ import { parseImageKeys } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
 import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
+import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -91,6 +92,7 @@ interface ItemDetailsEditorProps {
 }
 
 function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps) {
+  const dialogRef = useAccessibleDialog(onClose);
   const [name, setName] = useState(item.name || '');
   const [category, setCategory] = useState(item.category || '');
   const [attrs, setAttrs] = useState<StyleAttributeFields>(() => parseStyleAttributes(item.styleAttributes));
@@ -230,7 +232,7 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
         <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
 
-        <div className="relative inline-block px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="item-details-title" tabIndex={-1} className="relative inline-block px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white rounded-xl shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div className="absolute top-0 right-0 pt-4 pr-4">
             <button onClick={onClose} className="text-gray-400 bg-white rounded-md hover:text-gray-500 focus:outline-none">
               <span className="sr-only">Close</span>
@@ -243,7 +245,7 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
           <div className="sm:flex sm:items-start">
             <div className="w-full mt-3 text-center sm:mt-0 sm:text-left">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium leading-6 text-gray-900">Item Details</h3>
+                <h3 id="item-details-title" className="text-lg font-medium leading-6 text-gray-900">Item Details</h3>
                 {item.taggingStatus === 'failed' && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                     Tagging Failed

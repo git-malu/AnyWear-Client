@@ -29,7 +29,7 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
 
   if (!vtoId) {
     return (
-      <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
         <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -40,7 +40,7 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
 
   if (status === 'Pending' || status === 'Processing') {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-6" role="status" aria-live="polite">
         <div className="animate-pulse space-y-4">
           <div className="bg-gray-200 rounded-lg h-64 w-full" />
           <div className="h-4 bg-gray-200 rounded w-3/4" />
@@ -51,8 +51,8 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-sm text-gray-600">
-            Generating your try-on... ({elapsedSeconds}s elapsed)
+          <span className="text-sm font-medium text-gray-700">
+            Creating your preview · {elapsedSeconds}s elapsed
           </span>
         </div>
       </div>
@@ -61,7 +61,7 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
 
   if (status === 'Failed') {
     return (
-      <div className="bg-red-50 rounded-lg border border-red-200 p-6">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5" role="alert">
         <div className="flex items-start gap-3">
           <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -83,12 +83,12 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
 
   if (status === 'Complete' && imageUrl) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <CachedImage
           src={imageUrl}
           cacheKey={`vto-result-${vtoId}`}
           alt="Try-on result"
-          className="object-contain w-full max-h-96"
+          className="mx-auto max-h-[70vh] w-full object-contain"
         />
         <div className="p-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
           <RatingWidget rating={currentRating} onChange={onRate} />

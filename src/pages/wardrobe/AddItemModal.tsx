@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
 import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
 import { getErrorMessage } from '../../lib/errors';
+import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useAccessibleDialog(onClose);
 
   const { mutateAsync: getUploadUrl } = usePostWardrobeUploadUrl();
   const { mutateAsync: confirmUpload } = usePostWardrobeUpload();
@@ -63,7 +65,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
         <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
 
-        <div className="relative inline-block px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="add-item-title" tabIndex={-1} className="relative inline-block px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white rounded-xl shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
           <div className="absolute top-0 right-0 pt-4 pr-4">
             <button
               onClick={onClose}
@@ -78,7 +80,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
 
           <div className="sm:flex sm:items-start">
             <div className="w-full mt-3 text-center sm:mt-0 sm:text-left">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Add Wardrobe Item</h3>
+              <h3 id="add-item-title" className="text-lg font-medium leading-6 text-gray-900">Add Wardrobe Item</h3>
               <p className="mt-1 text-sm text-gray-500">
                 Upload a photo and AI will automatically tag the item with category, color, material, and more.
               </p>

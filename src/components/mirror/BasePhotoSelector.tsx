@@ -120,40 +120,44 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
           <p className="mt-2 text-sm text-gray-500">Upload your first mannequin photo to get started</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {photoList.map((photo) => (
-            <div
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {photoList.map((photo, index) => (
+            <article
               key={photo.id}
-              className={`relative group rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+              className={`relative group overflow-hidden rounded-xl border transition-colors ${
                 selectedPhotoId === photo.id
-                  ? 'border-indigo-500 ring-2 ring-indigo-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-indigo-600 ring-1 ring-indigo-600'
+                  : 'border-gray-200 hover:border-gray-400'
               }`}
-              onClick={() => onSelect(photo.id)}
             >
-              <CachedImage
-                src={photo.thumbnailUrl || photo.imageKey}
-                cacheKey={`vto-base-${photo.id}`}
-                alt="Base photo"
-                className="w-full aspect-[3/4] object-cover"
-              />
-              {photo.isDefault && (
-                <span className="absolute top-1.5 left-1.5 bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                  ★ Default
+              <button type="button" aria-pressed={selectedPhotoId === photo.id} aria-label={`${selectedPhotoId === photo.id ? 'Selected' : 'Select'} base photo ${index + 1}${photo.isDefault ? ', default' : ''}`} onClick={() => onSelect(photo.id)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
+                <CachedImage
+                  src={photo.thumbnailUrl || photo.imageKey}
+                  cacheKey={`vto-base-${photo.id}`}
+                  alt=""
+                  className="aspect-[4/5] w-full object-cover"
+                />
+                <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-medium text-gray-800 shadow-sm">
+                  {photo.isDefault ? 'Default photo' : 'Base photo'}{selectedPhotoId === photo.id ? ' · Selected' : ''}
                 </span>
+              </button>
+              {photo.isDefault && (
+                <span className="sr-only">Default photo</span>
               )}
-              <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 justify-center">
+              <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                 {!photo.isDefault && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSetDefault(photo.id); }}
-                    className="text-xs bg-white/90 text-gray-800 px-2 py-0.5 rounded hover:bg-white"
+                    aria-label="Set this photo as default"
+                    className="rounded bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                   >
                     Set Default
                   </button>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
-                  className="text-xs bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700"
+                    aria-label="Delete this base photo"
+                    className="rounded bg-red-700 px-2 py-1 text-xs text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <svg className="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -161,7 +165,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
                   Delete
                 </button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

@@ -36,15 +36,17 @@ export default function VerifyEmailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium leading-6 text-gray-900">Verify your email</h3>
+        <p className="text-sm font-medium text-indigo-700">Almost there</p>
+        <h3 className="mt-1 text-xl font-semibold tracking-tight leading-6 text-gray-900">Verify your email</h3>
         <p className="mt-1 text-sm text-gray-500">
           We sent a 6-digit code to {email}. Enter it below to verify your account.
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Verification Code</label>
+          <label htmlFor="verification-code" className="block text-sm font-medium text-gray-700">Verification Code</label>
           <input
+            id="verification-code"
             type="text"
             value={code}
             onChange={(e) => setCode(e.target.value)}

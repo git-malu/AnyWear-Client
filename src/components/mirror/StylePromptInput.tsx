@@ -8,7 +8,9 @@ const MAX_LENGTH = 500;
 export default function StylePromptInput({ value, onChange }: StylePromptInputProps) {
   return (
     <div>
+      <label htmlFor="mirror-style-prompt" className="sr-only">Describe optional style preferences</label>
       <input
+        id="mirror-style-prompt"
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -16,7 +18,7 @@ export default function StylePromptInput({ value, onChange }: StylePromptInputPr
         placeholder="e.g., Studio lighting, white background, editorial style"
         className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
       />
-      <p className="text-right text-xs text-gray-400 mt-1">{value.length}/{MAX_LENGTH}</p>
+      <p id="mirror-style-prompt-count" className="mt-1 text-right text-xs text-gray-500">{value.length}/{MAX_LENGTH}</p>
     </div>
   );
 }
