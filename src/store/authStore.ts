@@ -9,22 +9,15 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: localStorage.getItem('isAuthenticated') === 'true',
+  isAuthenticated: false,
   setAuthenticated: (isAuthenticated: boolean) => {
-    if (isAuthenticated) {
-      localStorage.setItem('isAuthenticated', 'true');
-    } else {
-      localStorage.removeItem('isAuthenticated');
-    }
     set({ isAuthenticated });
   },
   clearLocalAuth: () => {
-    localStorage.removeItem('isAuthenticated');
     set({ isAuthenticated: false });
   },
   logout: async () => {
     // Clear local state immediately for fast UI response
-    localStorage.removeItem('isAuthenticated');
     set({ isAuthenticated: false });
     
     // Explicitly sign out of Amplify (this also triggers the Hub 'signedOut' event)

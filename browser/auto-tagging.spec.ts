@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
+import { mockAmplifySession } from './auth-session';
 
 const ITEM_ID = '11111111-1111-1111-8111-111111111111';
 const mockItem: GetWardrobe200Item = {
@@ -76,7 +77,7 @@ async function setupMock(page: Page, state: MockState) {
 
 test.describe('Wardrobe Auto-Tagging (mocked Client integration)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.setItem('isAuthenticated', 'true'));
+    await mockAmplifySession(page);
   });
   test.afterEach(({ page }) => expectOnlyMockedCalls(page));
 

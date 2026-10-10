@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
+import { mockAmplifySession } from './auth-session';
 
 const ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const mockItems: GetWardrobe200Item[] = [
@@ -10,7 +11,7 @@ const mockItems: GetWardrobe200Item[] = [
 
 async function setupMocks(page: Page) {
   await mockClientBoundaries(page);
-  await page.addInitScript(() => window.localStorage.setItem('isAuthenticated', 'true'));
+  await mockAmplifySession(page);
   await page.route('http://localhost:3000/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const responses: Record<string, unknown> = {

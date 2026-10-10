@@ -1,10 +1,11 @@
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 import Axios from 'axios';
 import { customInstance } from './custom-instance';
+import { useAuthStore } from '../store/authStore';
 
-vi.mock('aws-amplify/auth', () => ({ fetchAuthSession: vi.fn() }));
+vi.mock('aws-amplify/auth', () => ({ fetchAuthSession: vi.fn(), signOut: vi.fn() }));
 
 function response(config: InternalAxiosRequestConfig): AxiosResponse<{ ok: true }> {
   return {
@@ -66,5 +67,53 @@ describe('customInstance idempotency', () => {
     await customInstance({ url: '/wardrobe', method: 'GET' }, { adapter });
 
     expect(key).toBeUndefined();
+  });
+});
+
+describe('customInstance authentication', () => {
+  it('finishes SDK sign-out before a 401 forces navigation', async () => {
+    vi.clearAllMocks();
+    vi.mocked(fetchAuthSession).mockResolvedValue({});
+    let finishSignOut!: () => void;
+    vi.mocked(signOut).mockReturnValue(new Promise<void>(resolve => { finishSignOut = resolve; }));
+    const location = { pathname: '/wardrobe', href: '' };
+    vi.stubGlobal('window', { location });
+    useAuthStore.getState().setAuthenticated(true);
+    const adapter: AxiosAdapter = async (config) => {
+      throw new Axios.AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+        ...response(config), status: 401,
+      });
+    };
+    try {
+      const request = customInstance({ url: '/users/me', method: 'GET' }, { adapter });
+      const rejection = expect(request).rejects.toThrow('Unauthorized');
+      await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(location.href).toBe('');
+      finishSignOut();
+      await rejection;
+      expect(location.href).toBe('/login');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('resolves the current SDK token for every request instead of caching it', async () => {
+    vi.clearAllMocks();
+    const session = (token: string) => ({
+      tokens: { accessToken: { toString: () => token } },
+    }) as Awaited<ReturnType<typeof fetchAuthSession>>;
+    vi.mocked(fetchAuthSession)
+      .mockResolvedValueOnce(session('first-token'))
+      .mockResolvedValueOnce(session('refreshed-token'));
+    const headers: unknown[] = [];
+    const adapter: AxiosAdapter = async (config) => {
+      headers.push(config.headers.get('Authorization'));
+      return response(config);
+    };
+    await customInstance({ url: '/users/me', method: 'GET' }, { adapter });
+    await customInstance({ url: '/wardrobe', method: 'GET' }, { adapter });
+    expect(fetchAuthSession).toHaveBeenCalledTimes(2);
+    expect(headers).toEqual(['Bearer first-token', 'Bearer refreshed-token']);
   });
 });
