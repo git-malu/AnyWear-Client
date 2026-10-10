@@ -182,7 +182,7 @@ The app uses AWS Amplify SDK for authentication and obtains access tokens throug
 
 **For scripted Playwright tests** (CI/regression): Client-owned tests mock Service and cloud boundaries and live in `browser/`. Real register-to-login and other Client + Service flows live in `AnyWear-E2E`.
 
-**For mocked authenticated UI**: Reuse `authenticatedPage` from `browser/fixtures.ts`. It sets the current store's localStorage UI flag before navigation and mocks common Service endpoints. The flag alone creates no Amplify session or JWT; changing it after the store initializes does not update the in-memory state. Keep every Service/cloud call exercised by the scenario mocked. The fixture and outfit/auto-tagging scenarios use `browser/mock-boundaries.ts` to intercept fixture images and reject unexpected external calls. Playwright's test server fixes the mocked API origin to `http://localhost:3000`.
+**For mocked authenticated UI**: Reuse `authenticatedPage` from `browser/fixtures.ts` and `mockAmplifySession` from `browser/auth-session.ts`. They seed unsigned synthetic tokens into Amplify's SDK storage for a fixed fictitious pool/client and mock common Service endpoints. AuthGate still resolves the session through the real installed SDK; the Zustand mirror starts `false` and never reads a persisted UI flag. These tokens create no real Cognito identity and must only be used with mocked Service/cloud boundaries. The fixture and outfit/auto-tagging scenarios use `browser/mock-boundaries.ts` to intercept fixture images and reject unexpected external calls. Playwright's test server fixes the mocked API origin to `http://localhost:3000` and never inherits real Cognito settings.
 
 ### Mocking APIs
 

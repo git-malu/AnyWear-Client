@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
+import { mockAmplifySession } from './auth-session';
 
 type MyFixtures = {
   authenticatedPage: Page;
@@ -10,10 +11,7 @@ export const test = base.extend<MyFixtures>({
   // 1. Authenticated Page Fixture
   authenticatedPage: async ({ page }, use) => {
     await mockClientBoundaries(page);
-    // Set authentication state in localStorage before any navigation
-    await page.addInitScript(() => {
-      window.localStorage.setItem('isAuthenticated', 'true');
-    });
+    await mockAmplifySession(page);
 
     // Global Mocks for common endpoints
     await page.route('**/users/me', async (route) => {

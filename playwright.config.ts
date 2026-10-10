@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { MOCK_USER_POOL_ID, MOCK_USER_POOL_CLIENT_ID } from './browser/auth-session';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,9 +39,9 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_API_BASE_URL: 'http://localhost:3000',
-      VITE_COGNITO_USER_POOL_ID: process.env.VITE_COGNITO_USER_POOL_ID || process.env.USER_POOL_ID || '',
-      VITE_COGNITO_CLIENT_ID: process.env.VITE_COGNITO_CLIENT_ID || '',
-      VITE_COGNITO_IDENTITY_POOL_ID: process.env.VITE_COGNITO_IDENTITY_POOL_ID || '',
+      VITE_COGNITO_USER_POOL_ID: MOCK_USER_POOL_ID,
+      VITE_COGNITO_CLIENT_ID: MOCK_USER_POOL_CLIENT_ID,
+      VITE_COGNITO_IDENTITY_POOL_ID: '',
     }
   },
 });

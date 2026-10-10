@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import type { GetOutfits200OutfitsItem } from '../src/api/model/getOutfits200OutfitsItem';
 import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
+import { mockAmplifySession } from './auth-session';
 
 const OUTFIT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ITEM_ID_1 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -76,7 +77,7 @@ function outfitCard(page: Page, name: string) {
 
 test.describe('Outfit Management (mocked Client integration)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.setItem('isAuthenticated', 'true'));
+    await mockAmplifySession(page);
   });
   test.afterEach(({ page }) => expectOnlyMockedCalls(page));
 

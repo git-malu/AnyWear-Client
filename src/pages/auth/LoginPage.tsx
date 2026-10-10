@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { signIn, fetchAuthSession, signOut } from 'aws-amplify/auth';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../lib/errors';
@@ -13,19 +13,34 @@ export default function LoginPage() {
   
   const navigate = useNavigate();
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
-  
-  // Ensure Amplify is signed out if we are on the login page
-  // This prevents "There is already a signed in user" error if local state was cleared but Amplify wasn't
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const mounted = useRef(false);
+
   useEffect(() => {
-    signOut().catch(() => {
-      // Ignore errors if no user was signed in
-    });
+    mounted.current = true;
+    return () => { mounted.current = false; };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsPending(true);
     setAuthError(null);
+    let invalidated = false;
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) invalidated = true;
+    });
+
+    const acceptSession = async () => {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      if (!mounted.current || invalidated) return;
+      if (token) {
+        setAuthenticated(true);
+        navigate('/dashboard');
+      } else {
+        setAuthError('Authentication successful, but could not retrieve session tokens.');
+      }
+    };
     
     try {
       const { isSignedIn, nextStep } = await signIn({
@@ -34,37 +49,21 @@ export default function LoginPage() {
       });
 
       if (isSignedIn) {
-        // 1. Get the session to extract the JWT Access Token
-        const session = await fetchAuthSession();
-        const token = session.tokens?.accessToken?.toString();
-        
-        if (token) {
-          // 2. Set authenticated in Zustand store
-          // This will trigger the ProtectedRoute in App.tsx to mount and fetch the profile
-          setAuthenticated(true);
-          
-          // 3. Redirect to dashboard
-          navigate('/dashboard');
-        } else {
-          setAuthError('Authentication successful, but could not retrieve session tokens.');
-        }
+        await acceptSession();
       } else if (nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
         navigate(`/verify?email=${encodeURIComponent(email)}`);
       }
     } catch (err) {
-      // If we still get the already signed in error despite the useEffect, try one more time
-      if (getErrorMessage(err, '') === 'There is already a signed in user.') {
+      // Recover only after an explicit sign-in attempt finds an existing SDK user.
+      if (getErrorMessage(err, '') === 'There is already a signed in user.' && !invalidated && mounted.current) {
         try {
           await signOut();
+          if (!mounted.current) return;
+          invalidated = false;
           const retryResult = await signIn({ username: email, password });
           if (retryResult.isSignedIn) {
-            const session = await fetchAuthSession();
-            const token = session.tokens?.accessToken?.toString();
-            if (token) {
-              setAuthenticated(true);
-              navigate('/dashboard');
-              return;
-            }
+            await acceptSession();
+            return;
           } else if (retryResult.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
             navigate(`/verify?email=${encodeURIComponent(email)}`);
             return;
@@ -76,9 +75,15 @@ export default function LoginPage() {
         setAuthError(getErrorMessage(err, 'Invalid email or password.'));
       }
     } finally {
-      setIsPending(false);
+      unsubscribe();
+      if (mounted.current) {
+        if (invalidated) setAuthError('Your session ended. Please sign in again.');
+        setIsPending(false);
+      }
     }
   };
+
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="space-y-6">

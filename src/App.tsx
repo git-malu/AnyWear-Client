@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Hub } from 'aws-amplify/utils';
 import { useGetUsersMe } from './api/endpoints/users/users';
 import FullPageLoading from './components/FullPageLoading';
+import AuthGate from './components/AuthGate';
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
 
@@ -86,33 +87,35 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthListener />
-      <Router>
-        <Suspense fallback={<FullPageLoading />}>
-          <Routes>
-          {/* Auth Routes */}
-          <Route element={<AuthLayout />}>
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/verify" element={<VerifyEmailPage />} />
-            <Route path="/login" element={<LoginPage />} />
-          </Route>
+      <AuthGate>
+        <Router>
+          <Suspense fallback={<FullPageLoading />}>
+            <Routes>
+            {/* Auth Routes */}
+            <Route element={<AuthLayout />}>
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify" element={<VerifyEmailPage />} />
+              <Route path="/login" element={<LoginPage />} />
+            </Route>
 
-          {/* Protected Routes */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/wardrobe" element={<WardrobePage />} />
-            <Route path="/mirror" element={<MirrorPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-          </Routes>
-        </Suspense>
-      </Router>
+            {/* Protected Routes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/wardrobe" element={<WardrobePage />} />
+              <Route path="/mirror" element={<MirrorPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+            </Routes>
+          </Suspense>
+        </Router>
+      </AuthGate>
     </QueryClientProvider>
   );
 }
