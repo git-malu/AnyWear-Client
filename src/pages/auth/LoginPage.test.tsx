@@ -22,11 +22,13 @@ describe('LoginPage session callbacks', () => {
     vi.clearAllMocks();
     useAuthStore.getState().clearLocalAuth();
     vi.mocked(signIn).mockResolvedValue({ isSignedIn: true, nextStep: { signInStep: 'DONE' } });
+    vi.mocked(signOut).mockResolvedValue();
   });
   afterEach(cleanup);
 
   it('does not sign out merely by mounting the login route', () => {
     render(<MemoryRouter><LoginPage /></MemoryRouter>);
+    expect(signIn).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
   });
 
@@ -48,6 +50,27 @@ describe('LoginPage session callbacks', () => {
     await vi.waitFor(() => expect(fetchAuthSession).toHaveBeenCalledTimes(1));
     view.unmount();
     await act(async () => resolveSession(session));
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('does not retry after an existing-user error when logout clears the session', async () => {
+    let rejectSignIn!: (reason: Error) => void;
+    vi.mocked(signIn).mockReturnValueOnce(new Promise((_, reject) => { rejectSignIn = reject; }));
+    submitLogin();
+    await vi.waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
+    act(() => useAuthStore.getState().clearLocalAuth());
+    await act(async () => rejectSignIn(new Error('There is already a signed in user.')));
+    expect(signIn).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('reports an existing-user error without destroying the session or automatically retrying', async () => {
+    vi.mocked(signIn).mockRejectedValueOnce(new Error('There is already a signed in user.'));
+    vi.mocked(fetchAuthSession).mockResolvedValue(session);
+    submitLogin();
+    expect(await screen.findByText('There is already a signed in user.')).toBeTruthy();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(signIn).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 });

@@ -96,7 +96,10 @@ describe('AuthGate startup', () => {
     vi.mocked(getCurrentUser).mockResolvedValue(user);
     startup();
     expect(await screen.findByText('Protected content')).toBeTruthy();
-    act(() => Hub.dispatch('auth', { event }));
-    expect(screen.getByText('Login content')).toBeTruthy();
+    act(() => {
+      Hub.dispatch('auth', { event });
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+    expect(await screen.findByText('Login content')).toBeTruthy();
   });
 });
