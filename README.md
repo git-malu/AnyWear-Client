@@ -51,7 +51,7 @@ Ensure you have the following installed:
 - `pnpm test:browser` - Run Client-owned Playwright browser integration tests with mocked service boundaries
   - **Important:** Before running browser tests for the first time, install Chromium with `pnpm exec playwright install chromium`.
   - Scenarios mock API/image/upload boundaries and fail unexpected external calls; the test server fixes the API origin to localhost:3000.
-  - `AnyWear-E2E` owns the cross-repository system test pipeline and versioned compatibility pins. The AnyWear shell holds local workspace submodule pins and does not run CI.
+  - `AnyWear-E2E` owns the cross-repository system test pipeline and versioned compatibility pins.
 
 ### Beta web publication
 
