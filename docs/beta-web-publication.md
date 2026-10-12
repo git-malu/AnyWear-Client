@@ -64,7 +64,7 @@ and the same source/role/build verification; no new scheduling token is required
 ## Migration status
 
 The [revised AnyWear #54 plan](https://github.com/git-malu/AnyWear/issues/54#issuecomment-6059823426)
-uses one manager-controlled Beta maintenance stop, migration and restart. The
+uses one explicitly authorized Beta maintenance stop, migration and restart. The
 initial Infra reconciliation retains the running Client until an independent
 Client selection is published. Old `CLIENT_PUBLISH_WINDOW_*` variables are unused
 by this workflow and can be removed during authorized configuration reconciliation.

@@ -104,7 +104,7 @@ Vitest is the standard unit/component test runner. Client-owned Playwright brows
    After writing or refactoring code, run `pnpm tsc --noEmit` to ensure you haven't introduced type errors. Do not declare a task "complete" without verifying the types align.
 
 4. **Preserve Submodule Integrity**:
-   Treat the `api` submodule as a critical architectural boundary. Follow its `AGENTS.md` if present; the root workflow and Service producer instructions govern cross-repository changes when it has no instruction file. Client only consumes a published exact API revision and must not edit or generate the shared specification.
+   Treat the `api` submodule as a critical architectural boundary. Follow its `AGENTS.md` if present; Service producer instructions govern cross-repository API changes when it has no instruction file. Client only consumes a published exact API revision and must not edit or generate the shared specification.
 
 5. **CI/CD Pipeline Monitoring**:
    Agents can use the `gh` CLI to check the status of GitHub Actions workflows. This is useful for verifying whether builds, tests, or deployments have succeeded or failed after pushing changes.
