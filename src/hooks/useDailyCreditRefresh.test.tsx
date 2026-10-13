@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { cleanup, render } from '@testing-library/react';
 
-import useDailyCreditRefresh, { msUntilNextLocalMidnight } from './useDailyCreditRefresh';
+import useDailyCreditRefresh, { msUntilNextUtcMidnight } from './useDailyCreditRefresh';
 
 const refetch = vi.fn().mockResolvedValue({ data: undefined });
 
@@ -18,7 +18,7 @@ function Probe() {
   return null;
 }
 
-describe('msUntilNextLocalMidnight', () => {
+describe('msUntilNextUtcMidnight', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -27,14 +27,14 @@ describe('msUntilNextLocalMidnight', () => {
     vi.useRealTimers();
   });
 
-  it('returns the remaining time until the next local midnight', () => {
-    vi.setSystemTime(new Date(2026, 4, 13, 23, 30, 0, 0));
-    expect(msUntilNextLocalMidnight()).toBe(30 * 60 * 1000);
+  it('returns the remaining time until the next UTC midnight', () => {
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 13, 23, 30, 0, 0)));
+    expect(msUntilNextUtcMidnight()).toBe(30 * 60 * 1000);
   });
 
   it('never returns zero or a negative delay right after the boundary', () => {
-    vi.setSystemTime(new Date(2026, 4, 13, 0, 0, 0, 1));
-    expect(msUntilNextLocalMidnight()).toBeGreaterThan(0);
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 13, 0, 0, 0, 1)));
+    expect(msUntilNextUtcMidnight()).toBeGreaterThan(0);
   });
 });
 
@@ -47,7 +47,7 @@ describe('useDailyCreditRefresh', () => {
 
   it('revalidates the profile when the day boundary is crossed', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 4, 13, 23, 59, 30, 0));
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 13, 23, 59, 30, 0)));
     vi.mocked(useGetUsersMe).mockReturnValue({
       data: { dailyCredits: 8, lastCreditRecharge: '2026-05-13T10:00:00.000Z' },
       refetch,
