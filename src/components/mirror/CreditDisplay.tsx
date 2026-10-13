@@ -1,7 +1,9 @@
 import { useGetUsersMe } from '../../api/endpoints/users/users';
+import useDailyCreditRefresh from '../../hooks/useDailyCreditRefresh';
 
 export default function CreditDisplay() {
   const { data: user } = useGetUsersMe();
+  useDailyCreditRefresh();
 
   const credits = user?.dailyCredits ?? 0;
 
