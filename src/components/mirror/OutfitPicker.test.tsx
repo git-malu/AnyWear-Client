@@ -16,7 +16,9 @@ const mockOutfits = {
           id: 'item-1',
           name: 'T-Shirt',
           category: 'Top',
-          imageKeys: JSON.stringify([{ key: 'https://example.com/tshirt.jpg', isPrimary: true }]),
+          imageKeys: JSON.stringify([
+            { key: 'https://example.com/tshirt.jpg?X-Amz-Signature=signed', isPrimary: true },
+          ]),
         },
         {
           id: 'item-2',
@@ -41,7 +43,9 @@ vi.mock('../../api/endpoints/outfits/outfits', () => ({
 }));
 
 vi.mock('../CachedImage', () => ({
-  default: ({ src, alt, className }: any) => <img src={src} alt={alt} className={className} />,
+  default: ({ src, cacheKey, alt, className, ...rest }: any) => (
+    <img src={src} alt={alt} className={className} data-cache-key={cacheKey} {...rest} />
+  ),
 }));
 
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
@@ -121,8 +125,8 @@ describe('OutfitPicker', () => {
   });
 
   it.each([
-    ['JSON', JSON.stringify([{ key: 'other.jpg' }, { key: 'primary.jpg', isPrimary: true }])],
-    ['array', [{ key: 'other.jpg' }, { key: 'primary.jpg', isPrimary: true }]],
+    ['JSON', JSON.stringify([{ key: 'https://example.com/other.jpg' }, { key: 'https://example.com/primary.jpg', isPrimary: true }])],
+    ['array', [{ key: 'https://example.com/other.jpg' }, { key: 'https://example.com/primary.jpg', isPrimary: true }]],
   ])('renders the designated primary thumbnail from %s image keys', (_format, imageKeys) => {
     const data = structuredClone(mockOutfits);
     Object.assign(data.outfits[0].wearableItems[0], { imageKeys });
@@ -134,8 +138,35 @@ describe('OutfitPicker', () => {
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
 
-    const image = screen.getByAltText('');
-    expect(image).toHaveAttribute('src', 'primary.jpg');
+    const image = screen.getByTestId('outfit-thumbnail-outfit-1');
+    expect(image).toHaveAttribute('src', 'https://example.com/primary.jpg');
     expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('data-cache-key', 'outfit-outfit-1-item-1');
+  });
+
+  it('falls back to the first nested item when the first wearable has no image', () => {
+    const data = structuredClone(mockOutfits);
+    Object.assign(data.outfits[0].wearableItems[0], { imageKeys: null });
+    Object.assign(data.outfits[0].wearableItems[1], {
+      imageKeys: [{ key: 'https://example.com/jeans.jpg?X-Amz-Signature=signed', isPrimary: true }],
+    });
+    vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading: false, isError: false } as any);
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    const image = screen.getByTestId('outfit-thumbnail-outfit-1');
+    expect(image).toHaveAttribute('src', 'https://example.com/jeans.jpg?X-Amz-Signature=signed');
+    expect(image).toHaveAttribute('data-cache-key', 'outfit-outfit-1-item-2');
+  });
+
+  it('shows the intentional placeholder when no outfit item has a loadable image', () => {
+    const data = structuredClone(mockOutfits);
+    Object.assign(data.outfits[0].wearableItems[0], { imageKeys: [{ key: 'wardrobe/raw-key.jpg', isPrimary: true }] });
+    vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading: false, isError: false } as any);
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    expect(screen.queryByTestId('outfit-thumbnail-outfit-1')).toBeNull();
+    expect(document.querySelector('img[src*="wardrobe/raw-key.jpg"]')).toBeNull();
   });
 });
