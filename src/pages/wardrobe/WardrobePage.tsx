@@ -5,7 +5,7 @@ import AddItemModal from './AddItemModal';
 import CreateOutfitModal from './CreateOutfitModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import CachedImage from '../../components/CachedImage';
-import { getPrimaryImage } from '../../lib/image-utils';
+import { getOutfitPrimaryImage, getOutfitThumbnailCacheKey, getPrimaryImageUrl } from '../../lib/image-utils';
 import { connectSse } from '../../lib/sse';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import { GetWardrobeParams } from '../../api/model/getWardrobeParams';
@@ -209,8 +209,8 @@ export default function WardrobePage() {
                   className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 disabled:cursor-default"
                 >
                   <div className="aspect-[4/5] bg-gray-100">
-                    {getPrimaryImage(item.imageKeys) ? (
-                      <CachedImage src={getPrimaryImage(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="h-full w-full object-cover" />
+                    {getPrimaryImageUrl(item.imageKeys) ? (
+                      <CachedImage src={getPrimaryImageUrl(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">No Image</div>
                     )}
@@ -254,8 +254,7 @@ export default function WardrobePage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
             {outfits.map((outfit) => {
-              const firstItem = outfit.wearableItems?.[0];
-              const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
+              const { src: primaryImage, itemId: primaryItemId } = getOutfitPrimaryImage(outfit.wearableItems);
               return (
                 <article
                   key={outfit.id}
@@ -263,7 +262,17 @@ export default function WardrobePage() {
                 >
                   <button type="button" onClick={() => handleOutfitClick(outfit)} aria-label={`Edit ${outfit.name || 'outfit'}`} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
                     <div className="aspect-[4/5] bg-gray-100">
-                      {primaryImage ? <CachedImage src={primaryImage} cacheKey={outfit.id} alt={outfit.name || 'Outfit'} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-gray-400">No image</div>}
+                      {primaryImage ? (
+                        <CachedImage
+                          src={primaryImage}
+                          cacheKey={getOutfitThumbnailCacheKey(outfit.id, primaryItemId)}
+                          alt={outfit.name || 'Outfit'}
+                          data-testid={`outfit-thumbnail-${outfit.id}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-gray-400">No image</div>
+                      )}
                     </div>
                     <div className="p-3">
                       <h3 className="truncate text-sm font-medium text-gray-900">{outfit.name || 'Untitled Outfit'}</h3>

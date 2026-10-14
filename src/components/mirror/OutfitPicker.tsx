@@ -1,5 +1,5 @@
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
-import { getPrimaryImage } from '../../lib/image-utils';
+import { getOutfitPrimaryImage, getOutfitThumbnailCacheKey } from '../../lib/image-utils';
 import CachedImage from '../CachedImage';
 
 interface OutfitPickerProps {
@@ -28,8 +28,7 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
   return (
     <div className="max-h-[320px] space-y-2 overflow-y-auto">
       {outfits.map((outfit) => {
-        const firstItem = outfit.wearableItems?.[0];
-        const primaryImage = firstItem ? getPrimaryImage(firstItem.imageKeys) : null;
+        const { src: primaryImage, itemId: primaryItemId } = getOutfitPrimaryImage(outfit.wearableItems);
         const isSelected = outfit.id === selectedOutfitId;
 
         return (
@@ -41,7 +40,13 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
           >
             <div className="w-12 h-12 rounded-md bg-gray-100 flex-shrink-0 overflow-hidden">
               {primaryImage ? (
-                <CachedImage src={primaryImage} cacheKey={outfit.id} alt="" className="w-full h-full object-cover" />
+                <CachedImage
+                  src={primaryImage}
+                  cacheKey={getOutfitThumbnailCacheKey(outfit.id, primaryItemId)}
+                  alt=""
+                  data-testid={`outfit-thumbnail-${outfit.id}`}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
