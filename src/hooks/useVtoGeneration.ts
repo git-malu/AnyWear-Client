@@ -27,6 +27,10 @@ export default function useVtoGeneration() {
   const status: GetVtoGenerationsGenerationId200Status | null = statusQuery.data?.status ?? null;
   const isTerminal = status === 'Complete' || status === 'Failed';
 
+  const invalidateProfile = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['/users/me'] as const });
+  }, [queryClient]);
+
   useEffect(() => {
     sseRef.current?.close();
     sseRef.current = null;
@@ -51,7 +55,13 @@ export default function useVtoGeneration() {
       sseRef.current?.close();
       sseRef.current = null;
     };
-  }, [vtoId, queryClient, isTerminal]);
+  }, [vtoId, queryClient, isTerminal, invalidateProfile]);
+
+  // The balance changes on generation start and again when the run settles
+  // (deduction, refund, exhaustion), so re-read the profile at both points.
+  useEffect(() => {
+    if (vtoId && isTerminal) invalidateProfile();
+  }, [vtoId, isTerminal, invalidateProfile]);
 
   const result: GetVtoGenerationsGenerationId200 | null = statusQuery.data ?? null;
   const errorMessage: string | null = statusQuery.data?.error_message ?? (generateMutation.isError ? 'Failed to start generation' : null);
@@ -62,7 +72,8 @@ export default function useVtoGeneration() {
     const response = await generateMutation.mutateAsync({ data: params });
     setVtoId(response.generation_id);
     queryClient.invalidateQueries({ queryKey: ['/vto/generations'] as const });
-  }, [generateMutation, queryClient]);
+    invalidateProfile();
+  }, [generateMutation, queryClient, invalidateProfile]);
 
   return { generate, status, result, errorMessage, isPolling, vtoId, isStarting: generateMutation.isPending };
 }

@@ -193,4 +193,20 @@ describe('useVtoGeneration recovery lifecycle', () => {
     expect(getStatus).toHaveBeenCalledTimes(1);
     expect(streamFetch).toHaveBeenCalledTimes(1);
   });
+
+  it('invalidates the profile query on generate and on terminal status', async () => {
+    getStatus.mockResolvedValueOnce(pendingStatus)
+      .mockResolvedValue({ ...pendingStatus, status: 'Complete', state_version: 2 });
+    const { result, queryClient } = renderGeneration();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await start(result);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/users/me'] });
+
+    await advance(10_000);
+    await advance(1);
+    expect(result.current.status).toBe('Complete');
+    expect(invalidate.mock.calls.filter(([arg]) => arg?.queryKey?.[0] === '/users/me').length)
+      .toBeGreaterThanOrEqual(2);
+  });
 });
