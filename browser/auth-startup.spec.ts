@@ -1,6 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockAmplifySession } from './auth-session';
+import { mockAmplifySession, MOCK_USER_POOL_CLIENT_ID } from './auth-session';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
+
+const PERSISTED_REFRESH_TOKEN_KEY =
+  `CognitoIdentityServiceProvider.${MOCK_USER_POOL_CLIENT_ID}.test-user.refreshToken`;
 
 async function mockProtectedRequests(page: Page, profileStatus = 200) {
   const calls: Array<{ path: string; authorization?: string }> = [];
@@ -49,6 +52,80 @@ test('a valid Amplify session refreshes a protected route without rendering logi
   expect(calls.filter(call => call.path === '/users/me').length).toBeGreaterThanOrEqual(2);
   expect(calls.every(call => call.authorization?.startsWith('Bearer '))).toBe(true);
   await expect(page).toHaveURL(/\/wardrobe$/);
+});
+
+test('logout reports completion only after the SDK sign-out destroyed the session', async ({ page, context }) => {
+  await mockAmplifySession(page);
+  const calls = await mockProtectedRequests(page);
+  await page.goto('/wardrobe');
+  await expect(page.getByRole('heading', { name: 'Wardrobe', exact: true })).toBeVisible();
+  const profileRequestsBeforeLogout = calls.filter(call => call.path === '/users/me').length;
+
+  // Give the fixture session a revocable access token and a refresh token so the SDK's sign-out
+  // performs its revoke request, which this test holds open to observe the in-flight UI state.
+  await page.evaluate(({ clientId, username }) => {
+    const encode = (payload: Record<string, unknown>) => btoa(JSON.stringify(payload))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const issued = Math.floor(Date.now() / 1000);
+    const accessToken = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({
+      sub: 'test-user-id', 'cognito:username': username, token_use: 'access',
+      origin_jti: 'fixture-session', exp: issued + 3600, iat: issued,
+    })}.fixture`;
+    const prefix = `CognitoIdentityServiceProvider.${clientId}.${username}`;
+    localStorage.setItem(`${prefix}.accessToken`, accessToken);
+    localStorage.setItem(`${prefix}.refreshToken`, 'fixture-refresh-token');
+  }, { clientId: MOCK_USER_POOL_CLIENT_ID, username: 'test-user' });
+
+  let releaseRevoke!: () => void;
+  const revokeReleased = new Promise<void>((resolve) => { releaseRevoke = resolve; });
+  let observeRevoke!: () => void;
+  const revokeRequested = new Promise<void>((resolve) => { observeRevoke = resolve; });
+  const corsHeaders = {
+    'access-control-allow-origin': 'http://localhost:1420',
+    'access-control-allow-methods': 'POST, OPTIONS',
+    'access-control-allow-headers': '*',
+  };
+  await page.route('https://cognito-idp.*.amazonaws.com/**', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      return route.fulfill({ status: 204, headers: corsHeaders });
+    }
+    observeRevoke();
+    await revokeReleased;
+    return route.fulfill({
+      status: 200,
+      headers: { ...corsHeaders, 'content-type': 'application/x-amz-json-1.1' },
+      body: '{}',
+    });
+  });
+
+  await page.getByRole('button', { name: 'Logout' }).click();
+  await revokeRequested;
+
+  // Tokens are still restorable, so the UI must not report a completed logout yet.
+  await expect(page.getByRole('button', { name: 'Signing out' })).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Wardrobe', exact: true })).toBeVisible();
+  expect(await page.evaluate((key) => localStorage.getItem(key), PERSISTED_REFRESH_TOKEN_KEY))
+    .toBe('fixture-refresh-token');
+
+  releaseRevoke();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+  const persistedKeys = await page.evaluate(() =>
+    Object.keys(localStorage).filter(key => key.startsWith('CognitoIdentityServiceProvider.')));
+  expect(persistedKeys).toEqual([]);
+
+  // A second document, which the shared session fixture does not re-seed, cannot restore the session.
+  const nextDocument = await context.newPage();
+  await mockClientBoundaries(nextDocument);
+  try {
+    await nextDocument.goto('/wardrobe');
+    await expect(nextDocument).toHaveURL(/\/login$/);
+    await expect(nextDocument.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    expectOnlyMockedCalls(nextDocument);
+  } finally {
+    await nextDocument.close();
+  }
+  expect(calls.filter(call => call.path === '/users/me')).toHaveLength(profileRequestsBeforeLogout);
 });
 
 test('a stale UI flag cannot admit a protected route without an SDK session', async ({ page }) => {

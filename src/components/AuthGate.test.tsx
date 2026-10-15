@@ -20,7 +20,8 @@ function deferredUser() {
 
 function RouteContent() {
   const authenticated = useAuthStore((state) => state.isAuthenticated);
-  return <div>{authenticated ? 'Protected content' : 'Login content'}</div>;
+  const signingOut = useAuthStore((state) => state.isSigningOut);
+  return <div>{authenticated ? 'Protected content' : signingOut ? 'Signing out' : 'Login content'}</div>;
 }
 
 function startup() {
@@ -30,7 +31,7 @@ function startup() {
 describe('AuthGate startup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuthStore.getState().clearLocalAuth();
+    useAuthStore.setState({ isAuthenticated: false, isSigningOut: false, logoutError: null });
     vi.mocked(signOut).mockResolvedValue();
   });
   afterEach(cleanup);
@@ -64,14 +65,29 @@ describe('AuthGate startup', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it('lets explicit logout win before its SDK sign-out finishes', async () => {
+  it('lets explicit logout win before its SDK sign-out finishes without reporting it as complete', async () => {
     const lookup = deferredUser();
     vi.mocked(getCurrentUser).mockReturnValue(lookup.promise);
-    vi.mocked(signOut).mockReturnValue(new Promise(() => {}));
+    let finishSignOut!: () => void;
+    vi.mocked(signOut).mockReturnValue(new Promise<void>((resolve) => { finishSignOut = resolve; }));
     startup();
-    act(() => { void useAuthStore.getState().logout(); });
+
+    let logout!: Promise<void>;
+    act(() => { logout = useAuthStore.getState().logout(); });
     await act(async () => lookup.resolve(user));
+
+    // The explicit logout beats the slower startup lookup, but the session is only reported as gone
+    // once the SDK sign-out settles, so the UI cannot advertise a logout that is not durable yet.
+    expect(screen.queryByText('Protected content')).toBeNull();
+    expect(screen.getByText('Signing out')).toBeTruthy();
+    expect(useAuthStore.getState().isSigningOut).toBe(true);
+
+    await act(async () => { finishSignOut(); await logout; });
+
     expect(screen.getByText('Login content')).toBeTruthy();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().isSigningOut).toBe(false);
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a lookup that resolves after the gate unmounts', async () => {

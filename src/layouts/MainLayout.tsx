@@ -2,6 +2,16 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 export default function MainLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const isSigningOut = useAuthStore((state) => state.isSigningOut);
+  const logoutError = useAuthStore((state) => state.logoutError);
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // logout() already destroyed the local session and recorded the failure in the store, which
+      // this layout renders below; catching here only keeps the rejection from going unhandled.
+    }
+  };
   const navLinkClass = ({ isActive }: { isActive: boolean }) => `inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium ${isActive ? 'border-indigo-600 text-gray-900' : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2`;
   const mobileLinkClass = ({ isActive }: { isActive: boolean }) => `flex flex-col items-center rounded px-2 py-1 text-xs ${isActive ? 'font-semibold text-indigo-700' : 'text-gray-600 hover:text-gray-900'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600`;
   
@@ -46,11 +56,18 @@ export default function MainLayout() {
               </div>
             </div>
             <div className="flex items-center">
+              {logoutError ? (
+                <p role="alert" className="max-w-xs text-right text-sm text-red-600">
+                  Sign-out failed: {logoutError}. Your session was cleared on this device.
+                </p>
+              ) : null}
               <button
-                onClick={logout}
-                className="ml-3 inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-600"
+                type="button"
+                onClick={() => { void handleLogout(); }}
+                disabled={isSigningOut}
+                className="ml-3 inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Logout
+                {isSigningOut ? 'Signing out...' : 'Logout'}
               </button>
             </div>
           </div>
