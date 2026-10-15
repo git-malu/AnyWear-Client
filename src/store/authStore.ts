@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import { getCurrentUser, signOut } from 'aws-amplify/auth';
+import { signOut } from 'aws-amplify/auth';
+
+/**
+ * Amplify's default token store persists the Cognito session under these keys: they are the durable
+ * session boundary, so a document that still finds them can re-authenticate.
+ */
+const AMPLIFY_AUTH_STORAGE_PREFIX = 'CognitoIdentityServiceProvider.';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -11,60 +17,26 @@ interface AuthState {
 }
 
 /**
- * `signOut()` destroys Amplify's persisted Cognito session only after its awaited `RevokeToken`
- * request settles (the SDK clears its token store after that await returns), so a document teardown
- * mid-sign-out, or any rejection, can leave a restorable session behind. The mirror therefore keeps
- * reporting the session until destruction has been verified.
+ * `signOut()` only removes Amplify's persisted tokens after its network revocation settles, so a
+ * rejection or a document teardown during sign-out can leave a restorable session behind. Removing
+ * the persisted auth keys here makes a completed logout durable regardless of SDK internals.
  */
-const UNVERIFIED_SIGN_OUT_MESSAGE =
-  'You are still signed in. Sign-out could not be verified, so the session was not cleared.';
+function clearPersistedAuthStorage(): void {
+  if (typeof localStorage === 'undefined') return;
 
-/**
- * One initial attempt plus one bounded retry, both on the local scope. A global sign-out would
- * revoke every session of the account, which is a product decision this fix must not make.
- */
-const MAX_LOCAL_SIGN_OUT_ATTEMPTS = 2;
+  const persistedKeys: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith(AMPLIFY_AUTH_STORAGE_PREFIX)) persistedKeys.push(key);
+  }
+
+  for (const key of persistedKeys) {
+    localStorage.removeItem(key);
+  }
+}
 
 function describeLogoutFailure(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : 'Unknown sign-out error';
-}
-
-function unverifiedSignOutError(lastError: unknown): Error {
-  if (lastError === null) return new Error(UNVERIFIED_SIGN_OUT_MESSAGE);
-  return new Error(`${UNVERIFIED_SIGN_OUT_MESSAGE} Last SDK error: ${describeLogoutFailure(lastError)}`);
-}
-
-/**
- * `getCurrentUser()` answers "is the session gone?" from the SDK's persisted session store: once
- * `signOut()` has destroyed the tokens it rejects without contacting Cognito. Amplify's storage keys
- * are never inspected or removed here, because the SDK owns that boundary.
- */
-async function isSessionDestroyed(): Promise<boolean> {
-  try {
-    await getCurrentUser();
-    return false;
-  } catch {
-    return true;
-  }
-}
-
-async function destroyAmplifySession(): Promise<void> {
-  let lastError: unknown = null;
-
-  for (let attempt = 0; attempt < MAX_LOCAL_SIGN_OUT_ATTEMPTS; attempt += 1) {
-    try {
-      await signOut({ global: false });
-      lastError = null;
-    } catch (error) {
-      lastError = error;
-    }
-
-    // A rejection is not proof of failure (the SDK may have cleared the session before it threw) and
-    // a resolution is not proof of success, so the persisted session decides, not the promise.
-    if (await isSessionDestroyed()) return;
-  }
-
-  throw unverifiedSignOutError(lastError);
+  return error instanceof Error ? error.message : 'Unknown sign-out error';
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -79,19 +51,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isAuthenticated: false });
   },
   logout: async () => {
-    // The in-flight flag is published immediately: it announces a pending sign-out and keeps a
-    // slower startup lookup invalidated. No unauthenticated state is published here.
+    // Pending sign-out is still a store change, so a slower startup lookup stays invalidated while
+    // the UI keeps the session on screen instead of advertising a logout that is not durable yet.
     set({ isSigningOut: true, logoutError: null });
 
     try {
-      await destroyAmplifySession();
+      await signOut();
     } catch (error) {
-      // Destruction could not be verified, so the UI stays authenticated and the failure is
-      // surfaced. Publishing a logged-out UI on an unverified sign-out is what this fix removes.
-      set({ isSigningOut: false, logoutError: describeLogoutFailure(error) });
+      // The SDK did not destroy the session, so do it here before reporting the failure: an
+      // in-memory-only sign-out would let the next document restore the user from persisted tokens.
+      clearPersistedAuthStorage();
+      set({
+        isAuthenticated: false,
+        isSigningOut: false,
+        logoutError: describeLogoutFailure(error),
+      });
       throw error;
     }
 
+    clearPersistedAuthStorage();
     set({ isAuthenticated: false, isSigningOut: false, logoutError: null });
   },
 }));

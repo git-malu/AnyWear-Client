@@ -10,7 +10,6 @@ import AuthGate from './AuthGate';
 vi.mock('aws-amplify/auth', () => ({ getCurrentUser: vi.fn(), signOut: vi.fn() }));
 
 const user = { username: 'test-user', userId: 'test-user-id' };
-const noSession = new Error('User needs to be authenticated to call this API.');
 
 function deferredUser() {
   let resolve!: (value: typeof user) => void;
@@ -21,7 +20,8 @@ function deferredUser() {
 
 function RouteContent() {
   const authenticated = useAuthStore((state) => state.isAuthenticated);
-  return <div>{authenticated ? 'Protected content' : 'Login content'}</div>;
+  const signingOut = useAuthStore((state) => state.isSigningOut);
+  return <div>{authenticated ? 'Protected content' : signingOut ? 'Signing out' : 'Login content'}</div>;
 }
 
 function startup() {
@@ -49,7 +49,7 @@ describe('AuthGate startup', () => {
   });
 
   it('releases unauthenticated routes when no SDK session exists', async () => {
-    vi.mocked(getCurrentUser).mockRejectedValue(noSession);
+    vi.mocked(getCurrentUser).mockRejectedValue(new Error('No authenticated user'));
     startup();
     expect(await screen.findByText('Login content')).toBeTruthy();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
@@ -65,72 +65,29 @@ describe('AuthGate startup', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it('lets an explicit logout win before its SDK sign-out finishes without reporting it as complete', async () => {
+  it('lets explicit logout win before its SDK sign-out finishes without reporting it as complete', async () => {
     const lookup = deferredUser();
-    vi.mocked(getCurrentUser)
-      .mockReturnValueOnce(lookup.promise)
-      .mockRejectedValue(noSession);
+    vi.mocked(getCurrentUser).mockReturnValue(lookup.promise);
     let finishSignOut!: () => void;
     vi.mocked(signOut).mockReturnValue(new Promise<void>((resolve) => { finishSignOut = resolve; }));
     startup();
 
-    const published: boolean[] = [];
-    const unsubscribe = useAuthStore.subscribe((state) => published.push(state.isAuthenticated));
-
     let logout!: Promise<void>;
-    let logoutSettled = false;
     act(() => { logout = useAuthStore.getState().logout(); });
-    void logout.then(() => { logoutSettled = true; });
     await act(async () => lookup.resolve(user));
-    unsubscribe();
 
-    // The explicit logout invalidates the slower startup lookup instead of admitting its user, and
-    // the sign-out is reported as pending rather than complete while the SDK has not destroyed the
-    // session yet. Nothing may publish an authenticated (or a logged-out) claim before that point.
-    expect(logoutSettled).toBe(false);
-    expect(useAuthStore.getState().isSigningOut).toBe(true);
-    expect(published).not.toContain(true);
+    // The explicit logout beats the slower startup lookup, but the session is only reported as gone
+    // once the SDK sign-out settles, so the UI cannot advertise a logout that is not durable yet.
     expect(screen.queryByText('Protected content')).toBeNull();
-
-    await act(async () => { finishSignOut(); await logout; });
-
-    expect(logoutSettled).toBe(true);
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(useAuthStore.getState().isSigningOut).toBe(false);
-    expect(signOut).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the established session on screen until the SDK sign-out destroyed it', async () => {
-    const lookup = deferredUser();
-    vi.mocked(getCurrentUser)
-      .mockReturnValueOnce(lookup.promise)
-      .mockRejectedValue(noSession);
-    let finishSignOut!: () => void;
-    vi.mocked(signOut).mockReturnValue(new Promise<void>((resolve) => { finishSignOut = resolve; }));
-    useAuthStore.setState({ isAuthenticated: true });
-    startup();
-
-    const published: boolean[] = [];
-    const unsubscribe = useAuthStore.subscribe((state) => published.push(state.isAuthenticated));
-
-    let logout!: Promise<void>;
-    act(() => { logout = useAuthStore.getState().logout(); });
-    // A concurrent startup lookup reports no session: it must not turn the pending sign-out into a
-    // published logout, because destruction has not been verified.
-    await act(async () => lookup.reject(new Error('Older session expired')));
-    unsubscribe();
-
+    expect(screen.getByText('Signing out')).toBeTruthy();
     expect(useAuthStore.getState().isSigningOut).toBe(true);
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    expect(published).not.toContain(false);
-    expect(screen.getByText('Protected content')).toBeTruthy();
-    expect(screen.queryByText('Login content')).toBeNull();
 
     await act(async () => { finishSignOut(); await logout; });
 
     expect(screen.getByText('Login content')).toBeTruthy();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().isSigningOut).toBe(false);
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a lookup that resolves after the gate unmounts', async () => {

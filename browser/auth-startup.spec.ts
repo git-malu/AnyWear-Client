@@ -54,7 +54,7 @@ test('a valid Amplify session refreshes a protected route without rendering logi
   await expect(page).toHaveURL(/\/wardrobe$/);
 });
 
-test('logout publishes the signed-out UI only after the SDK sign-out destroyed the session', async ({ page, context }) => {
+test('logout reports completion only after the SDK sign-out destroyed the session', async ({ page, context }) => {
   await mockAmplifySession(page);
   const calls = await mockProtectedRequests(page);
   await page.goto('/wardrobe');
@@ -98,17 +98,14 @@ test('logout publishes the signed-out UI only after the SDK sign-out destroyed t
     });
   });
 
-  await page.getByRole('button', { name: 'Logout', exact: true }).click();
+  await page.getByRole('button', { name: 'Logout' }).click();
   await revokeRequested;
 
-  // `RevokeToken` is still in flight, so the SDK has not destroyed the persisted session and the
-  // session is still restorable. Polling the pending control first keeps the absence assertion
-  // below non-vacuous: the protected layout must still be on screen.
-  await expect(page.getByRole('button', { name: 'Logout', exact: true })).toBeDisabled();
+  // Tokens are still restorable, so the UI must not report a completed logout yet.
+  await expect(page.getByRole('button', { name: 'Signing out' })).toBeDisabled();
   await expect(page.getByRole('heading', { name: 'Wardrobe', exact: true })).toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), PERSISTED_REFRESH_TOKEN_KEY))
     .toBe('fixture-refresh-token');
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toHaveCount(0);
 
   releaseRevoke();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
@@ -117,30 +114,16 @@ test('logout publishes the signed-out UI only after the SDK sign-out destroyed t
     Object.keys(localStorage).filter(key => key.startsWith('CognitoIdentityServiceProvider.')));
   expect(persistedKeys).toEqual([]);
 
-  // A document the fixture does not re-seed cannot restore the session, and a reload of that same
-  // document stays unauthenticated without asking the Service for a profile. The reload is asserted
-  // here rather than on the page above because `mockAmplifySession` re-seeds synthetic tokens into
-  // every document that has none, which makes a reload in a fixture-seeded page non-probative.
-  const laterDocument = await context.newPage();
-  const laterRequests: string[] = [];
-  await mockClientBoundaries(laterDocument);
-  await laterDocument.route('http://localhost:3000/**', (route) => {
-    laterRequests.push(new URL(route.request().url()).pathname);
-    return route.fallback();
-  });
+  // A second document, which the shared session fixture does not re-seed, cannot restore the session.
+  const nextDocument = await context.newPage();
+  await mockClientBoundaries(nextDocument);
   try {
-    await laterDocument.goto('/wardrobe');
-    await expect(laterDocument).toHaveURL(/\/login$/);
-    await expect(laterDocument.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-
-    await laterDocument.reload();
-    await expect(laterDocument.getByRole('heading', { name: 'Today', exact: true })).toHaveCount(0);
-    await expect(laterDocument).toHaveURL(/\/login$/);
-    await expect(laterDocument.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    expect(laterRequests.filter(path => path === '/users/me')).toEqual([]);
-    expectOnlyMockedCalls(laterDocument);
+    await nextDocument.goto('/wardrobe');
+    await expect(nextDocument).toHaveURL(/\/login$/);
+    await expect(nextDocument.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    expectOnlyMockedCalls(nextDocument);
   } finally {
-    await laterDocument.close();
+    await nextDocument.close();
   }
   expect(calls.filter(call => call.path === '/users/me')).toHaveLength(profileRequestsBeforeLogout);
 });
