@@ -20,6 +20,24 @@ function hasIdempotencyKey(config: InternalAxiosRequestConfig): boolean {
   return typeof config.headers.get('Idempotency-Key') === 'string';
 }
 
+/**
+ * The 401 path must redirect even if the SDK sign-out never settles, so its wait on `logout()` is
+ * bounded. Exported so the bound can be asserted instead of duplicated in tests.
+ */
+export const LOGOUT_REDIRECT_CEILING_MS = 10_000;
+
+/** Resolve when the operation settles or when the ceiling elapses, whichever happens first. */
+function settleWithin(operation: Promise<unknown>, timeoutMs: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    const finish = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    void operation.then(finish, finish);
+  });
+}
+
 AXIOS_INSTANCE.interceptors.request.use(
   async (config) => {
     if (isAsyncTaskCreationRequest(config) && !hasIdempotencyKey(config)) {
@@ -45,9 +63,10 @@ AXIOS_INSTANCE.interceptors.response.use(
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register') {
-        // logout() destroys the persisted session even when the SDK sign-out rejects and records
-        // that failure in the store; this interceptor still forces the redirect.
-        await useAuthStore.getState().logout().catch(() => undefined);
+        // logout() now waits for the SDK sign-out and its verification before it reports the session
+        // as gone, so this path bounds that wait: a stalled sign-out must never keep a 401 response
+        // from redirecting. A sign-out that cannot be verified stays in the store's logoutError.
+        await settleWithin(useAuthStore.getState().logout(), LOGOUT_REDIRECT_CEILING_MS);
         window.location.href = '/login';
       }
     }

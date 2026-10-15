@@ -8,8 +8,8 @@ export default function MainLayout() {
     try {
       await logout();
     } catch {
-      // logout() already destroyed the local session and recorded the failure in the store, which
-      // this layout renders below; catching here only keeps the rejection from going unhandled.
+      // logout() keeps the session and records the failure in the store, which this layout renders
+      // below; catching here only keeps the rejection from going unhandled.
     }
   };
   const navLinkClass = ({ isActive }: { isActive: boolean }) => `inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium ${isActive ? 'border-indigo-600 text-gray-900' : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2`;
@@ -56,18 +56,22 @@ export default function MainLayout() {
               </div>
             </div>
             <div className="flex items-center">
+              {isSigningOut ? (
+                <p role="status" className="text-sm text-gray-600">Signing out...</p>
+              ) : null}
               {logoutError ? (
                 <p role="alert" className="max-w-xs text-right text-sm text-red-600">
-                  Sign-out failed: {logoutError}. Your session was cleared on this device.
+                  {logoutError}
                 </p>
               ) : null}
               <button
                 type="button"
                 onClick={() => { void handleLogout(); }}
                 disabled={isSigningOut}
+                aria-busy={isSigningOut}
                 className="ml-3 inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSigningOut ? 'Signing out...' : 'Logout'}
+                Logout
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { signOut } from 'aws-amplify/auth';
+import { getCurrentUser, signOut } from 'aws-amplify/auth';
 
-vi.mock('aws-amplify/auth', () => ({ signOut: vi.fn() }));
+vi.mock('aws-amplify/auth', () => ({ getCurrentUser: vi.fn(), signOut: vi.fn() }));
 
 const PERSISTED_SESSION_KEYS = [
   'CognitoIdentityServiceProvider.mock-client-id.LastAuthUser',
@@ -9,12 +9,24 @@ const PERSISTED_SESSION_KEYS = [
   'CognitoIdentityServiceProvider.mock-client-id.test-user.idToken',
 ];
 
+const user = { username: 'test-user', userId: 'test-user-id' };
+
 function seedPersistedSession() {
   for (const key of PERSISTED_SESSION_KEYS) localStorage.setItem(key, 'persisted-value');
 }
 
 function persistedSessionKeys(): string[] {
   return PERSISTED_SESSION_KEYS.filter((key) => localStorage.getItem(key) !== null);
+}
+
+/** The SDK still finds a session: destruction cannot be verified. */
+function sessionStillAvailable() {
+  vi.mocked(getCurrentUser).mockResolvedValue(user);
+}
+
+/** The SDK finds no session: destruction is verified without any network call. */
+function sessionDestroyed() {
+  vi.mocked(getCurrentUser).mockRejectedValue(new Error('User needs to be authenticated to call this API.'));
 }
 
 describe('memory-only auth mirror', () => {
@@ -40,57 +52,94 @@ describe('memory-only auth mirror', () => {
     vi.restoreAllMocks();
   });
 
-  it('resolves only after sign-out settled, with the persisted session removed', async () => {
+  it('publishes no unauthenticated state until the SDK sign-out has destroyed the session', async () => {
     const { useAuthStore } = await import('./authStore');
+    sessionDestroyed();
     useAuthStore.getState().setAuthenticated(true);
     seedPersistedSession();
     let finishSignOut!: () => void;
     vi.mocked(signOut).mockReturnValue(new Promise<void>((resolve) => { finishSignOut = resolve; }));
 
+    const published: Array<{ isAuthenticated: boolean; isSigningOut: boolean }> = [];
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      published.push({ isAuthenticated: state.isAuthenticated, isSigningOut: state.isSigningOut });
+    });
+
     const logout = useAuthStore.getState().logout();
     let settled = false;
     void logout.then(() => { settled = true; });
+    await Promise.resolve();
 
-    // The mirror reports an in-flight sign-out instead of a completed logout.
+    // The mirror announces a pending sign-out and keeps reporting the session.
     expect(useAuthStore.getState().isSigningOut).toBe(true);
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    await Promise.resolve();
     expect(settled).toBe(false);
+    expect(published.every((state) => state.isAuthenticated)).toBe(true);
     expect(persistedSessionKeys()).toEqual(PERSISTED_SESSION_KEYS);
 
     finishSignOut();
     await logout;
+    unsubscribe();
 
     expect(settled).toBe(true);
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(persistedSessionKeys()).toEqual([]);
+    expect(signOut).toHaveBeenNthCalledWith(1, { global: false });
+    // The published logout is gated on the verification of the persisted session, not on the promise.
+    expect(getCurrentUser).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().isSigningOut).toBe(false);
     expect(useAuthStore.getState().logoutError).toBeNull();
   });
 
-  it('clears the persisted session and reports the failure when sign-out rejects', async () => {
+  it('stays authenticated, reports the failure and never touches Amplify storage when destruction cannot be verified', async () => {
     const { useAuthStore } = await import('./authStore');
+    sessionStillAvailable();
     useAuthStore.getState().setAuthenticated(true);
     seedPersistedSession();
     localStorage.setItem('unrelated-app-state', 'keep-me');
     vi.mocked(signOut).mockRejectedValue(new Error('SDK sign-out failed'));
 
-    await expect(useAuthStore.getState().logout()).rejects.toThrow('SDK sign-out failed');
+    await expect(useAuthStore.getState().logout()).rejects.toThrow(/Sign-out could not be verified/);
 
-    expect(signOut).toHaveBeenCalledTimes(1);
-    expect(persistedSessionKeys()).toEqual([]);
+    // One bounded retry, both attempts on the local scope: a global sign-out is a product change.
+    expect(signOut).toHaveBeenCalledTimes(2);
+    expect(signOut).toHaveBeenNthCalledWith(1, { global: false });
+    expect(signOut).toHaveBeenNthCalledWith(2, { global: false });
+    expect(getCurrentUser).toHaveBeenCalledTimes(2);
+
+    // No logged-out UI on an unverified sign-out, and no storage surgery either: the SDK owns the
+    // session keys, and the failure is surfaced instead of being swallowed.
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().isSigningOut).toBe(false);
+    expect(useAuthStore.getState().logoutError).toContain('still signed in');
+    expect(useAuthStore.getState().logoutError).toContain('SDK sign-out failed');
+    expect(persistedSessionKeys()).toEqual(PERSISTED_SESSION_KEYS);
     expect(localStorage.getItem('unrelated-app-state')).toBe('keep-me');
+  });
+
+  it('retries once on the local scope and reports the logout only after the retry destroyed the session', async () => {
+    const { useAuthStore } = await import('./authStore');
+    useAuthStore.getState().setAuthenticated(true);
+    vi.mocked(signOut).mockResolvedValue();
+    vi.mocked(getCurrentUser)
+      .mockResolvedValueOnce(user)
+      .mockRejectedValue(new Error('User needs to be authenticated to call this API.'));
+
+    await useAuthStore.getState().logout();
+
+    expect(signOut).toHaveBeenCalledTimes(2);
+    expect(signOut).toHaveBeenNthCalledWith(2, { global: false });
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().isSigningOut).toBe(false);
-    expect(useAuthStore.getState().logoutError).toBe('SDK sign-out failed');
+    expect(useAuthStore.getState().logoutError).toBeNull();
   });
 
   it('drops a stale sign-out failure once a new session is established', async () => {
     const { useAuthStore } = await import('./authStore');
+    sessionStillAvailable();
     vi.mocked(signOut).mockRejectedValue(new Error('SDK sign-out failed'));
-    await expect(useAuthStore.getState().logout()).rejects.toThrow('SDK sign-out failed');
-    expect(useAuthStore.getState().logoutError).toBe('SDK sign-out failed');
+    await expect(useAuthStore.getState().logout()).rejects.toThrow(/Sign-out could not be verified/);
+    expect(useAuthStore.getState().logoutError).not.toBeNull();
 
     useAuthStore.getState().setAuthenticated(true);
 
