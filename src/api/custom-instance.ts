@@ -45,7 +45,9 @@ AXIOS_INSTANCE.interceptors.response.use(
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname;
       if (currentPath !== '/login' && currentPath !== '/register') {
-        await useAuthStore.getState().logout();
+        // logout() destroys the persisted session even when the SDK sign-out rejects and records
+        // that failure in the store; this interceptor still forces the redirect.
+        await useAuthStore.getState().logout().catch(() => undefined);
         window.location.href = '/login';
       }
     }

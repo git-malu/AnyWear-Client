@@ -71,6 +71,8 @@ describe('customInstance idempotency', () => {
 });
 
 describe('customInstance authentication', () => {
+  const persistedSessionKey = 'CognitoIdentityServiceProvider.mock-client-id.test-user.accessToken';
+
   it('finishes SDK sign-out before a 401 forces navigation', async () => {
     vi.clearAllMocks();
     vi.mocked(fetchAuthSession).mockResolvedValue({});
@@ -79,6 +81,7 @@ describe('customInstance authentication', () => {
     const location = { pathname: '/wardrobe', href: '' };
     vi.stubGlobal('window', { location });
     useAuthStore.getState().setAuthenticated(true);
+    localStorage.setItem(persistedSessionKey, 'access-token');
     const adapter: AxiosAdapter = async (config) => {
       throw new Axios.AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
         ...response(config), status: 401,
@@ -88,13 +91,47 @@ describe('customInstance authentication', () => {
       const request = customInstance({ url: '/users/me', method: 'GET' }, { adapter });
       const rejection = expect(request).rejects.toThrow('Unauthorized');
       await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      // The session is only reported as gone once the persisted tokens are gone and navigation runs.
+      expect(useAuthStore.getState().isSigningOut).toBe(true);
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(localStorage.getItem(persistedSessionKey)).toBe('access-token');
       expect(location.href).toBe('');
       finishSignOut();
       await rejection;
+      expect(localStorage.getItem(persistedSessionKey)).toBeNull();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
       expect(location.href).toBe('/login');
     } finally {
       vi.unstubAllGlobals();
+      localStorage.clear();
+    }
+  });
+
+  it('clears the persisted session and still navigates when the 401 sign-out rejects', async () => {
+    vi.clearAllMocks();
+    vi.mocked(fetchAuthSession).mockResolvedValue({});
+    vi.mocked(signOut).mockRejectedValue(new Error('SDK sign-out failed'));
+    const location = { pathname: '/wardrobe', href: '' };
+    vi.stubGlobal('window', { location });
+    useAuthStore.getState().setAuthenticated(true);
+    localStorage.setItem(persistedSessionKey, 'access-token');
+    const adapter: AxiosAdapter = async (config) => {
+      throw new Axios.AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+        ...response(config), status: 401,
+      });
+    };
+    try {
+      await expect(customInstance({ url: '/users/me', method: 'GET' }, { adapter }))
+        .rejects.toThrow('Unauthorized');
+      expect(signOut).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(persistedSessionKey)).toBeNull();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().logoutError).toBe('SDK sign-out failed');
+      expect(location.href).toBe('/login');
+    } finally {
+      vi.unstubAllGlobals();
+      localStorage.clear();
+      useAuthStore.setState({ isAuthenticated: false, isSigningOut: false, logoutError: null });
     }
   });
 
