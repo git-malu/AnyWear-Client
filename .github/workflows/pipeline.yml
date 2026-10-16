@@ -13,10 +13,10 @@ jobs:
   build:
     name: Build
     uses: ./.github/workflows/build.yml
-    # Exactly the secret the called workflow declares. On an event without
-    # repository secrets - a fork pull request, or Dependabot - the value is
-    # empty, the called workflow fails at its token step, and no broader
-    # credential is handed to untrusted source to make CI pass.
+    # Exactly the one secret the called workflow declares, and nothing else. On an
+    # event without repository secrets - a fork pull request, or Dependabot - the
+    # value is empty, the token step fails, and no broader credential is handed to
+    # untrusted source to make CI pass.
     secrets:
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
@@ -24,12 +24,8 @@ jobs:
     name: Unit Tests
     needs: [build]
     uses: ./.github/workflows/test.yml
-    secrets:
-      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
   browser:
     name: Browser Integration Tests
     needs: [test]
     uses: ./.github/workflows/browser.yml
-    secrets:
-      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

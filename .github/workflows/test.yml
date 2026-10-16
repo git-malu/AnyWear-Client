@@ -1,13 +1,10 @@
 name: Unit Tests
 
+# `pnpm run test:run` reads the committed generated client and mocks every
+# remote boundary, so this workflow needs no App token and no submodule.
 on:
   workflow_call:
-    secrets:
-      APP_PRIVATE_KEY:
-        required: true
 
-# Read-only source checkout. The App token below is the only credential this
-# workflow holds, and it is limited to the repositories this build checks out.
 permissions:
   contents: read
 
@@ -19,22 +16,9 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      - name: Generate token
-        id: generate-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          # The Client checkout and the private `api` submodule it reads.
-          repositories: AnyWear-Client,AnyWear-Service-API
-          permission-contents: read
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ steps.generate-token.outputs.token }}
           persist-credentials: false
 
       - name: Setup Node
