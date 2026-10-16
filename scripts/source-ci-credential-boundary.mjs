@@ -491,15 +491,28 @@ export function validateSourceCiCredentialBoundary({ documents, submoduleReposit
       if (step.with?.get('persist-credentials') !== 'false') {
         violations.push(violation(step.file, step.number, `specification checkout must set \`persist-credentials: false\`, found \`${step.with?.get('persist-credentials') ?? 'nothing'}\``));
       }
+      // The specification repository has no nested submodules of its own, and a
+      // recursive fetch would ask the token for more than the allowlist names.
+      const specificationSubmodules = step.with?.get('submodules');
+      if (specificationSubmodules !== undefined && specificationSubmodules !== 'false') {
+        violations.push(violation(step.file, step.number, `specification checkout must not fetch submodules; found \`submodules: ${specificationSubmodules}\``));
+      }
+      for (const value of step.with?.values() ?? []) {
+        for (const name of secretReferences(value)) {
+          violations.push(violation(step.file, step.number, `specification checkout reads \`secrets.${name}\` directly; it must use the generated App token output`));
+        }
+      }
       continue;
     }
 
-    if (step.with?.has('submodules') && step.with.get('submodules') !== 'false') {
+    if (step.uses.startsWith('actions/checkout@') && step.with?.has('submodules') && step.with.get('submodules') !== 'false') {
       violations.push(violation(step.file, step.number, `only the specification checkout fetches repository content, and it uses \`path\`/\`repository\`; found \`submodules: ${step.with.get('submodules')}\``));
     }
     for (const value of step.with?.values() ?? []) {
       for (const name of secretReferences(value)) {
-        if (name !== sourceCiCredentialBoundary.secret) {
+        if (name === sourceCiCredentialBoundary.secret) {
+          violations.push(violation(step.file, step.number, `step reads \`secrets.${name}\`; only the specification checkout in \`${credentialWorkflow}\` carries that credential`));
+        } else {
           violations.push(violation(step.file, step.number, `step reads \`secrets.${name}\`, which is outside the credential boundary`));
         }
       }
