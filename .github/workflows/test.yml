@@ -6,6 +6,11 @@ on:
       APP_PRIVATE_KEY:
         required: true
 
+# Read-only source checkout. The App token below is the only credential this
+# workflow holds, and it is limited to the repositories this build checks out.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Unit Tests
@@ -16,11 +21,14 @@ jobs:
     steps:
       - name: Generate token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # The Client checkout and the private `api` submodule it reads.
+          repositories: AnyWear-Client,AnyWear-Service-API
+          permission-contents: read
 
       - name: Checkout
         uses: actions/checkout@v4
