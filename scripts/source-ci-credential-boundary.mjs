@@ -11,6 +11,8 @@
 // The `with:` strings are the literal values a workflow must contain, so the
 // strings asserted here are the ones the pinned action receives in CI.
 
+import { readFile } from 'node:fs/promises';
+
 export const sourceCiCredentialBoundary = {
   // The App-token action, pinned to an immutable commit: the moving `v2` tag has
   // resolved to this commit since the v2.2.2 release.
@@ -47,6 +49,32 @@ export const sourceCiCredentialBoundaryWith = {
 /** The `owner/repo` the specification checkout names, for an owner-qualified comparison. */
 export function specificationRepositorySlug(owner) {
   return `${owner}/${sourceCiCredentialBoundary.specificationRepository}`;
+}
+
+/**
+ * The commit a submodule is checked out at, read from its own checkout rather than
+ * from a literal a change can leave behind. Returns undefined when the submodule is
+ * not initialised, and throws when it is initialised but unreadable.
+ */
+export async function readSubmoduleRevision(root, path) {
+  const checkout = new URL(`${path}/`, root);
+  const gitEntry = await readFile(new URL('.git', checkout), 'utf8');
+  const gitDirectoryText = /^gitdir:\s*(.+)$/m.exec(gitEntry)?.[1]?.trim();
+  if (!gitDirectoryText) throw new SourceCiCredentialBoundaryError(`\`${path}/.git\` does not name a git directory: ${gitEntry.trim()}`);
+  // A submodule's `gitdir` is relative to the submodule's own working directory.
+  const gitDirectory = new URL(gitDirectoryText.replace(/\\/g, '/').replace(/\/?$/, '/'), checkout);
+
+  const head = (await readFile(new URL('HEAD', gitDirectory), 'utf8')).trim();
+  if (fullCommitPattern.test(head)) return head;
+  const reference = /^ref:\s*(.+)$/.exec(head)?.[1]?.trim();
+  if (!reference) throw new SourceCiCredentialBoundaryError(`\`${path}\` HEAD is neither a commit nor a ref: ${head}`);
+
+  const loose = await readFile(new URL(reference, gitDirectory), 'utf8').catch(() => undefined);
+  if (loose !== undefined && fullCommitPattern.test(loose.trim())) return loose.trim();
+  const packed = await readFile(new URL('packed-refs', gitDirectory), 'utf8').catch(() => '');
+  const match = new RegExp(`^([0-9a-f]{40}) ${reference}$`, 'm').exec(packed);
+  if (!match) throw new SourceCiCredentialBoundaryError(`\`${path}\` ref \`${reference}\` is not in its git directory`);
+  return match[1];
 }
 
 /** Submodule path → repository its .gitmodules URL names. */
@@ -479,7 +507,7 @@ export function validateSourceCiCredentialBoundary({ documents, submoduleReposit
         if (!fullCommitPattern.test(ref)) {
           violations.push(violation(step.file, step.number, `specification checkout must pin its revision by full commit, found \`ref: ${ref || 'nothing'}\``));
         } else if (ref !== specificationRevision) {
-          violations.push(violation(step.file, step.number, `specification checkout pins \`${ref}\`, but \`.gitmodules\` records \`${specificationRevision}\``));
+          violations.push(violation(step.file, step.number, `specification checkout pins \`${ref}\`, but the \`${sourceCiCredentialBoundary.specificationPath}\` submodule is checked out at \`${specificationRevision}\``));
         }
       }
       const token = step.with?.get('token') ?? '';

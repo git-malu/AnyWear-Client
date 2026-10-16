@@ -54,10 +54,13 @@ Both run in `pnpm run test:run`; no network, App installation or Service call is
 involved, apart from the pinned action's own published metadata.
 
 The specification checkout pins its revision by full commit, so it fetches exactly the
-revision `.gitmodules` records for this checkout. That literal changes when the
-submodule pointer changes, and the node test's `specification checkout pins ... but
-.gitmodules records ...` case fails when the two disagree, so a stale literal cannot
-pass review silently.
+revision that commit names. The node test compares that literal against the revision
+the test names, which the maintainer updates with the submodule pointer; it does not
+read the gitlink itself, so a submodule bump that changes neither the workflow literal
+nor the test's revision passes this suite. `build.yml`'s own `Check codegen
+consistency` step is what catches a specification revision the committed generated
+client does not match: `pnpm run orval` regenerates the client and `git diff
+--exit-code` fails when the result differs.
 
 The Beta Client publication workflow, `.github/workflows/beta-deploy.yml`, carries no
 App token: it uses a plain `actions/checkout@v4` at the built revision and assumes its
@@ -92,8 +95,8 @@ step in them uses one.
 that do not receive repository secrets:
 
 - **Fork pull requests.** `pull_request` workflows from a fork run with a read-only
-  `GITHUB_TOKEN` and no secrets. `Generate API specification token` fails with the
-  action's own `Input 'private-key' must be set` error, before any API call or
+  `GITHUB_TOKEN` and no secrets. `Generate API specification token` fails with
+  `[@octokit/auth-app] privateKey option is required`, before any API call or
   checkout of the specification.
 - **Dependabot pull requests.** For the same reason, unless the secret is explicitly
   made available to Dependabot.

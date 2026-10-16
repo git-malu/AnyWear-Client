@@ -11,19 +11,26 @@ import test from 'node:test';
 import {
   parseGitmodules,
   parseWorkflow,
+  readSubmoduleRevision,
   sourceCiCredentialBoundary,
   sourceCiCredentialBoundaryWith,
   specificationRepositorySlug,
   validateSourceCiCredentialBoundary,
 } from './source-ci-credential-boundary.mjs';
 
-const workflowsDirectory = new URL('../.github/workflows/', import.meta.url);
-const gitmodulesPath = new URL('../.gitmodules', import.meta.url);
+const repositoryRoot = new URL('../', import.meta.url);
+const workflowsDirectory = new URL('.github/workflows/', repositoryRoot);
+const gitmodulesPath = new URL('.gitmodules', repositoryRoot);
 const workflowFiles = ['build.yml', 'test.yml', 'browser.yml', 'pipeline.yml', 'beta-deploy.yml'];
 const tokenAction = `${sourceCiCredentialBoundary.tokenAction.repository}@${sourceCiCredentialBoundary.tokenAction.ref}`;
-// The revision the Client submodule gitlink records, which the specification
-// checkout must pin.
-const specificationRevision = 'b3e75d32e9c8562c6bad7c196e8c83897c5ff3f3';
+
+// The revision the specification checkout must pin, read from the `api` submodule's
+// own checkout rather than from a literal a submodule bump can leave behind.
+let cachedRevision;
+async function specificationGitlink() {
+  cachedRevision ??= readSubmoduleRevision(repositoryRoot, sourceCiCredentialBoundary.specificationPath);
+  return cachedRevision;
+}
 
 /** The checked-in workflows, parsed fresh so one case cannot leak state into another. */
 async function repositoryWorkflows() {
@@ -34,7 +41,7 @@ async function repositoryWorkflows() {
   return {
     documents,
     submoduleRepositories: parseGitmodules(await readFile(gitmodulesPath, 'utf8')),
-    specificationRevision,
+    specificationRevision: await specificationGitlink(),
   };
 }
 
@@ -72,7 +79,7 @@ test('checked-in Client source workflows stay inside the credential boundary', a
 });
 
 test('exactly one App-token step reaches exactly one repository', async () => {
-  const { documents } = await repositoryWorkflows();
+  const { documents, specificationRevision } = await repositoryWorkflows();
   const steps = documents.flatMap((document) => document.steps);
   const tokenSteps = steps.filter((step) => step.uses.startsWith('actions/create-github-app-token@'));
   const specificationCheckouts = steps.filter((step) => step.uses === 'actions/checkout@v4' && step.with?.has('repository'));
@@ -201,10 +208,11 @@ test('rejects a specification checkout that widens or loses its credential', asy
 });
 
 test('rejects a specification checkout that is not pinned to the recorded revision', async () => {
+  const { specificationRevision } = await repositoryWorkflows();
   for (const [ref, expected] of [
     ['main', /must pin its revision by full commit, found `ref: main`/],
-    ['b3e75d3', /must pin its revision by full commit, found `ref: b3e75d3`/],
-    ['0'.repeat(40), /pins `0{40}`, but `\.gitmodules` records `b3e75d3/],
+    [specificationRevision.slice(0, 7), new RegExp(`must pin its revision by full commit, found \`ref: ${specificationRevision.slice(0, 7)}\``)],
+    ['0'.repeat(40), /pins `0{40}`, but the `api` submodule is checked out at/],
   ]) {
     const workflows = await repositoryWorkflows();
     specificationCheckoutOf(workflows.documents, 'build.yml').with.set('ref', ref);
@@ -214,6 +222,19 @@ test('rejects a specification checkout that is not pinned to the recorded revisi
   const workflows = await repositoryWorkflows();
   specificationCheckoutOf(workflows.documents, 'build.yml').with.delete('ref');
   assert.throws(() => assertWithinBoundary(workflows), /must pin its revision by full commit, found `ref: nothing`/);
+});
+
+test('rejects a specification checkout that drifts from the submodule it stands in for', async () => {
+  // The workflow literal and the submodule pointer must agree; a bump to one alone
+  // is what this catches, and neither value is a literal in this test.
+  const { documents, submoduleRepositories } = await repositoryWorkflows();
+  const bumped = '1'.repeat(40);
+  const violations = validateSourceCiCredentialBoundary({ documents, submoduleRepositories, specificationRevision: bumped });
+  assert.equal(violations.length, 1);
+  assert.match(violations[0], new RegExp('build\\.yml:47 specification checkout pins `[0-9a-f]{40}`, but the `api` submodule is checked out at `1{40}`'));
+
+  const initialized = await specificationGitlink();
+  assert.match(initialized, /^[0-9a-f]{40}$/, 'the api submodule must be initialised for this suite to check the pin');
 });
 
 test('rejects a checkout of any repository other than the specification', async () => {
@@ -338,7 +359,7 @@ test('rejects a workflow that does not declare read-only contents permission', a
 });
 
 test('rejects a specification origin or submodule that the allowlist does not name', async () => {
-  const { documents } = await repositoryWorkflows();
+  const { documents, specificationRevision } = await repositoryWorkflows();
   const renamed = validateSourceCiCredentialBoundary({
     documents,
     submoduleRepositories: new Map([['api', 'git-malu/AnyWear-Service']]),
