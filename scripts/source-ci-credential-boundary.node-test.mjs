@@ -7,9 +7,12 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { resolve, sep } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   parseGitmodules,
+  parseIndexGitlink,
   parseWorkflow,
   readSubmoduleRevision,
   sourceCiCredentialBoundary,
@@ -497,6 +500,36 @@ test('the pinned App-token action accepts every input the boundary passes', asyn
   // whose declared inputs this boundary is written against.
   assert.equal(pinned.version, 'v2.2.2');
 });
+
+test('the submodule revision comes from the index gitlink, not a literal', async () => {
+  const gitlink = await specificationGitlink();
+  assert.match(gitlink, /^[0-9a-f]{40}$/);
+  assert.equal(await readSubmoduleRevision(repositoryRoot, sourceCiCredentialBoundary.specificationPath), gitlink);
+
+  // The reader must refuse anything that is not the gitlink it is looking for, rather
+  // than answering with something that looks like a revision.
+  assert.throws(
+    () => parseIndexGitlink(Buffer.from('nope'), 'api'),
+    /The git index does not start with DIRC/,
+  );
+  const index = await readIndexFileForTest();
+  assert.equal(parseIndexGitlink(index, sourceCiCredentialBoundary.specificationPath), gitlink);
+  assert.throws(() => parseIndexGitlink(index, 'not-a-path'), /The git index records no `not-a-path` entry/);
+  assert.throws(
+    () => parseIndexGitlink(index, '.gitmodules'),
+    /Index entry `\.gitmodules` is mode 100644, not a gitlink/,
+    'a tracked file at the same path must not be read as a revision',
+  );
+});
+
+/** The repository's git index, located the same way for a clone and a worktree. */
+async function readIndexFileForTest() {
+  const entryPath = new URL('.git', repositoryRoot);
+  const entry = await readFile(entryPath, 'utf8').catch(() => undefined);
+  if (entry === undefined) return readFile(new URL('.git/index', repositoryRoot));
+  const gitDirectory = /^gitdir:\s*(.+)$/m.exec(entry)?.[1]?.trim();
+  return readFile(new URL('index', pathToFileURL(`${resolve(fileURLToPath(repositoryRoot), gitDirectory)}${sep}`)));
+}
 
 test('an unreadable workflow or .gitmodules is reported instead of passing silently', async () => {
   assert.throws(

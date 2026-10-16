@@ -11,7 +11,9 @@
 // The `with:` strings are the literal values a workflow must contain, so the
 // strings asserted here are the ones the pinned action receives in CI.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import { resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const sourceCiCredentialBoundary = {
   // The App-token action, pinned to an immutable commit: the moving `v2` tag has
@@ -52,29 +54,75 @@ export function specificationRepositorySlug(owner) {
 }
 
 /**
- * The commit a submodule is checked out at, read from its own checkout rather than
- * from a literal a change can leave behind. Returns undefined when the submodule is
- * not initialised, and throws when it is initialised but unreadable.
+ * The commit the index records for a submodule. This is the pointer the checkout is
+ * supposed to fetch, read from the repository rather than from a literal a change can
+ * leave behind. Works in a working tree, in a linked worktree and in a fresh clone.
  */
 export async function readSubmoduleRevision(root, path) {
-  const checkout = new URL(`${path}/`, root);
-  const gitEntry = await readFile(new URL('.git', checkout), 'utf8');
-  const gitDirectoryText = /^gitdir:\s*(.+)$/m.exec(gitEntry)?.[1]?.trim();
-  if (!gitDirectoryText) throw new SourceCiCredentialBoundaryError(`\`${path}/.git\` does not name a git directory: ${gitEntry.trim()}`);
-  // A submodule's `gitdir` is relative to the submodule's own working directory.
-  const gitDirectory = new URL(gitDirectoryText.replace(/\\/g, '/').replace(/\/?$/, '/'), checkout);
+  const gitDirectory = await resolveGitDirectory(root);
+  const index = await readFile(new URL('index', gitDirectory));
+  return parseIndexGitlink(index, path);
+}
 
-  const head = (await readFile(new URL('HEAD', gitDirectory), 'utf8')).trim();
-  if (fullCommitPattern.test(head)) return head;
-  const reference = /^ref:\s*(.+)$/.exec(head)?.[1]?.trim();
-  if (!reference) throw new SourceCiCredentialBoundaryError(`\`${path}\` HEAD is neither a commit nor a ref: ${head}`);
+/** The git directory holding this checkout's index and refs, as a directory URL. */
+async function resolveGitDirectory(root) {
+  const rootPath = fileURLToPath(root);
+  const entryPath = resolve(rootPath, '.git');
+  const stats = await stat(entryPath);
+  if (stats.isDirectory()) return pathToFileURL(`${entryPath}${sep}`);
+  const gitDirectoryText = /^gitdir:\s*(.+)$/m.exec(await readFile(entryPath, 'utf8'))?.[1]?.trim();
+  if (!gitDirectoryText) throw new SourceCiCredentialBoundaryError(`\`${entryPath}\` does not name a git directory`);
+  // A `gitdir` inside a `.git` file is relative to the directory holding that file.
+  return pathToFileURL(`${resolve(rootPath, gitDirectoryText)}${sep}`);
+}
 
-  const loose = await readFile(new URL(reference, gitDirectory), 'utf8').catch(() => undefined);
-  if (loose !== undefined && fullCommitPattern.test(loose.trim())) return loose.trim();
-  const packed = await readFile(new URL('packed-refs', gitDirectory), 'utf8').catch(() => '');
-  const match = new RegExp(`^([0-9a-f]{40}) ${reference}$`, 'm').exec(packed);
-  if (!match) throw new SourceCiCredentialBoundaryError(`\`${path}\` ref \`${reference}\` is not in its git directory`);
-  return match[1];
+/**
+ * The `path` gitlink in a version 2/3/4 git index, whose entries are
+ * `<ctime 8><mtime 8><dev 4><ino 4><mode 4><uid 4><gid 4><size 4><object id 20><flags 2>`
+ * followed by the path, padded to a multiple of eight bytes.
+ */
+export function parseIndexGitlink(index, path) {
+  const signature = index.subarray(0, 4).toString('latin1');
+  if (signature !== 'DIRC') throw new SourceCiCredentialBoundaryError('The git index does not start with DIRC');
+  const version = index.readUInt32BE(4);
+  if (version < 2 || version > 4) throw new SourceCiCredentialBoundaryError(`Unsupported git index version ${version}`);
+  const entryCount = index.readUInt32BE(8);
+
+  const wanted = Buffer.from(path, 'utf8');
+  let cursor = 12;
+  for (let entry = 0; entry < entryCount; entry += 1) {
+    const mode = index.readUInt32BE(cursor + 24);
+    const objectId = index.subarray(cursor + 40, cursor + 60).toString('hex');
+    let entryPath;
+    if (version === 4) {
+      const removed = index[cursor + 62];
+      const length = readVariableLength(index, cursor + 63);
+      const start = cursor + 63 + length.bytes;
+      entryPath = Buffer.concat([Buffer.from(wanted.subarray(0, wanted.length - removed)), index.subarray(start, start + length.value)]);
+      cursor = start + length.value;
+    } else {
+      const end = index.indexOf(0, cursor + 62);
+      entryPath = index.subarray(cursor + 62, end);
+      cursor = end + 1 + ((8 - ((end + 1 - cursor) % 8)) % 8);
+    }
+    if (!entryPath.equals(wanted)) continue;
+    if (mode !== 0o160000) {
+      throw new SourceCiCredentialBoundaryError(`Index entry \`${path}\` is mode ${mode.toString(8)}, not a gitlink`);
+    }
+    return objectId;
+  }
+  throw new SourceCiCredentialBoundaryError(`The git index records no \`${path}\` entry`);
+}
+
+/** A git index variable-length integer: the value with its most significant bits. */
+function readVariableLength(index, start) {
+  let value = index[start] & 0x7f;
+  let cursor = start + 1;
+  while ((index[cursor - 1] & 0x80) !== 0) {
+    value = ((value + 1) << 7) | (index[cursor] & 0x7f);
+    cursor += 1;
+  }
+  return { value, bytes: cursor - start };
 }
 
 /** Submodule path → repository its .gitmodules URL names. */
