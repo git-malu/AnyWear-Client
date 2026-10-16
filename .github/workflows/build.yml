@@ -6,6 +6,11 @@ on:
       APP_PRIVATE_KEY:
         required: true
 
+# Read-only source checkout. The App token minted below is the only credential
+# this workflow holds beyond the workflow's own `GITHUB_TOKEN`.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build
@@ -14,18 +19,37 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      - name: Generate token
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The published OpenAPI specification is the only thing Client source CI
+      # reads from a private repository, and generating the API client is the
+      # only step that reads it. Actions are pinned by commit so the
+      # credential-bearing step cannot change under this workflow.
+      - name: Generate API specification token
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # One repository, named explicitly. Without `repositories` the action
+          # mints a token for every repository the App installation grants.
+          repositories: AnyWear-Service-API
+          # Reading that one repository is the whole requirement.
+          permission-contents: read
 
-      - name: Checkout
+      # The specification revision is the Client submodule gitlink pinned in
+      # .gitmodules, so `pnpm run orval` reads exactly the published revision and
+      # the check below still fails when the generated client is stale.
+      - name: Checkout API specification
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          repository: git-malu/AnyWear-Service-API
+          ref: b3e75d32e9c8562c6bad7c196e8c83897c5ff3f3
+          path: api
           token: ${{ steps.generate-token.outputs.token }}
           persist-credentials: false
 
@@ -64,24 +88,15 @@ jobs:
       - name: Build
         run: pnpm run build
 
+  # `cargo check` reads no submodule content, so this job needs no App token.
   rust-check:
     name: Rust Check
     runs-on: windows-latest
 
     steps:
-      - name: Generate token
-        id: generate-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ steps.generate-token.outputs.token }}
           persist-credentials: false
 
       - name: Setup Rust

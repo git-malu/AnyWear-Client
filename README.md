@@ -59,6 +59,12 @@ See the [Beta publication runbook](docs/beta-web-publication.md) for the dedicat
 Client role, environment configuration, source/build checks, and deployment evidence
 used by the independent manual web publisher.
 
+### Source CI credentials
+
+See the [source CI credentials](docs/source-ci-credentials.md) note for the single
+App credential the source workflows hold, the repositories it may read, and what
+happens when it is unavailable.
+
 ## 🏗️ Project Structure
 
 - `src/api/`: API integration layer. Includes auto-generated models and endpoints from Orval, and a custom Axios instance (`custom-instance.ts`).
