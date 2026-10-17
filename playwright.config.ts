@@ -41,7 +41,6 @@ export default defineConfig({
       VITE_API_BASE_URL: 'http://localhost:3000',
       VITE_COGNITO_USER_POOL_ID: MOCK_USER_POOL_ID,
       VITE_COGNITO_CLIENT_ID: MOCK_USER_POOL_CLIENT_ID,
-      VITE_COGNITO_IDENTITY_POOL_ID: '',
     }
   },
 });
