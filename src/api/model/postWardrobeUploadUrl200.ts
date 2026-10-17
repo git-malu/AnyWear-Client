@@ -4,9 +4,12 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { PostWardrobeUploadUrl200Upload } from './postWardrobeUploadUrl200Upload';
 
 export type PostWardrobeUploadUrl200 = {
-  url: string;
+  reservationId: string;
   key: string;
-  itemId: string;
+  /** After this instant the reservation cannot be confirmed. Its object and its row are removed without it. */
+  expiresAt: string;
+  upload: PostWardrobeUploadUrl200Upload;
 };

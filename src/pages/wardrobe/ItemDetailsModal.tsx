@@ -5,7 +5,7 @@ import CachedImage from '../../components/CachedImage';
 import { parseImageKeys } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
-import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
+import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from '../../lib/imageUpload';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 
 interface Props {
@@ -195,19 +195,25 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
     try {
       validateImageFile(file);
 
-      const ext = file.name.split('.').pop() || 'jpg';
-      const { data: uploadData } = await AXIOS_INSTANCE.post(
+      // Reserve the additional image, upload it through the signed policy, then
+      // confirm. The confirmation attaches the verified key to the item, so the
+      // PATCH that saves this list only ever carries keys the service has seen.
+      const { data: reservation } = await AXIOS_INSTANCE.post(
         `/wardrobe/items/${item.id}/upload-url`,
-        { contentType: file.type || 'image/jpeg', extension: ext },
+        { contentType: resolveImageContentType(file) },
       );
 
-      const presignedUrl: string = uploadData.url;
-      const key: string = uploadData.key;
-      const downloadUrl: string = uploadData.downloadUrl || key;
+      if (!reservation?.upload?.url) throw new Error('Failed to reserve the upload');
 
-      if (!presignedUrl) throw new Error('Failed to get upload URL');
+      await uploadImageWithSignedPost(reservation.upload, file);
 
-      await uploadImageToPresignedUrl(presignedUrl, file);
+      const { data: confirmed } = await AXIOS_INSTANCE.post(
+        `/wardrobe/items/${item.id}/upload`,
+        { reservationId: reservation.reservationId },
+      );
+
+      const key: string = confirmed.key;
+      const downloadUrl: string = confirmed.downloadUrl || key;
 
       setImages((prev) => [...prev, { key, isPrimary: prev.length === 0 }]);
       setPendingDisplayUrls((current) => ({ ...current, [key]: downloadUrl }));

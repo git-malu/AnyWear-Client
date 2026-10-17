@@ -24,6 +24,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  DeleteVtoBasePhotosId409,
+  DeleteVtoGenerationsGenerationId409,
   GetVtoBasePhotos200Item,
   GetVtoGenerations200,
   GetVtoGenerationsGenerationId200,
@@ -31,8 +33,10 @@ import type {
   PatchVtoBasePhotosId200,
   PatchVtoBasePhotosIdBody,
   PatchVtoGenerationsGenerationIdRatingBody,
-  PostVtoBasePhotos201,
-  PostVtoBasePhotosBody,
+  PostVtoBasePhotosUpload201,
+  PostVtoBasePhotosUploadBody,
+  PostVtoBasePhotosUploadUrl200,
+  PostVtoBasePhotosUploadUrlBody,
   PostVtoGenerations202,
   PostVtoGenerationsBody
 } from '../../model';
@@ -284,7 +288,7 @@ export const deleteVtoGenerationsGenerationId = (
 
 
 
-export const getDeleteVtoGenerationsGenerationIdMutationOptions = <TError = void,
+export const getDeleteVtoGenerationsGenerationIdMutationOptions = <TError = void | DeleteVtoGenerationsGenerationId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext> => {
 
@@ -313,9 +317,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteVtoGenerationsGenerationIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>>
 
-    export type DeleteVtoGenerationsGenerationIdMutationError = void
+    export type DeleteVtoGenerationsGenerationIdMutationError = void | DeleteVtoGenerationsGenerationId409
 
-    export const useDeleteVtoGenerationsGenerationId = <TError = void,
+    export const useDeleteVtoGenerationsGenerationId = <TError = void | DeleteVtoGenerationsGenerationId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>, TError,{generationId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteVtoGenerationsGenerationId>>,
@@ -383,27 +387,27 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getPatchVtoGenerationsGenerationIdRatingMutationOptions(options), queryClient);
     }
-    export const postVtoBasePhotos = (
-    postVtoBasePhotosBody: PostVtoBasePhotosBody,
+    export const postVtoBasePhotosUploadUrl = (
+    postVtoBasePhotosUploadUrlBody: PostVtoBasePhotosUploadUrlBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
 
 
-      return customInstance<PostVtoBasePhotos201>(
-      {url: `/vto/base-photos`, method: 'POST',
+      return customInstance<PostVtoBasePhotosUploadUrl200>(
+      {url: `/vto/base-photos/upload-url`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
-      data: postVtoBasePhotosBody, signal
+      data: postVtoBasePhotosUploadUrlBody, signal
     },
       options);
     }
 
 
 
-export const getPostVtoBasePhotosMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotos>>, TError,{data: PostVtoBasePhotosBody}, TContext>, request?: SecondParameter<typeof customInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotos>>, TError,{data: PostVtoBasePhotosBody}, TContext> => {
+export const getPostVtoBasePhotosUploadUrlMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>, TError,{data: PostVtoBasePhotosUploadUrlBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>, TError,{data: PostVtoBasePhotosUploadUrlBody}, TContext> => {
 
-const mutationKey = ['postVtoBasePhotos'];
+const mutationKey = ['postVtoBasePhotosUploadUrl'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -413,10 +417,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postVtoBasePhotos>>, {data: PostVtoBasePhotosBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>, {data: PostVtoBasePhotosUploadUrlBody}> = (props) => {
           const {data} = props ?? {};
 
-          return  postVtoBasePhotos(data,requestOptions)
+          return  postVtoBasePhotosUploadUrl(data,requestOptions)
         }
 
 
@@ -426,19 +430,76 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type PostVtoBasePhotosMutationResult = NonNullable<Awaited<ReturnType<typeof postVtoBasePhotos>>>
-    export type PostVtoBasePhotosMutationBody = PostVtoBasePhotosBody
-    export type PostVtoBasePhotosMutationError = void
+    export type PostVtoBasePhotosUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>>
+    export type PostVtoBasePhotosUploadUrlMutationBody = PostVtoBasePhotosUploadUrlBody
+    export type PostVtoBasePhotosUploadUrlMutationError = void
 
-    export const usePostVtoBasePhotos = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotos>>, TError,{data: PostVtoBasePhotosBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+    export const usePostVtoBasePhotosUploadUrl = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>, TError,{data: PostVtoBasePhotosUploadUrlBody}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof postVtoBasePhotos>>,
+        Awaited<ReturnType<typeof postVtoBasePhotosUploadUrl>>,
         TError,
-        {data: PostVtoBasePhotosBody},
+        {data: PostVtoBasePhotosUploadUrlBody},
         TContext
       > => {
-      return useMutation(getPostVtoBasePhotosMutationOptions(options), queryClient);
+      return useMutation(getPostVtoBasePhotosUploadUrlMutationOptions(options), queryClient);
+    }
+    export const postVtoBasePhotosUpload = (
+    postVtoBasePhotosUploadBody: PostVtoBasePhotosUploadBody,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<PostVtoBasePhotosUpload201>(
+      {url: `/vto/base-photos/upload`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: postVtoBasePhotosUploadBody, signal
+    },
+      options);
+    }
+
+
+
+export const getPostVtoBasePhotosUploadMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUpload>>, TError,{data: PostVtoBasePhotosUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUpload>>, TError,{data: PostVtoBasePhotosUploadBody}, TContext> => {
+
+const mutationKey = ['postVtoBasePhotosUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postVtoBasePhotosUpload>>, {data: PostVtoBasePhotosUploadBody}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postVtoBasePhotosUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostVtoBasePhotosUploadMutationResult = NonNullable<Awaited<ReturnType<typeof postVtoBasePhotosUpload>>>
+    export type PostVtoBasePhotosUploadMutationBody = PostVtoBasePhotosUploadBody
+    export type PostVtoBasePhotosUploadMutationError = void
+
+    export const usePostVtoBasePhotosUpload = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postVtoBasePhotosUpload>>, TError,{data: PostVtoBasePhotosUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postVtoBasePhotosUpload>>,
+        TError,
+        {data: PostVtoBasePhotosUploadBody},
+        TContext
+      > => {
+      return useMutation(getPostVtoBasePhotosUploadMutationOptions(options), queryClient);
     }
     export const getVtoBasePhotos = (
 
@@ -596,7 +657,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getDeleteVtoBasePhotosIdMutationOptions = <TError = void,
+export const getDeleteVtoBasePhotosIdMutationOptions = <TError = void | DeleteVtoBasePhotosId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoBasePhotosId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteVtoBasePhotosId>>, TError,{id: string}, TContext> => {
 
@@ -625,9 +686,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteVtoBasePhotosIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVtoBasePhotosId>>>
 
-    export type DeleteVtoBasePhotosIdMutationError = void
+    export type DeleteVtoBasePhotosIdMutationError = void | DeleteVtoBasePhotosId409
 
-    export const useDeleteVtoBasePhotosId = <TError = void,
+    export const useDeleteVtoBasePhotosId = <TError = void | DeleteVtoBasePhotosId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVtoBasePhotosId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteVtoBasePhotosId>>,

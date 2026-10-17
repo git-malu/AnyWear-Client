@@ -1,9 +1,14 @@
 import { useState, useRef } from 'react';
-import { useGetVtoBasePhotos, usePostVtoBasePhotos, usePatchVtoBasePhotosId, useDeleteVtoBasePhotosId } from '../../api/endpoints/vto/vto';
+import {
+  useGetVtoBasePhotos,
+  usePostVtoBasePhotosUpload,
+  usePostVtoBasePhotosUploadUrl,
+  usePatchVtoBasePhotosId,
+  useDeleteVtoBasePhotosId,
+} from '../../api/endpoints/vto/vto';
 import CachedImage from '../CachedImage';
 import { useQueryClient } from '@tanstack/react-query';
-import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
-import { getStringProperty } from '../../lib/errors';
+import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from '../../lib/imageUpload';
 
 interface BasePhotoSelectorProps {
   selectedPhotoId: string | null;
@@ -17,7 +22,8 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: photos, isLoading } = useGetVtoBasePhotos();
-  const { mutateAsync: uploadPhoto } = usePostVtoBasePhotos();
+  const { mutateAsync: reservePhotoUpload } = usePostVtoBasePhotosUploadUrl();
+  const { mutateAsync: confirmPhotoUpload } = usePostVtoBasePhotosUpload();
   const { mutate: setDefault } = usePatchVtoBasePhotosId();
   const { mutate: deletePhoto } = useDeleteVtoBasePhotosId();
 
@@ -30,20 +36,23 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
     try {
       validateImageFile(file);
 
-      const ext = file.name.split('.').pop() || 'jpg';
-      const uploadResult = await uploadPhoto({
-        data: { contentType: file.type || 'image/jpeg', extension: ext },
+      // Reserve, upload through the signed policy, then confirm. The photo only
+      // exists after the confirmation has read the stored object, so it cannot
+      // appear in the list before its bytes are there.
+      const reservation = await reservePhotoUpload({
+        data: { contentType: resolveImageContentType(file) },
       });
 
-      const presignedUrl = getStringProperty(uploadResult, 'uploadUrl');
-      const photoId = uploadResult.id;
+      if (!reservation.upload?.url) throw new Error('Failed to reserve the upload');
+      await uploadImageWithSignedPost(reservation.upload, file);
 
-      if (!presignedUrl) throw new Error('Failed to get upload URL');
-      await uploadImageToPresignedUrl(presignedUrl, file);
+      const photo = await confirmPhotoUpload({
+        data: { reservationId: reservation.reservationId },
+      });
 
       queryClient.invalidateQueries({ queryKey: ['/vto/base-photos'] as const });
-      if (!selectedPhotoId && photoId) {
-        onSelect(photoId);
+      if (!selectedPhotoId && photo.id) {
+        onSelect(photo.id);
       }
     } catch (err) {
       console.error('Failed to upload base photo:', err);

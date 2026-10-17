@@ -25,6 +25,7 @@ import type {
 
 import type {
   DeleteOutfitsId200,
+  DeleteOutfitsId409,
   GetOutfits200,
   GetOutfitsId200,
   PatchOutfitsId200,
@@ -337,7 +338,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getDeleteOutfitsIdMutationOptions = <TError = void,
+export const getDeleteOutfitsIdMutationOptions = <TError = void | DeleteOutfitsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOutfitsId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteOutfitsId>>, TError,{id: string}, TContext> => {
 
@@ -366,9 +367,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteOutfitsIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOutfitsId>>>
 
-    export type DeleteOutfitsIdMutationError = void
+    export type DeleteOutfitsIdMutationError = void | DeleteOutfitsId409
 
-    export const useDeleteOutfitsId = <TError = void,
+    export const useDeleteOutfitsId = <TError = void | DeleteOutfitsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOutfitsId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteOutfitsId>>,
