@@ -4,11 +4,12 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { PostOutfits201WearableItemsItemImageKeys } from './postOutfits201WearableItemsItemImageKeys';
 
 export type PostOutfits201WearableItemsItem = {
   id: string;
   /** @nullable */
   name: string | null;
   category: string;
-  imageKeys?: unknown | null;
+  imageKeys: PostOutfits201WearableItemsItemImageKeys;
 };

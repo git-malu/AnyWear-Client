@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { uploadImageToPresignedUrl, validateImageFile } from './imageUpload';
+import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from './imageUpload';
+
+const upload = {
+  url: 'https://bucket.s3.us-east-1.amazonaws.com/',
+  fields: {
+    key: 'wearable-items/user-1/res-1.jpg',
+    'Content-Type': 'image/jpeg',
+    policy: 'signed-policy',
+    'x-amz-signature': 'signature',
+  },
+};
 
 describe('imageUpload', () => {
   afterEach(() => {
@@ -20,25 +30,40 @@ describe('imageUpload', () => {
     expect(() => validateImageFile(new File(['image'], 'camera.heic'))).not.toThrow();
   });
 
+  it('names an omitted content type from the file extension instead of assuming JPEG', () => {
+    expect(resolveImageContentType(new File(['image'], 'photo.png'))).toBe('image/png');
+    expect(resolveImageContentType(new File(['image'], 'photo.heic'))).toBe('image/heic');
+    expect(resolveImageContentType(new File(['image'], 'photo.jpg'))).toBe('image/jpeg');
+    expect(resolveImageContentType(new File(['image'], 'photo.png', { type: 'image/png' }))).toBe('image/png');
+  });
+
   it('throws when S3 returns an HTTP error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 403 })));
     const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
 
-    await expect(uploadImageToPresignedUrl('https://upload.example.com', file))
+    await expect(uploadImageWithSignedPost(upload, file))
       .rejects.toThrow('Image upload failed with HTTP 403');
   });
 
-  it('uploads the file with its content type', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+  it('posts the signed fields with the file last, so S3 can evaluate the policy', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
-    const file = new File(['image'], 'photo.png', { type: 'image/png' });
+    const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
 
-    await uploadImageToPresignedUrl('https://upload.example.com', file);
+    await uploadImageWithSignedPost(upload, file);
 
-    expect(fetchMock).toHaveBeenCalledWith('https://upload.example.com', {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': 'image/png' },
-    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(upload.url);
+    expect(init.method).toBe('POST');
+    const body = init.body as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get('key')).toBe('wearable-items/user-1/res-1.jpg');
+    expect(body.get('policy')).toBe('signed-policy');
+    expect(body.get('x-amz-signature')).toBe('signature');
+    expect(body.get('Content-Type')).toBe('image/jpeg');
+    const parts = [...body.keys()];
+    expect(parts[parts.length - 1]).toBe('file');
+    expect(body.get('file')).toBe(file);
   });
 });

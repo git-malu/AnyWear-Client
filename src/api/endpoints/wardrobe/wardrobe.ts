@@ -25,12 +25,15 @@ import type {
 
 import type {
   DeleteWardrobeItemsId200,
+  DeleteWardrobeItemsId409,
   GetWardrobe200Item,
   GetWardrobeCategories200,
   GetWardrobeItemsId200,
   GetWardrobeParams,
   PatchWardrobeItemsId200,
   PatchWardrobeItemsIdBody,
+  PostWardrobeItemsIdUpload200,
+  PostWardrobeItemsIdUploadBody,
   PostWardrobeItemsIdUploadUrl200,
   PostWardrobeItemsIdUploadUrlBody,
   PostWardrobeItemsItemIdRetag202,
@@ -486,7 +489,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getDeleteWardrobeItemsIdMutationOptions = <TError = void,
+export const getDeleteWardrobeItemsIdMutationOptions = <TError = void | DeleteWardrobeItemsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWardrobeItemsId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteWardrobeItemsId>>, TError,{id: string}, TContext> => {
 
@@ -515,9 +518,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteWardrobeItemsIdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWardrobeItemsId>>>
 
-    export type DeleteWardrobeItemsIdMutationError = void
+    export type DeleteWardrobeItemsIdMutationError = void | DeleteWardrobeItemsId409
 
-    export const useDeleteWardrobeItemsId = <TError = void,
+    export const useDeleteWardrobeItemsId = <TError = void | DeleteWardrobeItemsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWardrobeItemsId>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteWardrobeItemsId>>,
@@ -584,6 +587,64 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getPostWardrobeItemsIdUploadUrlMutationOptions(options), queryClient);
+    }
+    export const postWardrobeItemsIdUpload = (
+    id: string,
+    postWardrobeItemsIdUploadBody: PostWardrobeItemsIdUploadBody,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<PostWardrobeItemsIdUpload200>(
+      {url: `/wardrobe/items/${id}/upload`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: postWardrobeItemsIdUploadBody, signal
+    },
+      options);
+    }
+
+
+
+export const getPostWardrobeItemsIdUploadMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>, TError,{id: string;data: PostWardrobeItemsIdUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>, TError,{id: string;data: PostWardrobeItemsIdUploadBody}, TContext> => {
+
+const mutationKey = ['postWardrobeItemsIdUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>, {id: string;data: PostWardrobeItemsIdUploadBody}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  postWardrobeItemsIdUpload(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostWardrobeItemsIdUploadMutationResult = NonNullable<Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>>
+    export type PostWardrobeItemsIdUploadMutationBody = PostWardrobeItemsIdUploadBody
+    export type PostWardrobeItemsIdUploadMutationError = void
+
+    export const usePostWardrobeItemsIdUpload = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>, TError,{id: string;data: PostWardrobeItemsIdUploadBody}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postWardrobeItemsIdUpload>>,
+        TError,
+        {id: string;data: PostWardrobeItemsIdUploadBody},
+        TContext
+      > => {
+      return useMutation(getPostWardrobeItemsIdUploadMutationOptions(options), queryClient);
     }
     export const postWardrobeItemsItemIdRetag = (
     itemId: string,

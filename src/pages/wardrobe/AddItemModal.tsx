@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { usePostWardrobeUploadUrl, usePostWardrobeUpload } from '../../api/endpoints/wardrobe/wardrobe';
-import { uploadImageToPresignedUrl, validateImageFile } from '../../lib/imageUpload';
+import { uploadImageWithSignedPost, resolveImageContentType, validateImageFile } from '../../lib/imageUpload';
 import { getErrorMessage } from '../../lib/errors';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 
@@ -29,24 +29,27 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
     try {
       validateImageFile(file);
 
-      // 1. Get pre-signed URL (creates DB row, returns itemId)
-      const ext = file.name.split('.').pop() || 'jpg';
-      const uploadUrlResult = await getUploadUrl({
-        data: { contentType: file.type || 'image/jpeg', extension: ext },
+      // 1. Reserve the upload. No wardrobe item exists yet: the reservation
+      // records the key, the content type and the deadline the service will
+      // hold this upload to.
+      const reservation = await getUploadUrl({
+        data: { contentType: resolveImageContentType(file) },
       });
 
-      const { url: presignedUrl, itemId } = uploadUrlResult;
+      const { reservationId, upload } = reservation;
 
-      if (!presignedUrl || !itemId) {
-        throw new Error('Failed to get upload URL');
+      if (!reservationId || !upload?.url) {
+        throw new Error('Failed to reserve the upload');
       }
 
-      // 2. Upload to S3
-      await uploadImageToPresignedUrl(presignedUrl, file);
+      // 2. Upload to S3 through the signed policy, which refuses a body over the
+      // size ceiling or of a different content type.
+      await uploadImageWithSignedPost(upload, file);
 
-      // 3. Confirm upload and trigger auto-tagging
+      // 3. Confirm: the service reads the stored object back, creates the item
+      // and only then starts auto-tagging.
       await confirmUpload({
-        data: { itemId },
+        data: { reservationId },
       });
 
       // Close modal — auto-tagging runs async, wardrobe list will show 'processing' status
