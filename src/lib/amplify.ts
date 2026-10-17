@@ -5,7 +5,7 @@ Amplify.configure({
     Cognito: {
       userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || '',
       userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '',
-      identityPoolId: import.meta.env.VITE_COGNITO_IDENTITY_POOL_ID || '',
+      identityPoolId: '',
       signUpVerificationMethod: 'code',
       loginWith: {
         email: true,

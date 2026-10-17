@@ -88,7 +88,6 @@ jobs:
           VITE_API_BASE_URL: ${{ steps.settings.outputs.api_url }}
           VITE_COGNITO_USER_POOL_ID: ${{ steps.settings.outputs.pool_id }}
           VITE_COGNITO_CLIENT_ID: ${{ steps.settings.outputs.client_id }}
-          VITE_COGNITO_IDENTITY_POOL_ID: ''
           SOURCE_COMMIT_SHA: ${{ github.sha }}
         run: pnpm build
 
