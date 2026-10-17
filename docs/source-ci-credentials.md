@@ -62,13 +62,15 @@ consistency` step is what catches a specification revision the committed generat
 client does not match: `pnpm run orval` regenerates the client and `git diff
 --exit-code` fails when the result differs.
 
-The Beta Client publication workflow, `.github/workflows/beta-deploy.yml`, carries no
-App token: it uses a plain `actions/checkout@v4` at the built revision and assumes its
-own role. It is outside this boundary and this change does not touch it.
+The manual Beta Client publication chain, `.github/workflows/release.yml`, carries
+no App token: it uses a plain `actions/checkout@v4` at the built revision and
+assumes its own role. It is outside this boundary; the source credential belongs
+only to the automatic `check.yml` entry.
 
 ## Caller secret mapping
 
-`pipeline.yml` passes the one secret to the one workflow that declares it:
+`check.yml`, the automatic entry, passes the one secret to the one workflow that
+declares it:
 
 ```yaml
   build:

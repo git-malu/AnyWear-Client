@@ -24,7 +24,7 @@ import {
 const repositoryRoot = new URL('../', import.meta.url);
 const workflowsDirectory = new URL('.github/workflows/', repositoryRoot);
 const gitmodulesPath = new URL('.gitmodules', repositoryRoot);
-const workflowFiles = ['build.yml', 'test.yml', 'browser.yml', 'pipeline.yml', 'beta-deploy.yml'];
+const workflowFiles = ['build.yml', 'test.yml', 'browser.yml', 'check.yml', 'release.yml'];
 const tokenAction = `${sourceCiCredentialBoundary.tokenAction.repository}@${sourceCiCredentialBoundary.tokenAction.ref}`;
 
 // The revision the specification checkout must pin, read from the `api` submodule's
@@ -272,7 +272,7 @@ test('rejects a Client checkout that takes a credential or fetches submodules', 
   rustCheckout.with.set('submodules', 'true');
   assert.throws(
     () => assertWithinBoundary(workflows),
-    /build\.yml:97 the Client checkout must not fetch submodules/,
+    /build\.yml:105 the Client checkout must not fetch submodules/,
     'a job that reads no repository content must not fetch submodules under any spelling',
   );
 });
@@ -290,7 +290,7 @@ test('rejects a checkout that fetches repository content by submodules rather th
 
 test('rejects a caller that inherits secrets, substitutes one, or maps one the callee does not declare', async () => {
   const cases = [
-    ['inherit', /pipeline\.yml:15 job `build` must map the required secret explicitly instead of `secrets: inherit`/],
+    ['inherit', /check\.yml:18 job `build` must map the required secret explicitly instead of `secrets: inherit`/],
     ['substituted', /job `build` must pass `APP_PRIVATE_KEY: \$\{\{ secrets\.APP_PRIVATE_KEY \}\}`, found `APP_PRIVATE_KEY: \$\{\{ secrets.SOME_OTHER_TOKEN \}\}`/],
     ['wrong-key', /job `build` passes `OTHER_KEY`, which is outside the credential boundary/],
     ['unmapped', /job `build` does not receive `APP_PRIVATE_KEY`, but its called workflow declares it/],
@@ -298,7 +298,7 @@ test('rejects a caller that inherits secrets, substitutes one, or maps one the c
   ];
   for (const [variant, expected] of cases) {
     const workflows = await repositoryWorkflows();
-    const callers = documentOf(workflows.documents, 'pipeline.yml').workflow.callers;
+    const callers = documentOf(workflows.documents, 'check.yml').workflow.callers;
     const build = callers.find((caller) => caller.job === 'build');
     const unitTest = callers.find((caller) => caller.job === 'test');
     if (variant === 'inherit') {
@@ -389,7 +389,7 @@ test('rejects the boundary credential on any step but the specification checkout
   for (const [file, mutate, expected] of [
     ['browser.yml', (document) => document.steps.find((step) => step.uses === 'pnpm/action-setup@v6').with.set('token', '${{ secrets.APP_PRIVATE_KEY }}'), /browser\.yml:30 step reads `secrets\.APP_PRIVATE_KEY`; only the specification checkout in `build\.yml` carries that credential/],
     ['test.yml', (document) => document.steps.find((step) => step.uses === 'actions/setup-node@v4').with.set('auth-token', '${{ secrets.APP_PRIVATE_KEY }}'), /test\.yml:24 step reads `secrets\.APP_PRIVATE_KEY`; only the specification checkout/],
-    ['build.yml', (document) => document.steps.find((step) => step.job === 'rust-check' && step.uses === 'actions/checkout@v4').with.set('token', '${{ secrets.APP_PRIVATE_KEY }}'), /build\.yml:97/],
+    ['build.yml', (document) => document.steps.find((step) => step.job === 'rust-check' && step.uses === 'actions/checkout@v4').with.set('token', '${{ secrets.APP_PRIVATE_KEY }}'), /build\.yml:105/],
   ]) {
     const workflows = await repositoryWorkflows();
     mutate(documentOf(workflows.documents, file));
@@ -425,7 +425,7 @@ test('fails closed when the credential surface is emptied or a call resolves els
   );
 
   const moved = await repositoryWorkflows();
-  const caller = documentOf(moved.documents, 'pipeline.yml').workflow.callers.find((candidate) => candidate.job === 'build');
+  const caller = documentOf(moved.documents, 'check.yml').workflow.callers.find((candidate) => candidate.job === 'build');
   caller.uses = 'uses: ./.github/workflows/browser.yml';
   assert.throws(
     () => assertWithinBoundary(moved),
@@ -451,7 +451,7 @@ test('the boundary names the one repository and one permission the request carri
 
 test('the Client publication path keeps its default credential and is untouched', async () => {
   const { documents } = await repositoryWorkflows();
-  const publisher = documentOf(documents, 'beta-deploy.yml');
+  const publisher = documentOf(documents, 'release.yml');
   assert.deepEqual(publisher.steps.filter((step) => step.uses.startsWith('actions/create-github-app-token@')), []);
   assert.deepEqual(publisher.steps.filter((step) => step.with?.has('submodules')), []);
   assert.deepEqual(publisher.workflow.calls, []);

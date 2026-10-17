@@ -53,11 +53,23 @@ Ensure you have the following installed:
   - Scenarios mock API/image/upload boundaries and fail unexpected external calls; the test server fixes the API origin to localhost:3000.
   - `AnyWear-E2E` owns the cross-repository system test pipeline and versioned compatibility pins.
 
+### Workflow entries
+
+Client exposes two workflow entries: `check.yml` runs automatically on push and pull
+request to `main`, and `release.yml` is the one manual dispatch surface, offering the
+single `operation: release`. `build.yml`, `test.yml` and `browser.yml` are
+`workflow_call` implementations of `check.yml`, not entries.
+
+| Entry | Trigger | Manual | Purpose |
+| --- | --- | --- | --- |
+| [`check.yml`](.github/workflows/check.yml) | push / pull request to `main` | no | Build, unit tests, mocked browser integration |
+| [`release.yml`](.github/workflows/release.yml) | `workflow_dispatch` (`operation: release`) | yes | Build, verify, deploy and record the Beta web client |
+
 ### Beta web publication
 
 See the [Beta publication runbook](docs/beta-web-publication.md) for the dedicated
-Client role, environment configuration, source/build checks, and deployment evidence
-used by the independent manual web publisher.
+Client role, the declared interface inputs, the build/verify/deploy/record chain, and
+the deployment evidence produced by `release.yml`.
 
 ### Source CI credentials
 
