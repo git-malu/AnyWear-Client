@@ -1,10 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
 import type { GetWardrobe200Item } from '../src/api/model/getWardrobe200Item';
 import { mockClientBoundaries, expectOnlyMockedCalls } from './mock-boundaries';
 import { mockAmplifySession } from './auth-session';
 
 const ITEM_ID = '11111111-1111-1111-8111-111111111111';
+const RESERVATION_ID = '22222222-2222-4222-8222-222222222222';
 const mockItem: GetWardrobe200Item = {
   id: ITEM_ID, ownerId: 'test-user-id', name: 'My T-Shirt',
   imageKeys: [{ key: 'https://example.com/test.jpg', isPrimary: true }],
@@ -19,7 +19,7 @@ interface MockState {
   items: GetWardrobe200Item[];
   mutations: Array<{ method: string; path: string; body: unknown }>;
   categories: Array<string | null>;
-  uploadedImage?: Buffer;
+  uploadedForm?: string;
 }
 
 function stateWithItem(item = structuredClone(mockItem)): MockState {
@@ -28,10 +28,14 @@ function stateWithItem(item = structuredClone(mockItem)): MockState {
 
 async function setupMock(page: Page, state: MockState) {
   await mockClientBoundaries(page);
+  // The signed policy's target. The browser posts the policy fields and the file
+  // in one multipart body; the form's text carries the signed fields and the file
+  // part header, which is what proves the policy was honoured.
   await page.route('https://s3.example.com/upload', async (route, request) => {
-    state.uploadedImage = request.postDataBuffer() ?? undefined;
-    state.mutations.push({ method: request.method(), path: '/upload', body: { contentType: request.headers()['content-type'] } });
-    return route.fulfill({ status: 200 });
+    state.uploadedForm = request.postData() ?? undefined;
+    state.mutations.push({ method: request.method(), path: '/upload',
+      body: { contentType: request.headers()['content-type']?.split(';')[0] } });
+    return route.fulfill({ status: 204 });
   });
   await page.route('http://localhost:3000/**', async (route, request) => {
     const url = new URL(request.url());
@@ -48,7 +52,12 @@ async function setupMock(page: Page, state: MockState) {
     }
     if (method === 'POST' && path === '/wardrobe/upload-url') {
       state.mutations.push({ method, path, body: request.postDataJSON() });
-      return json({ url: 'https://s3.example.com/upload', key: 'wardrobe/test.png', itemId: ITEM_ID });
+      // A reservation, not an item: the item does not exist until the
+      // confirmation has verified the stored object.
+      return json({ reservationId: RESERVATION_ID, key: `wearable-items/test-user-id/${RESERVATION_ID}.png`,
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+        upload: { url: 'https://s3.example.com/upload', fields: { key: `wearable-items/test-user-id/${RESERVATION_ID}.png`,
+          'Content-Type': 'image/png', policy: 'signed-policy', 'x-amz-signature': 'signature' } } });
     }
     if (method === 'POST' && path === '/wardrobe/upload') {
       state.mutations.push({ method, path, body: request.postDataJSON() });
@@ -94,11 +103,17 @@ test.describe('Wardrobe Auto-Tagging (mocked Client integration)', () => {
     await expect(page.getByText('My T-Shirt', { exact: true })).toBeVisible();
     await expect(page.getByText('Analyzing...', { exact: true })).toBeVisible();
     expect(state.mutations).toEqual([
-      { method: 'POST', path: '/wardrobe/upload-url', body: { contentType: 'image/png', extension: 'png' } },
-      { method: 'PUT', path: '/upload', body: { contentType: 'image/png' } },
-      { method: 'POST', path: '/wardrobe/upload', body: { itemId: ITEM_ID } },
+      { method: 'POST', path: '/wardrobe/upload-url', body: { contentType: 'image/png' } },
+      { method: 'POST', path: '/upload', body: { contentType: 'multipart/form-data' } },
+      { method: 'POST', path: '/wardrobe/upload', body: { reservationId: RESERVATION_ID } },
     ]);
-    expect(state.uploadedImage).toEqual(await readFile('browser/fixtures/dummy.png'));
+    const uploadedForm = state.uploadedForm;
+    // The signed policy fields must be sent verbatim and the file part last;
+    // S3 rejects the form otherwise, and the browser cannot relax a condition.
+    expect(uploadedForm).toContain('signed-policy');
+    expect(uploadedForm).toContain('x-amz-signature');
+    expect(uploadedForm).toContain('name="file"; filename="dummy.png"');
+    expect(uploadedForm?.trimEnd().endsWith('--')).toBe(true);
     state.items[0] = { ...structuredClone(mockItem), taggingStatus: 'ready' };
     await page.clock.fastForward(10_000);
     await expect(page.getByText('Analyzing...', { exact: true })).not.toBeVisible();
