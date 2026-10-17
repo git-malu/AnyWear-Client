@@ -86,6 +86,14 @@ jobs:
           }
 
       - name: Build
+        env:
+          # Source CI discards this build output; the publication chain builds
+          # with the reviewed interface instead. These placeholders keep the
+          # build-identity contract exercised without recording interface values
+          # that no deployment ever compiled.
+          VITE_API_BASE_URL: https://api.invalid
+          VITE_COGNITO_USER_POOL_ID: ap-east-1_CiPlaceholder
+          VITE_COGNITO_CLIENT_ID: abcdefghijklmnopqrstuvwxyz
         run: pnpm run build
 
   # `cargo check` reads no submodule content, so this job needs no App token.

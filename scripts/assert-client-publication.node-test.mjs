@@ -7,13 +7,18 @@ import test from 'node:test';
 import { assertClientPublication } from '../.github/scripts/assert-client-publication.mjs';
 
 const source = 'a'.repeat(40);
+const values = {
+  api_base_url: 'https://api.beta.anywear.example',
+  cognito_user_pool_id: 'ap-east-1_AbCdEfGhI',
+  cognito_client_id: 'abcdefghijklmnopqrstuvwxyz',
+};
 const environment = {
-  BETA_DEPLOY_ENABLED: 'true',
+  BETA_MUTATION_ENABLED: 'true',
   GITHUB_REPOSITORY: 'git-malu/AnyWear-Client',
   GITHUB_REPOSITORY_ID: '1176104200',
   GITHUB_REF: 'refs/heads/main',
   GITHUB_EVENT_NAME: 'workflow_dispatch',
-  GITHUB_WORKFLOW_REF: 'git-malu/AnyWear-Client/.github/workflows/beta-deploy.yml@refs/heads/main',
+  GITHUB_WORKFLOW_REF: 'git-malu/AnyWear-Client/.github/workflows/release.yml@refs/heads/main',
   GITHUB_SHA: source,
   GITHUB_WORKFLOW_SHA: source,
   AWS_ACCOUNT_ID: '650880818323',
@@ -22,16 +27,38 @@ const environment = {
   GITHUB_RUN_ID: '123',
   GITHUB_RUN_ATTEMPT: '1',
 };
-const metadata = { schema_version: 1, component: 'AnyWear-Client', source_commit: source };
+const declared = {
+  DECLARED_API_BASE_URL: values.api_base_url,
+  DECLARED_COGNITO_USER_POOL_ID: values.cognito_user_pool_id,
+  DECLARED_COGNITO_CLIENT_ID: values.cognito_client_id,
+};
+const live = {
+  LIVE_API_BASE_URL: values.api_base_url,
+  LIVE_COGNITO_USER_POOL_ID: values.cognito_user_pool_id,
+  LIVE_COGNITO_CLIENT_ID: values.cognito_client_id,
+};
+const metadata = { schema_version: 2, component: 'AnyWear-Client', source_commit: source, interface: values };
+const record = {
+  schema_version: 1,
+  component: 'AnyWear-Client',
+  source_commit: source,
+  run_id: '123',
+  run_attempt: '1',
+  bucket: 'anywear-client-beta-bucket',
+  distribution_id: 'E2ABCDEFGHIJK1',
+  invalidation_id: 'I2J0ABCDEFGHIJ',
+  interface: values,
+};
 
-test('ordinary Client publication needs no migration window or issue-comment inputs', () => {
-  assert.doesNotThrow(() => assertClientPublication(environment, 'preflight'));
-  assert.doesNotThrow(() => assertClientPublication(environment, 'publish', metadata));
+test('ordinary Client release needs no migration window or issue-comment inputs', () => {
+  assert.doesNotThrow(() => assertClientPublication({ ...environment, ...declared }, 'verify', metadata));
+  assert.doesNotThrow(() => assertClientPublication({ ...environment, ...live }, 'deploy', metadata));
+  assert.doesNotThrow(() => assertClientPublication(environment, 'record', record));
 });
 
-test('rejects an untrusted source, disabled publisher or wrong AWS scope', async (t) => {
+test('rejects an untrusted source, disabled release or wrong AWS scope', async (t) => {
   const invalidInputs = [
-    ['BETA_DEPLOY_ENABLED', 'false'],
+    ['BETA_MUTATION_ENABLED', 'false'],
     ['GITHUB_REPOSITORY', 'other/AnyWear-Client'],
     ['GITHUB_REPOSITORY_ID', '123'],
     ['GITHUB_REF', 'refs/heads/feature'],
@@ -48,39 +75,125 @@ test('rejects an untrusted source, disabled publisher or wrong AWS scope', async
   ];
   for (const [key, value] of invalidInputs) {
     await t.test(`${key}=${value}`, () => {
-      assert.throws(() => assertClientPublication({ ...environment, [key]: value }, 'preflight'));
+      assert.throws(() => assertClientPublication({ ...environment, ...declared, [key]: value }, 'verify', metadata));
     });
   }
 });
 
 test('rejects missing, malformed or different built Client identity before publication', () => {
-  for (const input of [undefined, null, {}, { ...metadata, source_commit: 'b'.repeat(40) },
-    { ...metadata, source_commit: 'local' }, { ...metadata, schema_version: 2 },
-    { ...metadata, component: 'AnyWear-Service' }]) {
-    assert.throws(() => assertClientPublication(environment, 'publish', input), /Built Client metadata/);
+  const invalidMetadata = [
+    undefined,
+    null,
+    {},
+    { ...metadata, source_commit: 'b'.repeat(40) },
+    { ...metadata, source_commit: 'local' },
+    { ...metadata, schema_version: 1 },
+    { ...metadata, schema_version: 3 },
+    { ...metadata, component: 'AnyWear-Service' },
+    { ...metadata, interface: undefined },
+    { ...metadata, interface: { ...values, api_base_url: undefined } },
+    { ...metadata, interface: { ...values, api_base_url: 'http://api.beta.anywear.example' } },
+    { ...metadata, interface: { ...values, cognito_user_pool_id: 'ap-east-1' } },
+    { ...metadata, interface: { ...values, cognito_client_id: 'short' } },
+  ];
+  for (const input of invalidMetadata) {
+    assert.throws(() => assertClientPublication({ ...environment, ...declared }, 'verify', input), /Built Client metadata/);
   }
-  assert.throws(() => assertClientPublication(environment, 'unknown'), /Unknown publication/);
+  for (const key of Object.keys(declared)) {
+    assert.throws(
+      () => assertClientPublication({ ...environment, ...declared, [key]: 'different' }, 'verify', metadata),
+      /Built Client metadata does not match the declared interface values/,
+      `expected a different ${key} to be rejected`,
+    );
+  }
+  assert.throws(() => assertClientPublication(environment, 'unknown', metadata), /Unknown publication/);
 });
 
-test('workflow CLI reads actual build metadata and fails before publication when unavailable or invalid', async () => {
+test('rejects a built interface that differs from the live Beta interface', () => {
+  for (const key of Object.keys(live)) {
+    assert.throws(
+      () => assertClientPublication({ ...environment, ...live, [key]: 'different' }, 'deploy', metadata),
+      /Built Client metadata does not match the live Beta interface values/,
+      `expected a different live ${key} to be rejected`,
+    );
+  }
+  assert.throws(
+    () => assertClientPublication({ ...environment, ...live }, 'deploy', undefined),
+    /Built Client metadata/,
+  );
+});
+
+test('rejects an incomplete or inconsistent publication record', () => {
+  for (const input of [
+    undefined,
+    {},
+    { ...record, component: 'AnyWear-Service' },
+    { ...record, source_commit: 'b'.repeat(40) },
+    { ...record, run_id: '999' },
+    { ...record, run_attempt: '2' },
+    { ...record, bucket: '' },
+    { ...record, distribution_id: '' },
+    { ...record, distribution_id: 'not a distribution' },
+    { ...record, invalidation_id: '' },
+    { ...record, interface: undefined },
+    { ...record, interface: { ...values, cognito_client_id: 'short' } },
+  ]) {
+    assert.throws(() => assertClientPublication(environment, 'record', input), /Publication record/);
+  }
+});
+
+test('workflow CLI reads the artifact, the live interface and the record, and fails closed', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'anywear-client-publication-'));
   const script = join(directory, '.github', 'scripts', 'assert-client-publication.mjs');
+  const contract = join(directory, 'scripts', 'build-interface.mjs');
   const output = join(directory, 'dist', 'build-metadata.json');
+  const assets = join(directory, 'dist', 'assets', 'index-abc123.js');
+  const publication = join(directory, 'publication', 'publication-record.json');
   try {
     await mkdir(join(directory, '.github', 'scripts'), { recursive: true });
-    await mkdir(join(directory, 'dist'));
+    await mkdir(join(directory, 'scripts'), { recursive: true });
+    await mkdir(join(directory, 'dist', 'assets'), { recursive: true });
+    await mkdir(join(directory, 'publication'));
     await copyFile(new URL('../.github/scripts/assert-client-publication.mjs', import.meta.url), script);
-    const run = (phase) => spawnSync(process.execPath, [script, phase], {
-      env: { ...process.env, ...environment, GITHUB_STEP_SUMMARY: '' }, encoding: 'utf8',
+    await copyFile(new URL('./build-interface.mjs', import.meta.url), contract);
+    const run = (phase, extra = {}) => spawnSync(process.execPath, [script, phase], {
+      env: {
+        ...process.env, ...environment, ...declared, ...live, ...extra, GITHUB_STEP_SUMMARY: '',
+      },
+      encoding: 'utf8',
     });
-    assert.equal(run('preflight').status, 0);
-    assert.equal(run('publish').status, 1);
-    await writeFile(output, '{invalid json');
-    assert.equal(run('publish').status, 1);
-    await writeFile(output, JSON.stringify({ ...metadata, source_commit: 'b'.repeat(40) }));
-    assert.equal(run('publish').status, 1);
+    const writeAssets = (body) => writeFile(assets, body, 'utf8');
+
     await writeFile(output, JSON.stringify(metadata));
-    assert.equal(run('publish').status, 0);
+    await writeAssets(`const values=${JSON.stringify(values)};`);
+    await writeFile(publication, JSON.stringify(record));
+
+    assert.equal(run('verify').status, 0);
+    assert.equal(run('deploy').status, 0);
+    assert.equal(run('record').status, 0);
+
+    // The built assets must actually carry the interface the metadata records.
+    await writeAssets(`const values=${JSON.stringify({ ...values, cognito_client_id: undefined })};`);
+    assert.equal(run('verify').status, 1);
+    await writeAssets(`const values=${JSON.stringify(values)};`);
+
+    await writeFile(output, '{invalid json');
+    assert.equal(run('verify').status, 1);
+    await writeFile(output, JSON.stringify({ ...metadata, source_commit: 'b'.repeat(40) }));
+    assert.equal(run('verify').status, 1);
+    await writeFile(output, JSON.stringify(metadata));
+    assert.equal(run('verify', { DECLARED_API_BASE_URL: 'https://other.example' }).status, 1);
+    assert.equal(run('deploy', { LIVE_COGNITO_CLIENT_ID: 'zyxwvutsrqponmlkjihgfedcba' }).status, 1);
+
+    await rm(output);
+    assert.equal(run('verify').status, 1);
+
+    await rm(publication);
+    assert.equal(run('record').status, 1);
+    await writeFile(publication, JSON.stringify({ ...record, run_id: '999' }));
+    assert.equal(run('record').status, 1);
+    await writeFile(publication, JSON.stringify(record));
+    assert.equal(run('record').status, 0);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

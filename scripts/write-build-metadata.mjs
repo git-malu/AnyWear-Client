@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readBuildInterface } from './build-interface.mjs';
 
 const commitPattern = /^[0-9a-f]{40}$/;
 
@@ -11,10 +12,14 @@ export function createBuildMetadata(environment = process.env, now = new Date())
   }
 
   return {
-    schema_version: 1,
+    // Schema 2 adds the declared interface values. `source_commit` keeps its
+    // exact schema-1 meaning and value, because consumers such as AnyWear-E2E
+    // read it from the served file.
+    schema_version: 2,
     component: 'AnyWear-Client',
     source_commit: sourceCommit,
     built_at: now.toISOString(),
+    interface: readBuildInterface(environment),
   };
 }
 
