@@ -1,0 +1,366 @@
+name: Release Beta Web Client
+
+# The one manual entry for this repository: `operation: release` builds the
+# reviewed main revision, verifies it without credentials, and only then assumes
+# the dedicated publish role to sync the built assets and record the publication.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Release operation
+        type: choice
+        required: true
+        options: [release]
+
+      # The interface values are declared here, at dispatch time, because the
+      # credential-free build cannot resolve them from CloudFormation or SSM.
+      # build-metadata.json records exactly the values Vite compiled, and `deploy`
+      # refuses when the live Beta interface differs from them.
+      api_base_url:
+        description: Declared API base URL compiled into the bundle
+        type: string
+        required: true
+      cognito_user_pool_id:
+        description: Declared Cognito user pool id compiled into the bundle
+        type: string
+        required: true
+      cognito_client_id:
+        description: Declared Cognito client id compiled into the bundle
+        type: string
+        required: true
+
+# This queue serializes Client publication, independently of Infra's queue.
+concurrency:
+  group: beta-client-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the reviewed Beta web client
+    # The stage switch and the main ref gate the chain. `build` and `verify`
+    # hold no AWS credential; `deploy` waits for `verify`.
+    if: vars.ENABLE_BETA_MUTATION == 'true' && github.ref == 'refs/heads/main' && inputs.operation == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      SOURCE_COMMIT_SHA: ${{ github.sha }}
+      # Vite compiles these three variables into the bundle, and
+      # write-build-metadata.mjs records the same variables. One environment,
+      # one recorded interface, so the metadata cannot describe a different
+      # interface than the one that was built.
+      VITE_API_BASE_URL: ${{ inputs.api_base_url }}
+      VITE_COGNITO_USER_POOL_ID: ${{ inputs.cognito_user_pool_id }}
+      VITE_COGNITO_CLIENT_ID: ${{ inputs.cognito_client_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.18.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Builds the assets and, in the same step, dist/build-metadata.json from
+      # the same environment.
+      - name: Build Beta web client
+        run: pnpm build
+
+      - name: Upload built client
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    name: Verify the built Beta web client
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BETA_MUTATION_ENABLED: ${{ vars.ENABLE_BETA_MUTATION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLIENT_PUBLISH_ROLE_ARN: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+      DECLARED_API_BASE_URL: ${{ inputs.api_base_url }}
+      DECLARED_COGNITO_USER_POOL_ID: ${{ inputs.cognito_user_pool_id }}
+      DECLARED_COGNITO_CLIENT_ID: ${{ inputs.cognito_client_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.18.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download built client
+        uses: actions/download-artifact@v4
+        with:
+          name: client-dist
+          path: dist
+
+      # Publication identity, the exact workflow/source sha, and the interface
+      # values recorded in build-metadata.json against the reviewed dispatch
+      # inputs. It also asserts that the compiled assets contain those values.
+      - name: Validate publication identity and declared interface
+        run: node .github/scripts/assert-client-publication.mjs verify
+
+      - name: Run unit tests
+        run: pnpm run test:run
+
+      # The browser suite also runs in check.yml on every push to main. It is
+      # repeated here so the release chain verifies the exact revision it is
+      # about to publish instead of relying on an earlier run.
+      - name: Install Chromium
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run browser integration tests
+        run: pnpm run test:browser
+
+  deploy:
+    name: Deploy the reviewed Beta web client
+    needs: [verify]
+    runs-on: ubuntu-latest
+    # The only job in this repository that declares an environment or an OIDC
+    # token. It runs after `verify`, so credentials are acquired only after the
+    # artifact and its declared interface have been verified.
+    environment: beta
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BETA_MUTATION_ENABLED: ${{ vars.ENABLE_BETA_MUTATION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLIENT_PUBLISH_ROLE_ARN: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+      DECLARED_API_BASE_URL: ${{ inputs.api_base_url }}
+      DECLARED_COGNITO_USER_POOL_ID: ${{ inputs.cognito_user_pool_id }}
+      DECLARED_COGNITO_CLIENT_ID: ${{ inputs.cognito_client_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Download built client
+        uses: actions/download-artifact@v4
+        with:
+          name: client-dist
+          path: dist
+
+      # Re-runs the credential-free identity and declared-interface check before
+      # the first AWS call, so a tampered artifact cannot reach the credentialed
+      # step.
+      - name: Validate publication identity and declared interface
+        run: node .github/scripts/assert-client-publication.mjs verify
+
+      - name: Configure Beta AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+          role-session-name: client-publish-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify Beta Client principal
+        shell: bash
+        run: |
+          aws sts get-caller-identity --output json | jq -e \
+            --arg account "$AWS_ACCOUNT_ID" \
+            --arg arn "arn:aws:sts::$AWS_ACCOUNT_ID:assumed-role/beta-client-publish-role/client-publish-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            '.Account == $account and .Arn == $arn'
+
+      - name: Resolve Beta deployment settings
+        id: settings
+        shell: bash
+        run: |
+          platform_outputs="$(aws cloudformation describe-stacks \
+            --stack-name AnyWearPlatformStack-beta --query 'Stacks[0].Outputs' --output json)"
+          workload_outputs="$(aws cloudformation describe-stacks \
+            --stack-name AnyWearWorkloadStack-beta --query 'Stacks[0].Outputs' --output json)"
+          bucket="$(jq -er '.[] | select(.OutputKey=="ClientBucketName") | .OutputValue' <<<"$platform_outputs")"
+          distribution="$(jq -er '.[] | select(.OutputKey=="ClientDistributionId") | .OutputValue' <<<"$platform_outputs")"
+          api_url="$(jq -er '.[] | select(.OutputKey=="ApiBaseUrl") | .OutputValue' <<<"$workload_outputs")"
+          pool_id="$(aws ssm get-parameter --name /anywear/beta/cognito_user_pool_id --query Parameter.Value --output text)"
+          client_id="$(aws ssm get-parameter --name /anywear/beta/cognito_client_id --query Parameter.Value --output text)"
+          {
+            echo "bucket=$bucket"
+            echo "distribution=$distribution"
+            echo "api_url=$api_url"
+            echo "pool_id=$pool_id"
+            echo "client_id=$client_id"
+          } >> "$GITHUB_OUTPUT"
+
+      # Refuses the run when the live Beta interface differs in any value from
+      # the interface recorded in build-metadata.json. No asset is written before
+      # this check passes.
+      - name: Refuse a live interface that differs from the built interface
+        env:
+          LIVE_API_BASE_URL: ${{ steps.settings.outputs.api_url }}
+          LIVE_COGNITO_USER_POOL_ID: ${{ steps.settings.outputs.pool_id }}
+          LIVE_COGNITO_CLIENT_ID: ${{ steps.settings.outputs.client_id }}
+        run: node .github/scripts/assert-client-publication.mjs deploy
+
+      - name: Publish static assets
+        id: publish
+        shell: bash
+        env:
+          CLIENT_BUCKET: ${{ steps.settings.outputs.bucket }}
+          CLIENT_DISTRIBUTION: ${{ steps.settings.outputs.distribution }}
+        run: |
+          aws s3 sync dist "s3://$CLIENT_BUCKET" --delete
+          invalidation="$(aws cloudfront create-invalidation \
+            --distribution-id "$CLIENT_DISTRIBUTION" --paths '/*' \
+            --query Invalidation.Id --output text)"
+          echo "invalidation=$invalidation" >> "$GITHUB_OUTPUT"
+
+      - name: Write the publication record
+        shell: bash
+        env:
+          CLIENT_BUCKET: ${{ steps.settings.outputs.bucket }}
+          CLIENT_DISTRIBUTION: ${{ steps.settings.outputs.distribution }}
+          INVALIDATION_ID: ${{ steps.publish.outputs.invalidation }}
+          API_BASE_URL: ${{ steps.settings.outputs.api_url }}
+          COGNITO_USER_POOL_ID: ${{ steps.settings.outputs.pool_id }}
+          COGNITO_CLIENT_ID: ${{ steps.settings.outputs.client_id }}
+        run: |
+          mkdir -p publication
+          jq -n \
+            --arg source_commit "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg bucket "$CLIENT_BUCKET" \
+            --arg distribution_id "$CLIENT_DISTRIBUTION" \
+            --arg invalidation_id "$INVALIDATION_ID" \
+            --arg api_base_url "$API_BASE_URL" \
+            --arg cognito_user_pool_id "$COGNITO_USER_POOL_ID" \
+            --arg cognito_client_id "$COGNITO_CLIENT_ID" \
+            --arg published_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              schema_version: 1,
+              component: "AnyWear-Client",
+              source_commit: $source_commit,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              bucket: $bucket,
+              distribution_id: $distribution_id,
+              invalidation_id: $invalidation_id,
+              interface: {
+                api_base_url: $api_base_url,
+                cognito_user_pool_id: $cognito_user_pool_id,
+                cognito_client_id: $cognito_client_id
+              },
+              published_at: $published_at
+            }' > publication/publication-record.json
+          cat publication/publication-record.json
+
+      - name: Upload the publication record
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-publication-record
+          path: publication/
+          if-no-files-found: error
+          retention-days: 7
+
+  record:
+    name: Record the Client publication
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    # No environment and no OIDC token: recording reads only the artifact the
+    # deploy job uploaded.
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BETA_MUTATION_ENABLED: ${{ vars.ENABLE_BETA_MUTATION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLIENT_PUBLISH_ROLE_ARN: ${{ vars.CLIENT_PUBLISH_ROLE_ARN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Download the publication record
+        uses: actions/download-artifact@v4
+        with:
+          name: client-publication-record
+          path: publication
+
+      - name: Validate the publication record
+        run: node .github/scripts/assert-client-publication.mjs record
+
+      - name: Write the step summary
+        shell: bash
+        run: |
+          {
+            echo '### Client publication record'
+            echo
+            jq -r '"- Client source: `" + .source_commit + "`"
+              + "\n- Run/attempt: `" + .run_id + "/" + .run_attempt + "`"
+              + "\n- Bucket: `" + .bucket + "`"
+              + "\n- Distribution: `" + .distribution_id + "`"
+              + "\n- Invalidation: `" + .invalidation_id + "`"
+              + "\n- API base URL: `" + .interface.api_base_url + "`"
+              + "\n- Cognito user pool: `" + .interface.cognito_user_pool_id + "`"
+              + "\n- Cognito client: `" + .interface.cognito_client_id + "`"' \
+              publication/publication-record.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the validated publication record
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-publication-record-validated
+          path: publication/
+          if-no-files-found: error
+          retention-days: 90
