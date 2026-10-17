@@ -23,10 +23,12 @@ describe('customInstance idempotency', () => {
     vi.mocked(fetchAuthSession).mockResolvedValue({} as Awaited<ReturnType<typeof fetchAuthSession>>);
   });
 
-  it('reuses one key for an automatic network retry', async () => {
+  it('reuses one key and the Client version header for an automatic network retry', async () => {
     const keys: string[] = [];
+    const versions: unknown[] = [];
     const adapter: AxiosAdapter = async (config) => {
       keys.push(String(config.headers.get('Idempotency-Key')));
+      versions.push(config.headers.get('X-AnyWear-Client-Version'));
       if (keys.length === 1) {
         throw new Axios.AxiosError('connection reset', 'ERR_NETWORK', config);
       }
@@ -42,6 +44,30 @@ describe('customInstance idempotency', () => {
     expect(keys).toHaveLength(2);
     expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(keys[1]).toBe(keys[0]);
+    expect(versions).toEqual(['1', '1']);
+  });
+
+  it('sends the Client version header even when no auth session exists', async () => {
+    vi.clearAllMocks();
+    vi.mocked(fetchAuthSession).mockRejectedValue(new Error('No current user'));
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    let version: unknown;
+    let authorization: unknown;
+    const adapter: AxiosAdapter = async (config) => {
+      version = config.headers.get('X-AnyWear-Client-Version');
+      authorization = config.headers.get('Authorization');
+      return response(config);
+    };
+
+    try {
+      await customInstance({ url: '/users/me', method: 'GET' }, { adapter });
+    } finally {
+      debug.mockRestore();
+    }
+
+    expect(fetchAuthSession).toHaveBeenCalledTimes(1);
+    expect(version).toBe('1');
+    expect(authorization).toBeUndefined();
   });
 
   it('creates a new key for each new logical operation', async () => {

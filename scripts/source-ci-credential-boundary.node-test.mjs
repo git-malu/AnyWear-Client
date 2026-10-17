@@ -388,7 +388,7 @@ test('rejects a specification origin or submodule that the allowlist does not na
 test('rejects the boundary credential on any step but the specification checkout', async () => {
   for (const [file, mutate, expected] of [
     ['browser.yml', (document) => document.steps.find((step) => step.uses === 'pnpm/action-setup@v6').with.set('token', '${{ secrets.APP_PRIVATE_KEY }}'), /browser\.yml:30 step reads `secrets\.APP_PRIVATE_KEY`; only the specification checkout in `build\.yml` carries that credential/],
-    ['test.yml', (document) => document.steps.find((step) => step.uses === 'actions/setup-node@v4').with.set('auth-token', '${{ secrets.APP_PRIVATE_KEY }}'), /test\.yml:24 step reads `secrets\.APP_PRIVATE_KEY`; only the specification checkout/],
+    ['test.yml', (document) => document.steps.find((step) => step.uses === 'actions/setup-node@v4').with.set('auth-token', '${{ secrets.APP_PRIVATE_KEY }}'), /test\.yml:25 step reads `secrets\.APP_PRIVATE_KEY`; only the specification checkout/],
     ['build.yml', (document) => document.steps.find((step) => step.job === 'rust-check' && step.uses === 'actions/checkout@v4').with.set('token', '${{ secrets.APP_PRIVATE_KEY }}'), /build\.yml:105/],
   ]) {
     const workflows = await repositoryWorkflows();
@@ -400,7 +400,7 @@ test('rejects the boundary credential on any step but the specification checkout
   documentOf(workflows.documents, 'test.yml').steps.find((step) => step.uses === 'actions/setup-node@v4').with.set('auth-token', '${{ secrets.SOME_OTHER }}');
   assert.throws(
     () => assertWithinBoundary(workflows),
-    /test\.yml:24 step reads `secrets\.SOME_OTHER`, which is outside the credential boundary/,
+    /test\.yml:25 step reads `secrets\.SOME_OTHER`, which is outside the credential boundary/,
   );
 });
 

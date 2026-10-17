@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { connectSse } from './sse';
+import { ClientVersionUnsupportedError, connectSse } from './sse';
 
 vi.mock('aws-amplify/auth', () => ({
   fetchAuthSession: vi.fn(),
@@ -57,6 +57,24 @@ describe('connectSse', () => {
     expect(fetchAuthSession).toHaveBeenNthCalledWith(2, { forceRefresh: true });
   });
 
+  it('sends the Client version header on the stream request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(eventStream(['data: {"status":"Complete"}\n\n']));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const connection = connectSse('/events', () => connection.close(), { initialRetryMs: 60_000 });
+    try {
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        headers: {
+          Accept: 'text/event-stream',
+          'X-AnyWear-Client-Version': '1',
+        },
+      });
+    } finally {
+      connection.close();
+    }
+  });
+
   it('reconnects after a transient response failure', async () => {
     const onEvent = vi.fn();
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
@@ -71,6 +89,62 @@ describe('connectSse', () => {
 
     await vi.waitFor(() => expect(onEvent).toHaveBeenCalledWith({ status: 'Processing' }));
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a CLIENT_VERSION_UNSUPPORTED 400 as terminal', async () => {
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const onStateChange = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ error: 'CLIENT_VERSION_UNSUPPORTED' }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    connectSse('/events', onEvent, {
+      initialRetryMs: 1,
+      maxRetryMs: 1,
+      onError,
+      onStateChange,
+    });
+
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    const error = onError.mock.calls[0][0];
+    expect(error).toBeInstanceOf(ClientVersionUnsupportedError);
+    expect(String(error)).toContain('CLIENT_VERSION_UNSUPPORTED');
+
+    // A retry would be scheduled within a couple of milliseconds; wait longer
+    // than that and prove the connection stayed closed.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onStateChange).toHaveBeenCalledWith('closed');
+    expect(onStateChange).not.toHaveBeenCalledWith('reconnecting');
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('reconnects after a 400 that is not a Client version rejection', async () => {
+    const onEvent = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'SOMETHING_ELSE' }),
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      ))
+      .mockResolvedValueOnce(eventStream(['data: {"status":"Complete"}\n\n']));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const connection = connectSse('/events', (event) => {
+      onEvent(event);
+      connection.close();
+    }, { initialRetryMs: 1, maxRetryMs: 1 });
+
+    try {
+      await vi.waitFor(() => expect(onEvent).toHaveBeenCalledWith({ status: 'Complete' }));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      connection.close();
+    }
   });
 
   it('reconnects after the server disconnects an open stream', async () => {

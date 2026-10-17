@@ -37,7 +37,13 @@ const live = {
   LIVE_COGNITO_USER_POOL_ID: values.cognito_user_pool_id,
   LIVE_COGNITO_CLIENT_ID: values.cognito_client_id,
 };
-const metadata = { schema_version: 2, component: 'AnyWear-Client', source_commit: source, interface: values };
+const metadata = {
+  schema_version: 3,
+  component: 'AnyWear-Client',
+  source_commit: source,
+  client_version: 1,
+  interface: values,
+};
 const record = {
   schema_version: 1,
   component: 'AnyWear-Client',
@@ -88,8 +94,15 @@ test('rejects missing, malformed or different built Client identity before publi
     { ...metadata, source_commit: 'b'.repeat(40) },
     { ...metadata, source_commit: 'local' },
     { ...metadata, schema_version: 1 },
-    { ...metadata, schema_version: 3 },
+    { ...metadata, schema_version: 2 },
+    { ...metadata, schema_version: 4 },
     { ...metadata, component: 'AnyWear-Service' },
+    { ...metadata, client_version: undefined },
+    { ...metadata, client_version: -1 },
+    { ...metadata, client_version: 1.5 },
+    { ...metadata, client_version: '1' },
+    { ...metadata, client_version: Number.MAX_SAFE_INTEGER + 1 },
+    { ...metadata, client_version: null },
     { ...metadata, interface: undefined },
     { ...metadata, interface: { ...values, api_base_url: undefined } },
     { ...metadata, interface: { ...values, api_base_url: 'http://api.beta.anywear.example' } },
@@ -180,6 +193,10 @@ test('workflow CLI reads the artifact, the live interface and the record, and fa
     await writeFile(output, '{invalid json');
     assert.equal(run('verify').status, 1);
     await writeFile(output, JSON.stringify({ ...metadata, source_commit: 'b'.repeat(40) }));
+    assert.equal(run('verify').status, 1);
+    await writeFile(output, JSON.stringify({ ...metadata, client_version: undefined }));
+    assert.equal(run('verify').status, 1);
+    await writeFile(output, JSON.stringify({ ...metadata, client_version: '1' }));
     assert.equal(run('verify').status, 1);
     await writeFile(output, JSON.stringify(metadata));
     assert.equal(run('verify', { DECLARED_API_BASE_URL: 'https://other.example' }).status, 1);

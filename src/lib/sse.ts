@@ -1,4 +1,5 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from './client-version';
 
 type SseEventCallback<T = unknown> = (data: T) => void;
 
@@ -13,6 +14,30 @@ interface SseConnectionOptions {
   maxRetryMs?: number;
   onError?: (error: unknown) => void;
   onStateChange?: (state: SseConnectionState) => void;
+}
+
+/**
+ * The Service rejected this Client's version identity. No reconnect can fix a
+ * version mismatch, so this error ends the stream instead of retrying.
+ */
+export class ClientVersionUnsupportedError extends Error {
+  constructor() {
+    super('CLIENT_VERSION_UNSUPPORTED: the Service rejected this Client version');
+    this.name = 'ClientVersionUnsupportedError';
+  }
+}
+
+/** Whether `response` is the terminal Client-version rejection. */
+async function isClientVersionUnsupported(response: Response): Promise<boolean> {
+  if (response.status !== 400) return false;
+  try {
+    const body: unknown = await response.json();
+    return typeof body === 'object'
+      && body !== null
+      && (body as { error?: unknown }).error === 'CLIENT_VERSION_UNSUPPORTED';
+  } catch {
+    return false;
+  }
 }
 
 function parseEventFrame<T>(frame: string, onEvent: SseEventCallback<T>): void {
@@ -92,6 +117,18 @@ export function connectSse<T = unknown>(
     }, jitteredDelay);
   };
 
+  /** Ends the connection without a reconnect: no retry can change the response. */
+  const closeTerminally = (error: unknown): void => {
+    if (closed) return;
+    closed = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
+    activeController?.abort();
+    activeController = null;
+    setState('closed');
+    options.onError?.(error);
+  };
+
   const run = async (forceRefresh: boolean): Promise<void> => {
     if (closed) return;
 
@@ -113,10 +150,14 @@ export function connectSse<T = unknown>(
         headers: {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
+          [CLIENT_VERSION_HEADER]: String(CLIENT_VERSION),
         },
         signal: controller.signal,
       });
 
+      if (await isClientVersionUnsupported(response)) {
+        throw new ClientVersionUnsupportedError();
+      }
       if ((response.status === 401 || response.status === 403) && !forceRefresh) {
         await run(true);
         return;
@@ -129,6 +170,10 @@ export function connectSse<T = unknown>(
       scheduleReconnect();
     } catch (error) {
       if (closed || (error instanceof Error && error.name === 'AbortError')) return;
+      if (error instanceof ClientVersionUnsupportedError) {
+        closeTerminally(error);
+        return;
+      }
       options.onError?.(error);
       scheduleReconnect();
     } finally {
