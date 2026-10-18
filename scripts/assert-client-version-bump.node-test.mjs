@@ -413,9 +413,9 @@ test('fails when HEAD has no readable client-version.json', async (t) => {
 
 test('runs the checker entry against the real checkout with the ambient CI environment', async () => {
   // This is the gate the test workflow itself runs: in CI the ambient trigger
-  // (push or pull_request) drives a real comparison against the real origin/main
-  // or event revision; locally the same call must still parse the real HEAD file
-  // and report that only the base comparison was skipped.
+  // (push, pull_request or a manual workflow_dispatch) drives the real checker
+  // against the real checkout; locally the same call must still parse the real
+  // HEAD file and report that only the base comparison was skipped.
   const root = fileURLToPath(new URL('../', import.meta.url));
   const previousExitCode = process.exitCode;
   const output = [];
@@ -433,11 +433,18 @@ test('runs the checker entry against the real checkout with the ambient CI envir
     const current = readHeadClientVersion(root);
     assert.equal(current, 1, 'the real HEAD client-version.json must parse');
     if (process.env.GITHUB_ACTIONS === 'true') {
+      const ambientEvent = process.env.GITHUB_EVENT_NAME;
       assert.ok(
-        process.env.GITHUB_EVENT_NAME === 'pull_request' || process.env.GITHUB_EVENT_NAME === 'push',
-        `unexpected CI event ${String(process.env.GITHUB_EVENT_NAME)}`,
+        ambientEvent === 'pull_request' || ambientEvent === 'push' || ambientEvent === 'workflow_dispatch',
+        `unexpected CI event ${String(ambientEvent)}`,
       );
-      assert.match(output.join('\n'), /Client version bump check passed/);
+      if (ambientEvent === 'workflow_dispatch') {
+        // The release workflow dispatches manually: there is no base revision to
+        // compare, so the ambient run must report the explicit no-base outcome.
+        assert.match(output.join('\n'), /workflow_dispatch has no base revision/);
+      } else {
+        assert.match(output.join('\n'), /Client version bump check passed/);
+      }
     } else {
       assert.match(output.join('\n'), /base comparison skipped \(local-only\)/);
       assert.match(output.join('\n'), new RegExp(`client_version ${current}:`));
