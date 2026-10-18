@@ -172,6 +172,10 @@ test('resolves the previous revision from an explicit trigger and event', () => 
     { mode: 'revision', revision: 'origin/main' },
   );
   assert.deepEqual(
+    resolvePreviousRevision({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch' }),
+    { mode: 'no-base' },
+  );
+  assert.deepEqual(
     resolvePreviousRevision({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push' }, { before: apiRevisionA }),
     { mode: 'revision', revision: apiRevisionA },
   );
@@ -183,8 +187,8 @@ test('resolves the previous revision from an explicit trigger and event', () => 
 
 test('fails closed on an unknown trigger or a malformed push payload', () => {
   assert.throws(
-    () => resolvePreviousRevision({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch' }),
-    /not pull_request or push; refusing to skip the base comparison/,
+    () => resolvePreviousRevision({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'schedule' }),
+    /not pull_request, push or workflow_dispatch; refusing to skip the base comparison/,
   );
   assert.throws(
     () => resolvePreviousRevision({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push' }),
@@ -341,9 +345,20 @@ test('compares HEAD against real pull_request and push bases', async (t) => {
     environment: { GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push' },
   }), /GITHUB_EVENT_PATH is not set/);
 
-  await assert.rejects(() => runClientVersionBump({
+  // A workflow_dispatch is an explicit build/release trigger with no base: it
+  // validates the current identity and reports that nothing was compared.
+  const workflowDispatch = await runClientVersionBump({
     root: directory,
     environment: { GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch' },
+  });
+  assert.equal(workflowDispatch.compared, false);
+  assert.equal(workflowDispatch.reason, 'no-base');
+  assert.equal(workflowDispatch.current, 2);
+  assert.deepEqual(workflowDispatch.violations, []);
+
+  await assert.rejects(() => runClientVersionBump({
+    root: directory,
+    environment: { GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'schedule' },
   }), /refusing to skip the base comparison/);
 
   git(directory, ['update-ref', '-d', 'refs/remotes/origin/main']);
@@ -427,6 +442,22 @@ test('runs the checker entry against the real checkout with the ambient CI envir
       assert.match(output.join('\n'), /base comparison skipped \(local-only\)/);
       assert.match(output.join('\n'), new RegExp(`client_version ${current}:`));
     }
+
+    // The Beta release workflow dispatches with workflow_dispatch, which has no
+    // base revision: the checker must still validate the real HEAD and pass with
+    // an explicit no-base report instead of failing closed.
+    output.length = 0;
+    failures.length = 0;
+    const dispatchExitCode = await main({
+      root,
+      environment: { ...process.env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch' },
+      log: (message) => output.push(String(message)),
+      error: (message) => failures.push(String(message)),
+    });
+    assert.equal(dispatchExitCode, 0, `workflow_dispatch must validate the real checkout:\n${failures.join('\n')}`);
+    assert.equal(process.exitCode, 0, `workflow_dispatch produced failures:\n${failures.join('\n')}`);
+    assert.match(output.join('\n'), /workflow_dispatch has no base revision/);
+    assert.match(output.join('\n'), new RegExp(`client_version ${current}:`));
   } finally {
     process.exitCode = previousExitCode;
   }
