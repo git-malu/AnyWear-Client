@@ -40,9 +40,11 @@ function assertWorkflowIdentity(env) {
 }
 
 function assertBuiltMetadata(env, metadata, phase) {
-  requireCondition(metadata?.schema_version === 2
+  requireCondition(metadata?.schema_version === 3
     && metadata.component === 'AnyWear-Client'
     && metadata.source_commit === env.GITHUB_SHA, 'Built Client metadata does not match the workflow source');
+  requireCondition(Number.isSafeInteger(metadata.client_version) && metadata.client_version >= 0,
+    'Built Client metadata has a malformed client_version');
   for (const key of Object.keys(buildInterface)) {
     requireCondition(isValidInterfaceValue(key, metadata.interface?.[key]), `Built Client metadata has a malformed ${key}`);
   }

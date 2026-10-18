@@ -1,5 +1,6 @@
 import Axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from '../lib/client-version';
 import { useAuthStore } from '../store/authStore';
 
 export const AXIOS_INSTANCE = Axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000' });
@@ -22,6 +23,9 @@ function hasIdempotencyKey(config: InternalAxiosRequestConfig): boolean {
 
 AXIOS_INSTANCE.interceptors.request.use(
   async (config) => {
+    // Every request states the Client version, authenticated or not, so the
+    // Service can reject an incompatible Client before it does any work.
+    config.headers.set(CLIENT_VERSION_HEADER, String(CLIENT_VERSION));
     if (isAsyncTaskCreationRequest(config) && !hasIdempotencyKey(config)) {
       config.headers.set('Idempotency-Key', crypto.randomUUID());
     }
