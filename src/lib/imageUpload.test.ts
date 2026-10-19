@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from './imageUpload';
+import {
+  HEIC_UNSUPPORTED_MESSAGE,
+  resolveImageContentType,
+  uploadImageWithSignedPost,
+  validateImageFile,
+} from './imageUpload';
 
 const upload = {
   url: 'https://bucket.s3.us-east-1.amazonaws.com/',
@@ -26,15 +31,43 @@ describe('imageUpload', () => {
     expect(() => validateImageFile(oversized)).toThrow('Image must be 10MB or smaller');
   });
 
-  it('accepts camera images when the browser omits the MIME type', () => {
-    expect(() => validateImageFile(new File(['image'], 'camera.heic'))).not.toThrow();
+  it('rejects HEIC/HEIF by filename when the browser omits the MIME type', () => {
+    expect(() => validateImageFile(new File(['image'], 'camera.heic')))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+    expect(() => validateImageFile(new File(['image'], 'camera.heif')))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+    expect(() => validateImageFile(new File(['image'], 'CAMERA.HEIC')))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+
+    // The format is named before the size, so an oversized HEIC tells the user
+    // to re-encode rather than to shrink a file that would fail anyway.
+    const oversized = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'camera.heic');
+    expect(() => validateImageFile(oversized)).toThrow(HEIC_UNSUPPORTED_MESSAGE);
+  });
+
+  it('rejects HEIC/HEIF by MIME type even when the filename looks accepted', () => {
+    expect(() => validateImageFile(new File(['image'], 'photo.jpg', { type: 'image/heic' })))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+    expect(() => validateImageFile(new File(['image'], 'photo.jpg', { type: 'image/heif' })))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+  });
+
+  it('refuses to name a content type for HEIC/HEIF', () => {
+    expect(() => resolveImageContentType(new File(['image'], 'photo.heic')))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+    expect(() => resolveImageContentType(new File(['image'], 'photo.heif', { type: 'image/heif' })))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
+    expect(() => resolveImageContentType(new File(['image'], 'photo.jpg', { type: 'image/heic' })))
+      .toThrow(HEIC_UNSUPPORTED_MESSAGE);
   });
 
   it('names an omitted content type from the file extension instead of assuming JPEG', () => {
     expect(resolveImageContentType(new File(['image'], 'photo.png'))).toBe('image/png');
-    expect(resolveImageContentType(new File(['image'], 'photo.heic'))).toBe('image/heic');
     expect(resolveImageContentType(new File(['image'], 'photo.jpg'))).toBe('image/jpeg');
+    expect(resolveImageContentType(new File(['image'], 'photo.webp'))).toBe('image/webp');
     expect(resolveImageContentType(new File(['image'], 'photo.png', { type: 'image/png' }))).toBe('image/png');
+    expect(resolveImageContentType(new File(['image'], 'photo.jpg', { type: 'image/jpeg' }))).toBe('image/jpeg');
+    expect(resolveImageContentType(new File(['image'], 'photo.webp', { type: 'image/webp' }))).toBe('image/webp');
   });
 
   it('throws when S3 returns an HTTP error', async () => {

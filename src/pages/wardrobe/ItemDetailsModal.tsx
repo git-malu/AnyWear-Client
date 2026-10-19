@@ -6,7 +6,11 @@ import { parseImageKeys } from '../../lib/image-utils';
 import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
 import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from '../../lib/imageUpload';
+import { getErrorMessage } from '../../lib/errors';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
+
+/** #140's terminal code: the provider cannot decode the stored image format. */
+const INPUT_IMAGE_UNSUPPORTED_FORMAT_CODE = 'input_image_unsupported_format';
 
 interface Props {
   item: GetWardrobe200Item | null;
@@ -220,7 +224,7 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
       setSelectedImageIndex(images.length);
     } catch (error) {
       console.error('Failed to add image:', error);
-      alert('Failed to upload additional image');
+      alert(getErrorMessage(error, 'Failed to upload additional image'));
     } finally {
       setIsAddingImage(false);
       if (addImageInputRef.current) addImageInputRef.current.value = '';
@@ -232,6 +236,8 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
   };
 
   const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';
+  const isUnsupportedFormatFailure =
+    item.taggingStatus === 'failed' && item.taggingErrorCode === INPUT_IMAGE_UNSUPPORTED_FORMAT_CODE;
 
   return (
     <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -263,6 +269,10 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
                   </span>
                 )}
               </div>
+
+              {isUnsupportedFormatFailure && item.taggingErrorMessage && (
+                <p className="mt-2 text-sm text-red-600" role="alert">{item.taggingErrorMessage}</p>
+              )}
 
               {/* Image gallery */}
               <div className="mt-4">
@@ -334,7 +344,7 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
                     <input
                       ref={addImageInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       capture="environment"
                       className="hidden"
                       onChange={handleAddImage}
@@ -384,11 +394,13 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
                     className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none disabled:opacity-50">
                     {isUpdating ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button type="button" disabled={isRetagging || isProcessing}
-                    onClick={handleRetag}
-                    className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50">
-                    {isRetagging ? 'Re-tagging...' : 'Re-tag'}
-                  </button>
+                  {!isUnsupportedFormatFailure && (
+                    <button type="button" disabled={isRetagging || isProcessing}
+                      onClick={handleRetag}
+                      className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50">
+                      {isRetagging ? 'Re-tagging...' : 'Re-tag'}
+                    </button>
+                  )}
                   <button type="button" disabled={isDeleting}
                     onClick={handleDelete}
                     className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-sm font-medium text-white hover:bg-red-700 focus:outline-none disabled:opacity-50">

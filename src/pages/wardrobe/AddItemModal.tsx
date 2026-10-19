@@ -102,7 +102,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
                           <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             capture="environment"
                             className="sr-only"
                             onChange={(e) => {
@@ -113,7 +113,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: Props) {
                           />
                         </label>
                       </div>
-                      <p className="text-xs text-gray-500">PNG, JPG up to 10MB</p>
+                      <p className="text-xs text-gray-500">PNG, JPG or WebP up to 10MB</p>
                     </div>
                   </div>
                   {file && (
