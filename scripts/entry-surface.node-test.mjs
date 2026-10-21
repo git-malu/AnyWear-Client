@@ -67,6 +67,16 @@ function inputBlock(workflow, name) {
   return rest.slice(0, next < 0 ? undefined : next);
 }
 
+/** One `steps:` entry, from its six-space `- name:` line to the next step. */
+function stepSection(workflow, name) {
+  const marker = `      - name: ${name}\n`;
+  const start = workflow.indexOf(marker);
+  assert.ok(start >= 0, `the workflow must declare the ${name} step`);
+  const rest = workflow.slice(start + marker.length);
+  const next = rest.search(/\n {6}- /);
+  return marker + (next < 0 ? rest : rest.slice(0, next));
+}
+
 test('the workflow directory contains exactly the five repository workflows', () => {
   assert.deepEqual(workflowFiles, ['browser.yml', 'build.yml', 'check.yml', 'release.yml', 'test.yml']);
 });
@@ -176,4 +186,34 @@ test('check.yml wires the three called workflows and maps the App secret only on
   assert.match(browser, /^ {4}needs: \[test\]$/m);
   assert.match(browser, /^ {4}uses: \.\/\.github\/workflows\/browser\.yml$/m);
   assert.doesNotMatch(browser, /secrets:/);
+});
+
+// #188: the deploy job resolves the whole live interface from the Beta `Base`
+// stack, which owns both CloudFront distributions and the `ApiBaseUrl` output.
+// The retired workload stack read was denied and left the publish with no asset
+// sync, no invalidation and no publication record.
+test('#188: the release deploy reads the Beta Base stack only and resolves its interface', () => {
+  const release = read(manualEntry);
+  // Assembled from its parts so this guard does not itself defeat the issue's
+  // repository-wide census that the retired stack name has zero occurrences.
+  const retiredStack = ['AnyWearWorkloadStack', 'beta'].join('-');
+  assert.ok(!release.includes(retiredStack), 'the release path must not name the retired stack');
+
+  const settings = stepSection(release, 'Resolve Beta deployment settings');
+  assert.deepEqual(
+    [...settings.matchAll(/--stack-name\s+(\S+)/g)].map((match) => match[1]),
+    ['AnyWearPlatformStack-beta'],
+    'the settings step reads exactly the Beta Base stack',
+  );
+  assert.match(settings, /require_output ApiBaseUrl|select\(\.OutputKey == "ApiBaseUrl"\)/);
+  assert.match(settings, /\/anywear\/beta\/cognito_user_pool_id/);
+  assert.match(settings, /\/anywear\/beta\/cognito_client_id/);
+  assert.equal([...settings.matchAll(/aws ssm get-parameter/g)].length, 2);
+  for (const output of ['bucket', 'distribution', 'api_url', 'pool_id', 'client_id']) {
+    assert.ok(
+      settings.includes(`echo "${output}=$${output}"`),
+      `${output} leaves the settings step as a step output`,
+    );
+  }
+  assert.match(settings, /\} >> "\$GITHUB_OUTPUT"/);
 });

@@ -216,13 +216,24 @@ jobs:
         id: settings
         shell: bash
         run: |
+          # `AnyWearPlatformStack-beta` is the Beta `Base` stack: it owns the
+          # Client bucket, both CloudFront distributions and the `ApiBaseUrl`
+          # output. #166 moved the API distribution into `Base`, so this stack is
+          # the deployed interface the publish role may read. Resolve every value
+          # from this one stack or from SSM; no other stack is read here.
           platform_outputs="$(aws cloudformation describe-stacks \
             --stack-name AnyWearPlatformStack-beta --query 'Stacks[0].Outputs' --output json)"
-          workload_outputs="$(aws cloudformation describe-stacks \
-            --stack-name AnyWearWorkloadStack-beta --query 'Stacks[0].Outputs' --output json)"
-          bucket="$(jq -er '.[] | select(.OutputKey=="ClientBucketName") | .OutputValue' <<<"$platform_outputs")"
-          distribution="$(jq -er '.[] | select(.OutputKey=="ClientDistributionId") | .OutputValue' <<<"$platform_outputs")"
-          api_url="$(jq -er '.[] | select(.OutputKey=="ApiBaseUrl") | .OutputValue' <<<"$workload_outputs")"
+          # `jq -e` fails when an output is absent, but prints no message. Name
+          # the stack and the output so a renamed output is not a bare exit code.
+          require_output() {
+            jq -er --arg key "$1" \
+              '.[] | select(.OutputKey == $key and (.OutputValue | length) > 0) | .OutputValue' \
+              <<<"$platform_outputs" \
+              || { echo "AnyWearPlatformStack-beta has no $1 output" >&2; exit 1; }
+          }
+          bucket="$(require_output ClientBucketName)"
+          distribution="$(require_output ClientDistributionId)"
+          api_url="$(require_output ApiBaseUrl)"
           pool_id="$(aws ssm get-parameter --name /anywear/beta/cognito_user_pool_id --query Parameter.Value --output text)"
           client_id="$(aws ssm get-parameter --name /anywear/beta/cognito_client_id --query Parameter.Value --output text)"
           {
