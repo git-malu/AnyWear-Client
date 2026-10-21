@@ -1,5 +1,15 @@
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-const IMAGE_FILE_EXTENSION = /\.(?:jpe?g|png|webp|heic|heif)$/i;
+/** Extensions accepted when the browser omits the MIME type. */
+const ACCEPTED_IMAGE_EXTENSIONS = /\.(?:jpe?g|png|webp)$/i;
+const HEIC_FILE_EXTENSION = /\.(?:heic|heif)$/i;
+const HEIC_CONTENT_TYPES = new Set(['image/heic', 'image/heif']);
+
+export const HEIC_UNSUPPORTED_MESSAGE =
+  'HEIC/HEIF photos are not supported. On iPhone, set Settings > Camera > Formats > "Most Compatible", or export the photo as a JPEG, then try again.';
+
+function isHeicOrHeif(file: File): boolean {
+  return HEIC_CONTENT_TYPES.has(file.type.toLowerCase()) || HEIC_FILE_EXTENSION.test(file.name);
+}
 
 /** The signed S3 POST policy the service issues for one upload. */
 export interface SignedUploadPost {
@@ -11,10 +21,18 @@ export interface SignedUploadPost {
  * Feedback only. The limits that matter are enforced by the service and by the
  * signed upload policy: a body larger than the policy's range, or of a
  * different content type, is refused by S3 whatever this browser does.
+ *
+ * The format guard runs before every other rule because the pipeline cannot
+ * decode that format at all: a file whose MIME type the browser omitted still
+ * has to get the format guidance, and an oversized one is better told to
+ * re-encode than told its file is too big.
  */
 export function validateImageFile(file: File): void {
+  if (isHeicOrHeif(file)) {
+    throw new Error(HEIC_UNSUPPORTED_MESSAGE);
+  }
   const hasImageType = file.type.startsWith('image/');
-  const hasImageExtension = IMAGE_FILE_EXTENSION.test(file.name);
+  const hasImageExtension = ACCEPTED_IMAGE_EXTENSIONS.test(file.name);
   if (!hasImageType && !(!file.type && hasImageExtension)) {
     throw new Error('Select an image file');
   }
@@ -31,14 +49,19 @@ export function validateImageFile(file: File): void {
  * to be named from its extension rather than defaulted to JPEG — otherwise the
  * bytes and the declared type would disagree and the confirmation would refuse
  * the upload.
+ *
+ * The same format guard runs here too, so a caller that skipped validation
+ * cannot reserve the format the pipeline cannot process or fall through to the
+ * JPEG default.
  */
 export function resolveImageContentType(file: File): string {
+  if (isHeicOrHeif(file)) {
+    throw new Error(HEIC_UNSUPPORTED_MESSAGE);
+  }
   if (file.type) return file.type;
   const extension = file.name.split('.').pop()?.toLowerCase();
   if (extension === 'png') return 'image/png';
   if (extension === 'webp') return 'image/webp';
-  if (extension === 'heic') return 'image/heic';
-  if (extension === 'heif') return 'image/heif';
   return 'image/jpeg';
 }
 
