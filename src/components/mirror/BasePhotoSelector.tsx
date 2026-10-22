@@ -130,7 +130,13 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {photoList.map((photo, index) => (
+          {photoList.map((photo, index) => {
+            // `userId` is null exactly for the shared system photo. It can be the
+            // effective default (the API flags the caller's pointer), so it renders
+            // like any other photo except that it cannot be deleted.
+            const isSystemPhoto = photo.userId === null;
+            const kindLabel = photo.isDefault ? 'Default photo' : isSystemPhoto ? 'System photo' : 'Base photo';
+            return (
             <article
               key={photo.id}
               className={`relative group overflow-hidden rounded-xl border transition-colors ${
@@ -139,7 +145,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
                   : 'border-gray-200 hover:border-gray-400'
               }`}
             >
-              <button type="button" aria-pressed={selectedPhotoId === photo.id} aria-label={`${selectedPhotoId === photo.id ? 'Selected' : 'Select'} base photo ${index + 1}${photo.isDefault ? ', default' : ''}`} onClick={() => onSelect(photo.id)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
+              <button type="button" aria-pressed={selectedPhotoId === photo.id} aria-label={`${selectedPhotoId === photo.id ? 'Selected' : 'Select'} base photo ${index + 1}${photo.isDefault ? ', default' : ''}${isSystemPhoto ? ', shared system photo' : ''}`} onClick={() => onSelect(photo.id)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
                 <CachedImage
                   src={photo.thumbnailUrl || photo.imageKey}
                   cacheKey={`vto-base-${photo.id}`}
@@ -147,7 +153,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
                   className="aspect-[4/5] w-full object-cover"
                 />
                 <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-medium text-gray-800 shadow-sm">
-                  {photo.isDefault ? 'Default photo' : 'Base photo'}{selectedPhotoId === photo.id ? ' · Selected' : ''}
+                  {kindLabel}{selectedPhotoId === photo.id ? ' · Selected' : ''}
                 </span>
               </button>
               {photo.isDefault && (
@@ -163,19 +169,22 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
                     Set Default
                   </button>
                 )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
-                    aria-label="Delete this base photo"
-                    className="rounded bg-red-700 px-2 py-1 text-xs text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <svg className="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Delete
-                </button>
+                {!isSystemPhoto && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
+                      aria-label="Delete this base photo"
+                      className="rounded bg-red-700 px-2 py-1 text-xs text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <svg className="w-3 h-3 inline mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Delete
+                  </button>
+                )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -9,7 +9,7 @@ import type { PostVtoGenerationsBodyAdvancedSettings } from './postVtoGeneration
 export type PostVtoGenerationsBody = {
   outfit_id?: string;
   wearable_item_ids?: string[];
-  base_photo_id: string;
+  base_photo_id?: string;
   /** @maxLength 200 */
   outfit_name?: string;
   /** @maxLength 500 */

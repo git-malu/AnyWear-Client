@@ -30,6 +30,8 @@ import {
 
 describe('BasePhotoSelector', () => {
   const reservePhotoUpload = vi.fn();
+  const setDefault = vi.fn();
+  const deletePhoto = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -37,9 +39,38 @@ describe('BasePhotoSelector', () => {
     vi.mocked(useGetVtoBasePhotos).mockReturnValue({ data: [], isLoading: false } as any);
     vi.mocked(usePostVtoBasePhotosUploadUrl).mockReturnValue({ mutateAsync: reservePhotoUpload } as any);
     vi.mocked(usePostVtoBasePhotosUpload).mockReturnValue({ mutateAsync: vi.fn() } as any);
-    vi.mocked(usePatchVtoBasePhotosId).mockReturnValue({ mutate: vi.fn() } as any);
-    vi.mocked(useDeleteVtoBasePhotosId).mockReturnValue({ mutate: vi.fn() } as any);
+    vi.mocked(usePatchVtoBasePhotosId).mockReturnValue({ mutate: setDefault } as any);
+    vi.mocked(useDeleteVtoBasePhotosId).mockReturnValue({ mutate: deletePhoto } as any);
   });
+
+  function renderSelector(photos: unknown[]) {
+    vi.mocked(useGetVtoBasePhotos).mockReturnValue({ data: photos, isLoading: false } as any);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <BasePhotoSelector selectedPhotoId={null} onSelect={() => {}} />
+      </QueryClientProvider>,
+    );
+  }
+
+  const ownPhoto = {
+    id: 'photo-own',
+    userId: 'user-1',
+    imageKey: 'https://signed.example.com/own.jpg',
+    isDefault: true,
+    source: 'user',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    thumbnailUrl: null,
+  };
+  const systemPhoto = {
+    id: 'photo-system',
+    userId: null,
+    imageKey: 'https://signed.example.com/system.jpg',
+    isDefault: false,
+    source: 'system',
+    createdAt: '2026-05-01T00:00:00.000Z',
+    thumbnailUrl: null,
+  };
 
   it('narrows the picker and reports the HEIC guidance in an alert before reserving', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -59,5 +90,44 @@ describe('BasePhotoSelector', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(HEIC_UNSUPPORTED_MESSAGE);
     expect(reservePhotoUpload).not.toHaveBeenCalled();
+  });
+
+  it('renders the effective default across own and system photos', () => {
+    renderSelector([ownPhoto, systemPhoto]);
+
+    expect(screen.getAllByText(/Default photo/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/System photo/)).toBeInTheDocument();
+    // The shared system photo cannot be deleted; an own photo can.
+    expect(screen.queryByRole('button', { name: 'Delete this base photo' })).toBeInTheDocument();
+    const articles = screen.getAllByRole('article');
+    const systemArticle = articles.find((article) => article.textContent?.includes('System photo'));
+    expect(systemArticle?.querySelector('button[aria-label="Delete this base photo"]')).toBeNull();
+  });
+
+  it('renders the system photo as the effective default when the caller points at it', () => {
+    renderSelector([{ ...ownPhoto, isDefault: false }, { ...systemPhoto, isDefault: true }]);
+
+    const articles = screen.getAllByRole('article');
+    const systemArticle = articles.find((article) => article.textContent?.includes('Default photo'));
+    expect(systemArticle).toBeDefined();
+    expect(screen.getAllByText(/Default photo/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^System photo/)).toBeNull();
+    expect(systemArticle?.querySelector('button[aria-label="Delete this base photo"]')).toBeNull();
+  });
+
+  it('moves the default pointer to a system photo through PATCH', () => {
+    renderSelector([{ ...ownPhoto, isDefault: false }, systemPhoto]);
+
+    const articles = screen.getAllByRole('article');
+    const systemArticle = articles.find((article) => article.textContent?.includes('System photo'));
+    const setDefaultButton = systemArticle?.querySelector<HTMLButtonElement>('button[aria-label="Set this photo as default"]');
+    expect(setDefaultButton).not.toBeNull();
+
+    fireEvent.click(setDefaultButton!);
+
+    expect(setDefault).toHaveBeenCalledWith(
+      { id: 'photo-system', data: { is_default: true } },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });

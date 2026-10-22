@@ -50,27 +50,29 @@ function isLoadableImageUrl(value: string): boolean {
 }
 
 /**
- * Cache key for an outfit thumbnail. Outfit cards must not share a cache file
- * with the wardrobe item they mirror, otherwise renaming or reordering an
- * outfit serves the previously cached image.
+ * The image of a saved outfit is its completed look, never a garment.
+ *
+ * `look` is the Service's newest complete generation with a stored image;
+ * `generationId` is part of the cache key so a regenerated look is not served
+ * from the previous generation's cached file. There is no fallback to
+ * `wearableItems`: an outfit without a completed look shows the empty state.
  */
-export function getOutfitThumbnailCacheKey(outfitId: string, itemId?: string | null): string {
-  return itemId ? `outfit-${outfitId}-${itemId}` : `outfit-${outfitId}`;
+export interface OutfitLook {
+  generationId: string;
+  url: string;
+  createdAt?: string;
 }
 
-export function getOutfitPrimaryImage(wearableItems: unknown): {
-  src: string | null;
-  itemId: string | null;
-} {
-  if (!Array.isArray(wearableItems)) return { src: null, itemId: null };
-  for (const item of wearableItems as Array<Record<string, unknown>>) {
-    const src = getPrimaryImageUrl(item.imageKeys);
-    if (src) {
-      const itemId = typeof item.id === 'string' ? item.id : null;
-      return { src, itemId };
-    }
-  }
-  return { src: null, itemId: null };
+export interface OutfitLookImage {
+  src: string;
+  cacheKey: string;
+}
+
+export function getOutfitLookImage(look: OutfitLook | null | undefined): OutfitLookImage | null {
+  if (!look) return null;
+  if (typeof look.generationId !== 'string' || look.generationId.length === 0) return null;
+  if (typeof look.url !== 'string' || look.url.length === 0) return null;
+  return { src: look.url, cacheKey: `outfit-look-${look.generationId}` };
 }
 
 export function getAllImages(imageKeys: unknown): ImageEntry[] {

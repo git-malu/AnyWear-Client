@@ -4,12 +4,15 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { PostVtoBasePhotosUpload201Source } from './postVtoBasePhotosUpload201Source';
 
 export type PostVtoBasePhotosUpload201 = {
   id: string;
-  userId: string;
+  /** @nullable */
+  userId: string | null;
   imageKey: string;
   isDefault: boolean;
+  source: PostVtoBasePhotosUpload201Source;
   createdAt: string;
   /** @nullable */
   thumbnailUrl: string | null;

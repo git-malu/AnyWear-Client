@@ -1,11 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGetWardrobe, useDeleteWardrobeItemsId, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
+import { usePostVtoGenerations } from '../../api/endpoints/vto/vto';
 import AddItemModal from './AddItemModal';
 import CreateOutfitModal from './CreateOutfitModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import GenerateLookDialog from './GenerateLookDialog';
 import CachedImage from '../../components/CachedImage';
-import { getOutfitPrimaryImage, getOutfitThumbnailCacheKey, getPrimaryImageUrl } from '../../lib/image-utils';
+import OutfitLookBadge from '../../components/OutfitLookBadge';
+import { getOutfitLookImage, getPrimaryImageUrl } from '../../lib/image-utils';
+import { outfitHasActiveGeneration, outfitLookRefetchInterval, type OutfitLookState } from '../../lib/outfit-look';
+import { getErrorMessage } from '../../lib/errors';
 import { connectSse } from '../../lib/sse';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import { GetWardrobeParams } from '../../api/model/getWardrobeParams';
@@ -50,6 +55,11 @@ export default function WardrobePage() {
   const [selectedOutfit, setSelectedOutfit] = useState<GetOutfits200OutfitsItem | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [filters, setFilters] = useState<GetWardrobeParams>({});
+  const [lookTarget, setLookTarget] = useState<{ id: string; name?: string | null } | null>(null);
+  const [lookError, setLookError] = useState<string | null>(null);
+  // Held from the confirm click until the request and its refreshes settle, so
+  // the confirmation cannot start a second charge while the first one starts.
+  const [isStartingLook, setIsStartingLook] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -66,7 +76,16 @@ export default function WardrobePage() {
 
   const { data: categoriesResponse } = useGetWardrobeCategories();
   const { mutate: deleteItem } = useDeleteWardrobeItemsId();
-  const { data: outfitsResponse } = useGetOutfits({ query: {} });
+  const { data: outfitsResponse } = useGetOutfits({
+    query: {
+      // Poll only while an outfit has a Pending or Processing generation; the
+      // terminal statuses (and a page with no generations) return false.
+      refetchInterval: (query) => outfitLookRefetchInterval(
+        query.state.data as { outfits?: OutfitLookState[] } | undefined,
+      ),
+    },
+  });
+  const { mutateAsync: generateLook, isPending: isGeneratingLook } = usePostVtoGenerations();
 
   const wardrobeData = useMemo<GetWardrobe200Item[]>(
     () => (Array.isArray(wardrobeResponse) ? wardrobeResponse : []),
@@ -135,6 +154,40 @@ export default function WardrobePage() {
   const handleOutfitModalClose = () => {
     setIsOutfitModalOpen(false);
     setSelectedOutfit(null);
+  };
+
+  const openGenerateLook = (outfit: { id: string; name?: string | null }) => {
+    setLookError(null);
+    setLookTarget({ id: outfit.id, name: outfit.name ?? null });
+  };
+
+  const cancelGenerateLook = () => {
+    // Cancelling starts nothing and spends nothing; the request is only made by
+    // the confirm handler below.
+    setLookTarget(null);
+    setLookError(null);
+  };
+
+  const confirmGenerateLook = async () => {
+    if (!lookTarget || isStartingLook) return;
+    setIsStartingLook(true);
+    setLookError(null);
+    try {
+      // The card omits base_photo_id: the Service resolves the caller's pointer,
+      // then the shared system default.
+      await generateLook({ data: { outfit_id: lookTarget.id } });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/outfits'] as const }),
+        queryClient.invalidateQueries({ queryKey: ['/users/me'] as const }),
+      ]);
+      setLookTarget(null);
+    } catch (error) {
+      // A drained balance arrives as the Service's 429 body, so its message is
+      // shown unchanged; any other failure keeps the dialog open with its cause.
+      setLookError(getErrorMessage(error, 'Failed to start the look generation'));
+    } finally {
+      setIsStartingLook(false);
+    }
   };
 
   return (
@@ -254,7 +307,12 @@ export default function WardrobePage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
             {outfits.map((outfit) => {
-              const { src: primaryImage, itemId: primaryItemId } = getOutfitPrimaryImage(outfit.wearableItems);
+              const lookImage = getOutfitLookImage(outfit.look);
+              const latestStatus = outfit.latestGeneration?.status ?? null;
+              const isGenerating = outfitHasActiveGeneration(outfit);
+              const actionLabel = latestStatus === 'Failed'
+                ? 'Retry'
+                : lookImage ? 'New look' : 'Generate look';
               return (
                 <article
                   key={outfit.id}
@@ -262,16 +320,18 @@ export default function WardrobePage() {
                 >
                   <button type="button" onClick={() => handleOutfitClick(outfit)} aria-label={`Edit ${outfit.name || 'outfit'}`} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
                     <div className="aspect-[4/5] bg-gray-100">
-                      {primaryImage ? (
+                      {lookImage ? (
                         <CachedImage
-                          src={primaryImage}
-                          cacheKey={getOutfitThumbnailCacheKey(outfit.id, primaryItemId)}
+                          src={lookImage.src}
+                          cacheKey={lookImage.cacheKey}
                           alt={outfit.name || 'Outfit'}
                           data-testid={`outfit-thumbnail-${outfit.id}`}
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-gray-400">No image</div>
+                        <div className="flex h-full flex-col items-center justify-center gap-1 px-2 text-center text-sm text-gray-400">
+                          <span>{isGenerating ? 'Generating look...' : 'No look yet'}</span>
+                        </div>
                       )}
                     </div>
                     <div className="p-3">
@@ -279,6 +339,22 @@ export default function WardrobePage() {
                       <p className="mt-1 text-xs text-gray-500">{outfit.wearableItems?.length ?? 0} items</p>
                     </div>
                   </button>
+                  {/* Sibling of the edit button: a button cannot be nested inside another. */}
+                  <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2">
+                    <OutfitLookBadge status={latestStatus} />
+                    {isGenerating ? (
+                      <span className="text-xs text-gray-500">Generating...</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openGenerateLook(outfit)}
+                        aria-label={`${actionLabel} for ${outfit.name || 'outfit'}`}
+                        className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      >
+                        {actionLabel}
+                      </button>
+                    )}
+                  </div>
                 </article>
               );
             })}
@@ -317,6 +393,7 @@ export default function WardrobePage() {
           isOpen={isOutfitModalOpen}
           onClose={handleOutfitModalClose}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['/outfits'] })}
+          onSaved={openGenerateLook}
           outfit={selectedOutfit ?? undefined}
         />
       )}
@@ -332,6 +409,15 @@ export default function WardrobePage() {
           }}
         />
       )}
+
+      <GenerateLookDialog
+        isOpen={!!lookTarget}
+        outfitName={lookTarget?.name ?? null}
+        isSubmitting={isGeneratingLook || isStartingLook}
+        errorMessage={lookError}
+        onCancel={cancelGenerateLook}
+        onConfirm={confirmGenerateLook}
+      />
     </div>
   );
 }

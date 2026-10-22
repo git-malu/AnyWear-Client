@@ -4,6 +4,7 @@ import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 import Axios from 'axios';
 import { customInstance } from './custom-instance';
 import { useAuthStore } from '../store/authStore';
+import { CLIENT_VERSION } from '../lib/client-version';
 
 vi.mock('aws-amplify/auth', () => ({ fetchAuthSession: vi.fn(), signOut: vi.fn() }));
 
@@ -44,7 +45,7 @@ describe('customInstance idempotency', () => {
     expect(keys).toHaveLength(2);
     expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(keys[1]).toBe(keys[0]);
-    expect(versions).toEqual(['1', '1']);
+    expect(versions).toEqual([String(CLIENT_VERSION), String(CLIENT_VERSION)]);
   });
 
   it('sends the Client version header even when no auth session exists', async () => {
@@ -66,7 +67,7 @@ describe('customInstance idempotency', () => {
     }
 
     expect(fetchAuthSession).toHaveBeenCalledTimes(1);
-    expect(version).toBe('1');
+    expect(version).toBe(String(CLIENT_VERSION));
     expect(authorization).toBeUndefined();
   });
 

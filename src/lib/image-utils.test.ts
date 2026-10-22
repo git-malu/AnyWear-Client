@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getOutfitPrimaryImage,
-  getOutfitThumbnailCacheKey,
+  getOutfitLookImage,
   getPrimaryImage,
   getPrimaryImageUrl,
 } from './image-utils';
@@ -33,36 +32,30 @@ describe('getPrimaryImageUrl', () => {
   });
 });
 
-describe('getOutfitPrimaryImage', () => {
-  it('uses the first nested wearable item that has a loadable image', () => {
-    expect(
-      getOutfitPrimaryImage([
-        { id: 'item-1', imageKeys: null },
-        { id: 'item-2', imageKeys: [{ key: SIGNED, isPrimary: true }] },
-      ]),
-    ).toEqual({ src: SIGNED, itemId: 'item-2' });
-  });
+describe('getOutfitLookImage', () => {
+  const LOOK_URL = 'https://anywear-beta.s3.amazonaws.com/outfit-generations/user/outfit/gen.png?X-Amz-Signature=signed';
 
-  it('returns no source for empty outfits or items without images', () => {
-    expect(getOutfitPrimaryImage([])).toEqual({ src: null, itemId: null });
-    expect(getOutfitPrimaryImage(null)).toEqual({ src: null, itemId: null });
-    expect(
-      getOutfitPrimaryImage([{ id: 'item-1', imageKeys: null }, { id: 'item-2', imageKeys: [] }]),
-    ).toEqual({ src: null, itemId: null });
-  });
-
-  it('does not leak raw storage keys to the browser', () => {
-    expect(getOutfitPrimaryImage([{ id: 'item-1', imageKeys: [{ key: 'wardrobe/raw.jpg' }] }])).toEqual({
-      src: null,
-      itemId: null,
+  it('uses the completed look URL and namespaces the cache by generation', () => {
+    const first = getOutfitLookImage({
+      generationId: 'generation-1',
+      url: LOOK_URL,
+      createdAt: '2026-06-01T00:00:00.000Z',
     });
-  });
-});
+    const second = getOutfitLookImage({
+      generationId: 'generation-2',
+      url: LOOK_URL,
+      createdAt: '2026-06-02T00:00:00.000Z',
+    });
 
-describe('getOutfitThumbnailCacheKey', () => {
-  it('namespaces the outfit thumbnail so it cannot collide with the wardrobe item cache', () => {
-    expect(getOutfitThumbnailCacheKey('outfit-1', 'item-1')).not.toBe('item-1');
-    expect(getOutfitThumbnailCacheKey('outfit-1', 'item-1')).toBe('outfit-outfit-1-item-1');
-    expect(getOutfitThumbnailCacheKey('outfit-1')).toBe('outfit-outfit-1');
+    expect(first).toEqual({ src: LOOK_URL, cacheKey: 'outfit-look-generation-1' });
+    expect(second?.cacheKey).toBe('outfit-look-generation-2');
+    expect(second?.cacheKey).not.toBe(first?.cacheKey);
+  });
+
+  it('returns the empty state for an outfit with no completed look', () => {
+    expect(getOutfitLookImage(null)).toBeNull();
+    expect(getOutfitLookImage(undefined)).toBeNull();
+    expect(getOutfitLookImage({ generationId: '', url: LOOK_URL })).toBeNull();
+    expect(getOutfitLookImage({ generationId: 'generation-1', url: '' })).toBeNull();
   });
 });

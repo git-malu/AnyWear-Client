@@ -6,6 +6,6 @@
  */
 
 export type PostVtoBasePhotosUploadUrlBody = {
-  /** The media type the stored object will carry. It must be one of image/jpeg, image/png, image/webp, image/heic or image/heif, and the object extension is derived from it. */
+  /** The media type the stored object will carry. It must be one of image/jpeg, image/png or image/webp, and the object extension is derived from it. */
   contentType: string;
 };
