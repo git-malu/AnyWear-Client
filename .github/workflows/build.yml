@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: git-malu/AnyWear-Service-API
-          ref: 950774c339814ecfe83341e1ae42a54a098c307b
+          ref: a51a66838489a2a2d655883db48b64c89cf8185b
           path: api
           token: ${{ steps.generate-token.outputs.token }}
           persist-credentials: false
