@@ -9,10 +9,12 @@ interface CreateOutfitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** The saved outfit, so the page can offer the confirmed look action right after a save. */
+  onSaved?: (outfit: { id: string; name?: string | null }) => void;
   outfit?: GetOutfits200OutfitsItem;
 }
 
-export default function CreateOutfitModal({ isOpen, onClose, onSuccess, outfit }: CreateOutfitModalProps) {
+export default function CreateOutfitModal({ isOpen, onClose, onSuccess, onSaved, outfit }: CreateOutfitModalProps) {
   const dialogRef = useAccessibleDialog(onClose, isOpen);
   const isEditMode = !!outfit;
   const [name, setName] = useState(outfit?.name ?? '');
@@ -39,8 +41,9 @@ export default function CreateOutfitModal({ isOpen, onClose, onSuccess, outfit }
       updateOutfit(
         { id: outfit.id, data: { name: name.trim() || undefined, wearable_item_ids: selectedIds } },
         {
-          onSuccess: () => {
+          onSuccess: (saved) => {
             onSuccess();
+            onSaved?.(saved);
             onClose();
           },
         },
@@ -49,10 +52,11 @@ export default function CreateOutfitModal({ isOpen, onClose, onSuccess, outfit }
       createOutfit(
         { data: { name: name.trim() || undefined, wearable_item_ids: selectedIds } },
         {
-          onSuccess: () => {
+          onSuccess: (saved) => {
             setName('');
             setSelectedIds([]);
             onSuccess();
+            onSaved?.(saved);
             onClose();
           },
         },

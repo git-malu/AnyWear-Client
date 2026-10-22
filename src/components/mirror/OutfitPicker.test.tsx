@@ -4,6 +4,9 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import OutfitPicker from './OutfitPicker';
 
+const LOOK_URL = 'https://anywear-beta.s3.amazonaws.com/outfit-generations/user-1/outfit-1/gen-1.png?X-Amz-Signature=signed';
+const ITEM_URL = 'https://example.com/tshirt.jpg?X-Amz-Signature=signed';
+
 const mockOutfits = {
   outfits: [
     {
@@ -12,21 +15,11 @@ const mockOutfits = {
       userId: 'user-1',
       createdAt: '2026-05-05T00:00:00.000Z',
       wearableItems: [
-        {
-          id: 'item-1',
-          name: 'T-Shirt',
-          category: 'Top',
-          imageKeys: JSON.stringify([
-            { key: 'https://example.com/tshirt.jpg?X-Amz-Signature=signed', isPrimary: true },
-          ]),
-        },
-        {
-          id: 'item-2',
-          name: 'Jeans',
-          category: 'Bottom',
-          imageKeys: null,
-        },
+        { id: 'item-1', name: 'T-Shirt', category: 'Top', imageKeys: [{ key: ITEM_URL, isPrimary: true }] },
+        { id: 'item-2', name: 'Jeans', category: 'Bottom', imageKeys: null },
       ],
+      latestGeneration: { id: 'gen-1', status: 'Complete', errorCode: null, createdAt: '2026-06-01T00:00:00.000Z' },
+      look: { generationId: 'gen-1', url: LOOK_URL, createdAt: '2026-06-01T00:00:00.000Z' },
     },
     {
       id: 'outfit-2',
@@ -34,6 +27,8 @@ const mockOutfits = {
       userId: 'user-1',
       createdAt: '2026-05-04T00:00:00.000Z',
       wearableItems: [],
+      latestGeneration: null,
+      look: null,
     },
   ],
 };
@@ -50,6 +45,10 @@ vi.mock('../CachedImage', () => ({
 
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
 
+function mockData(data: unknown, isLoading = false) {
+  vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading, isError: false } as any);
+}
+
 describe('OutfitPicker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,11 +56,7 @@ describe('OutfitPicker', () => {
   });
 
   it('shows loading state', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-    } as any);
+    mockData(undefined, true);
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
 
@@ -69,11 +64,7 @@ describe('OutfitPicker', () => {
   });
 
   it('shows empty state when no outfits exist', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: { outfits: [] },
-      isLoading: false,
-      isError: false,
-    } as any);
+    mockData({ outfits: [] });
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
 
@@ -81,12 +72,8 @@ describe('OutfitPicker', () => {
     expect(screen.getByText(/Select Items/)).toBeDefined();
   });
 
-  it('renders outfits from API response', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: mockOutfits,
-      isLoading: false,
-      isError: false,
-    } as any);
+  it('renders outfits from the API response', () => {
+    mockData(mockOutfits);
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
 
@@ -96,13 +83,46 @@ describe('OutfitPicker', () => {
     expect(screen.getByText('0 items')).toBeDefined();
   });
 
+  it('renders the completed look with the same per-generation cache key as the Wardrobe card', () => {
+    mockData(mockOutfits);
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    const image = screen.getByTestId('outfit-thumbnail-outfit-1');
+    expect(image).toHaveAttribute('src', LOOK_URL);
+    expect(image).toHaveAttribute('data-cache-key', 'outfit-look-gen-1');
+    expect(image).toHaveAttribute('alt', '');
+
+    // The nested item's image is never a fallback for the outfit's look.
+    expect(document.querySelector(`img[src="${ITEM_URL}"]`)).toBeNull();
+  });
+
+  it('shows the empty look for an outfit without a completed generation', () => {
+    mockData(structuredClone(mockOutfits));
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    expect(screen.queryByTestId('outfit-thumbnail-outfit-2')).toBeNull();
+    expect(screen.queryByTestId('outfit-look-badge-pending')).toBeNull();
+  });
+
+  it.each(['Pending', 'Processing', 'Failed'])('renders the %s badge without an action', (status) => {
+    const data = structuredClone(mockOutfits);
+    Object.assign(data.outfits[1], {
+      latestGeneration: { id: `gen-${status}`, status, errorCode: null, createdAt: '2026-06-02T00:00:00.000Z' },
+    });
+    mockData(data);
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    expect(screen.getByTestId(`outfit-look-badge-${status.toLowerCase()}`)).toHaveTextContent(status);
+    // The picker's only action is selecting the outfit.
+    expect(screen.queryByRole('button', { name: /Generate look|Retry|New look/ })).toBeNull();
+  });
+
   it('calls onSelect when an outfit is clicked', () => {
     const onSelect = vi.fn();
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: mockOutfits,
-      isLoading: false,
-      isError: false,
-    } as any);
+    mockData(mockOutfits);
 
     render(<OutfitPicker selectedOutfitId={null} onSelect={onSelect} />);
 
@@ -111,62 +131,12 @@ describe('OutfitPicker', () => {
   });
 
   it('highlights selected outfit', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: mockOutfits,
-      isLoading: false,
-      isError: false,
-    } as any);
+    mockData(mockOutfits);
 
     render(<OutfitPicker selectedOutfitId="outfit-1" onSelect={() => {}} />);
 
     const selectedButton = screen.getByText('Weekend Casual').closest('button');
     expect(selectedButton?.getAttribute('aria-pressed')).toBe('true');
     expect(selectedButton?.className).toContain('border-indigo-600');
-  });
-
-  it.each([
-    ['JSON', JSON.stringify([{ key: 'https://example.com/other.jpg' }, { key: 'https://example.com/primary.jpg', isPrimary: true }])],
-    ['array', [{ key: 'https://example.com/other.jpg' }, { key: 'https://example.com/primary.jpg', isPrimary: true }]],
-  ])('renders the designated primary thumbnail from %s image keys', (_format, imageKeys) => {
-    const data = structuredClone(mockOutfits);
-    Object.assign(data.outfits[0].wearableItems[0], { imageKeys });
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data,
-      isLoading: false,
-      isError: false,
-    } as any);
-
-    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
-
-    const image = screen.getByTestId('outfit-thumbnail-outfit-1');
-    expect(image).toHaveAttribute('src', 'https://example.com/primary.jpg');
-    expect(image).toHaveAttribute('alt', '');
-    expect(image).toHaveAttribute('data-cache-key', 'outfit-outfit-1-item-1');
-  });
-
-  it('falls back to the first nested item when the first wearable has no image', () => {
-    const data = structuredClone(mockOutfits);
-    Object.assign(data.outfits[0].wearableItems[0], { imageKeys: null });
-    Object.assign(data.outfits[0].wearableItems[1], {
-      imageKeys: [{ key: 'https://example.com/jeans.jpg?X-Amz-Signature=signed', isPrimary: true }],
-    });
-    vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading: false, isError: false } as any);
-
-    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
-
-    const image = screen.getByTestId('outfit-thumbnail-outfit-1');
-    expect(image).toHaveAttribute('src', 'https://example.com/jeans.jpg?X-Amz-Signature=signed');
-    expect(image).toHaveAttribute('data-cache-key', 'outfit-outfit-1-item-2');
-  });
-
-  it('shows the intentional placeholder when no outfit item has a loadable image', () => {
-    const data = structuredClone(mockOutfits);
-    Object.assign(data.outfits[0].wearableItems[0], { imageKeys: [{ key: 'wardrobe/raw-key.jpg', isPrimary: true }] });
-    vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading: false, isError: false } as any);
-
-    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
-
-    expect(screen.queryByTestId('outfit-thumbnail-outfit-1')).toBeNull();
-    expect(document.querySelector('img[src*="wardrobe/raw-key.jpg"]')).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { ClientVersionUnsupportedError, connectSse } from './sse';
+import { CLIENT_VERSION } from './client-version';
 
 vi.mock('aws-amplify/auth', () => ({
   fetchAuthSession: vi.fn(),
@@ -67,7 +68,7 @@ describe('connectSse', () => {
       expect(fetchMock.mock.calls[0][1]).toMatchObject({
         headers: {
           Accept: 'text/event-stream',
-          'X-AnyWear-Client-Version': '1',
+          'X-AnyWear-Client-Version': String(CLIENT_VERSION),
         },
       });
     } finally {

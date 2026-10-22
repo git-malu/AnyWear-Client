@@ -7,7 +7,9 @@ import { mockAmplifySession } from './auth-session';
 const OUTFIT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ITEM_ID_1 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const ITEM_ID_2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const GENERATION_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const PRIMARY_IMAGE = 'https://example.com/tshirt-primary.jpg';
+const LOOK_IMAGE = 'https://example.com/outfit-look.png';
 
 const mockOutfit: GetOutfits200OutfitsItem = {
   id: OUTFIT_ID, userId: 'test-user-id', name: 'Weekend Casual', createdAt: '2026-05-05T00:00:00.000Z',
@@ -17,6 +19,8 @@ const mockOutfit: GetOutfits200OutfitsItem = {
     ]) },
     { id: ITEM_ID_2, name: 'Jeans', category: 'Bottom', imageKeys: null },
   ],
+  latestGeneration: { id: GENERATION_ID, status: 'Complete', errorCode: null, createdAt: '2026-06-01T00:00:00.000Z' },
+  look: { generationId: GENERATION_ID, url: LOOK_IMAGE, createdAt: '2026-06-01T00:00:00.000Z' },
 };
 
 const mockWardrobeItems: GetWardrobe200Item[] = [
@@ -45,6 +49,11 @@ async function setupOutfitMocks(page: Page, state: MockState) {
     if (method === 'GET' && path === '/outfits') return json({ outfits: state.outfits });
     if (method === 'GET' && path === '/vto/base-photos') return json([]);
     if (method === 'GET' && path === '/vto/generations') return json({ generations: [], total: 0, page: 1, limit: 12, nextPage: null });
+    if (method === 'POST' && path === '/vto/generations') {
+      const body = request.postDataJSON();
+      state.mutations.push({ method, path, body });
+      return json({ generation_id: GENERATION_ID, outfit_id: body.outfit_id }, 202);
+    }
     const id = path.match(/^\/outfits\/([^/]+)$/)?.[1];
     if (method === 'POST' && path === '/outfits') {
       const body = request.postDataJSON();
@@ -81,7 +90,7 @@ test.describe('Outfit Management (mocked Client integration)', () => {
   });
   test.afterEach(({ page }) => expectOnlyMockedCalls(page));
 
-  test('creates an outfit from selected wardrobe items and shows the saved card', async ({ page }) => {
+  test('creates an outfit, then offers the confirmed look action on the saved card', async ({ page }) => {
     const state: MockState = { outfits: [], mutations: [] };
     await setupOutfitMocks(page, state);
     await page.goto('/wardrobe');
@@ -93,22 +102,46 @@ test.describe('Outfit Management (mocked Client integration)', () => {
     await page.getByRole('button', { name: 'Create Outfit', exact: true }).last().click();
     await expect(page.getByRole('heading', { name: 'Create Outfit' })).not.toBeVisible();
     await expect(outfitCard(page, 'Office Ready').getByText('2 items', { exact: true })).toBeVisible();
+    // The create response is followed by the same confirmation the card offers;
+    // cancelling it spends nothing.
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'Generate a look for Office Ready?' })).toBeVisible();
+    await expect(dialog).toContainText('This uses 1 of your daily credits.');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
     expect(state.mutations).toEqual([{ method: 'POST', path: '/outfits', body: { name: 'Office Ready', wearable_item_ids: [ITEM_ID_1, ITEM_ID_2] } }]);
   });
 
-  test('selects a saved outfit in the Mirror picker with its primary thumbnail', async ({ page }) => {
+  test('selects a saved outfit in the Mirror picker with its completed look', async ({ page }) => {
     const state: MockState = { outfits: [structuredClone(mockOutfit)], mutations: [] };
     await setupOutfitMocks(page, state);
     await page.goto('/mirror');
     await page.getByRole('button', { name: 'Saved', exact: true }).click();
     const picker = page.getByRole('button', { name: 'Weekend Casual 2 items', exact: true });
     await expect(picker).toBeVisible();
-    await expect(picker.locator('img')).toHaveAttribute('src', PRIMARY_IMAGE);
+    await expect(picker.locator('img')).toHaveAttribute('src', LOOK_IMAGE);
     await expect(picker).toHaveAttribute('aria-pressed', 'false');
     await picker.click();
     await expect(picker).toHaveAttribute('aria-pressed', 'true');
     await expect(picker).toHaveClass(/border-indigo-600/);
     expect(state.mutations).toEqual([]);
+  });
+
+  test('generates a look only after the confirmation, which omits base_photo_id', async ({ page }) => {
+    const state: MockState = { outfits: [structuredClone(mockOutfit)], mutations: [] };
+    await setupOutfitMocks(page, state);
+    await page.goto('/wardrobe');
+    const card = page.getByRole('article').filter({ hasText: 'Weekend Casual' });
+
+    await card.getByRole('button', { name: 'New look for Weekend Casual', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('This uses 1 of your daily credits.');
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+    expect(state.mutations).toEqual([]);
+
+    await card.getByRole('button', { name: 'New look for Weekend Casual', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Generate look (1 credit)', exact: true }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    expect(state.mutations).toEqual([{ method: 'POST', path: '/vto/generations', body: { outfit_id: OUTFIT_ID } }]);
   });
 
   test('selects wardrobe pieces with the keyboard and exposes the pressed state', async ({ page }) => {
@@ -206,15 +239,30 @@ test.describe('Outfit Management (mocked Client integration)', () => {
     expect(state.mutations).toEqual([{ method: 'DELETE', path: `/outfits/${OUTFIT_ID}`, body: undefined }]);
   });
 
-  test('shows outfit-specific counts, fallback name and primary image', async ({ page }) => {
-    const state: MockState = { outfits: [structuredClone(mockOutfit), { ...structuredClone(mockOutfit), id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: null, wearableItems: [] }], mutations: [] };
+  test('shows outfit-specific counts, the completed look and the empty look state', async ({ page }) => {
+    const state: MockState = {
+      outfits: [
+        structuredClone(mockOutfit),
+        {
+          ...structuredClone(mockOutfit),
+          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          name: null,
+          wearableItems: [],
+          latestGeneration: null,
+          look: null,
+        },
+      ],
+      mutations: [],
+    };
     await setupOutfitMocks(page, state);
     await page.goto('/wardrobe');
     const saved = outfitCard(page, 'Weekend Casual');
     await expect(saved.getByText('2 items', { exact: true })).toBeVisible();
-    await expect(saved.getByRole('img', { name: 'Weekend Casual' })).toHaveAttribute('src', PRIMARY_IMAGE);
+    await expect(saved.getByRole('img', { name: 'Weekend Casual' })).toHaveAttribute('src', LOOK_IMAGE);
     const empty = outfitCard(page, 'Untitled Outfit');
     await expect(empty.getByText('0 items', { exact: true })).toBeVisible();
-    await expect(empty.getByText('No image', { exact: true })).toBeVisible();
+    await expect(empty.getByText('No look yet', { exact: true })).toBeVisible();
+    // The outfit's first garment is never used as the outfit's image.
+    await expect(empty.getByRole('img')).toHaveCount(0);
   });
 });

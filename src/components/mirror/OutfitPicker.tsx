@@ -1,5 +1,6 @@
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
-import { getOutfitPrimaryImage, getOutfitThumbnailCacheKey } from '../../lib/image-utils';
+import { getOutfitLookImage } from '../../lib/image-utils';
+import OutfitLookBadge from '../OutfitLookBadge';
 import CachedImage from '../CachedImage';
 
 interface OutfitPickerProps {
@@ -28,7 +29,9 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
   return (
     <div className="max-h-[320px] space-y-2 overflow-y-auto">
       {outfits.map((outfit) => {
-        const { src: primaryImage, itemId: primaryItemId } = getOutfitPrimaryImage(outfit.wearableItems);
+        // Same look semantic as the Wardrobe card, with no action: this row is
+        // the selection button itself.
+        const lookImage = getOutfitLookImage(outfit.look);
         const isSelected = outfit.id === selectedOutfitId;
 
         return (
@@ -39,10 +42,10 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
             className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${isSelected ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-gray-200 bg-white hover:border-gray-400'}`}
           >
             <div className="w-12 h-12 rounded-md bg-gray-100 flex-shrink-0 overflow-hidden">
-              {primaryImage ? (
+              {lookImage ? (
                 <CachedImage
-                  src={primaryImage}
-                  cacheKey={getOutfitThumbnailCacheKey(outfit.id, primaryItemId)}
+                  src={lookImage.src}
+                  cacheKey={lookImage.cacheKey}
                   alt=""
                   data-testid={`outfit-thumbnail-${outfit.id}`}
                   className="w-full h-full object-cover"
@@ -56,7 +59,10 @@ export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPicke
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{outfit.name || 'Untitled Outfit'}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-gray-900 truncate">{outfit.name || 'Untitled Outfit'}</p>
+                <OutfitLookBadge status={outfit.latestGeneration?.status} />
+              </div>
               <p className="text-xs text-gray-500">{outfit.wearableItems?.length ?? 0} items</p>
             </div>
           </button>

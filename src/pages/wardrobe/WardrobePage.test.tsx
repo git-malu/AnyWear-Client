@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import WardrobePage from './WardrobePage';
 
-const SIGNED = 'https://anywear-beta.s3.amazonaws.com/wardrobe/coat.jpg?X-Amz-Signature=signed';
+const LOOK_URL = 'https://anywear-beta.s3.amazonaws.com/outfit-generations/user-1/outfit-1/gen-1.png?X-Amz-Signature=signed';
+const ITEM_URL = 'https://anywear-beta.s3.amazonaws.com/wardrobe/coat.jpg?X-Amz-Signature=signed';
 
 vi.mock('../../api/endpoints/wardrobe/wardrobe', () => ({
   useGetWardrobe: vi.fn(),
@@ -17,6 +18,10 @@ vi.mock('../../api/endpoints/outfits/outfits', () => ({
   useGetOutfits: vi.fn(),
 }));
 
+vi.mock('../../api/endpoints/vto/vto', () => ({
+  usePostVtoGenerations: vi.fn(),
+}));
+
 vi.mock('../../components/CachedImage', () => ({
   default: ({ src, cacheKey, alt, className, ...rest }: any) => (
     <img src={src} alt={alt} className={className} data-cache-key={cacheKey} {...rest} />
@@ -24,8 +29,14 @@ vi.mock('../../components/CachedImage', () => ({
 }));
 
 vi.mock('./AddItemModal', () => ({ default: () => null }));
-vi.mock('./CreateOutfitModal', () => ({ default: () => null }));
 vi.mock('./ItemDetailsModal', () => ({ default: () => null }));
+vi.mock('./CreateOutfitModal', () => ({
+  default: ({ isOpen, onSaved }: any) => (isOpen ? (
+    <button type="button" onClick={() => onSaved({ id: 'outfit-1', name: 'Rainy Day' })}>
+      Save outfit
+    </button>
+  ) : null),
+}));
 vi.mock('../../lib/sse', () => ({ connectSse: () => ({ close: () => {} }) }));
 
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
@@ -34,37 +45,54 @@ import {
   useGetWardrobeCategories,
   useDeleteWardrobeItemsId,
 } from '../../api/endpoints/wardrobe/wardrobe';
+import { usePostVtoGenerations } from '../../api/endpoints/vto/vto';
 
-function outfitResponse(wearableItems: unknown[]) {
+const generateLook = vi.fn();
+
+function outfit(overrides: Record<string, unknown> = {}) {
   return {
-    outfits: [
-      {
-        id: 'outfit-1',
-        name: 'Rainy Day',
-        userId: 'user-1',
-        createdAt: '2026-05-05T00:00:00.000Z',
-        wearableItems,
-      },
+    id: 'outfit-1',
+    name: 'Rainy Day',
+    userId: 'user-1',
+    createdAt: '2026-05-05T00:00:00.000Z',
+    wearableItems: [
+      { id: 'item-1', name: 'Coat', category: 'Outerwear', imageKeys: [{ key: ITEM_URL, isPrimary: true }] },
     ],
+    latestGeneration: null,
+    look: null,
+    ...overrides,
   };
+}
+
+function outfitResponse(outfitItem: Record<string, unknown>) {
+  return { outfits: [outfitItem] };
 }
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={queryClient}>
       <WardrobePage />
     </QueryClientProvider>,
   );
+  return { ...rendered, queryClient };
 }
 
-describe('WardrobePage saved outfit cards', () => {
+function mockOutfits(data: ReturnType<typeof outfitResponse> | undefined) {
+  vi.mocked(useGetOutfits).mockReturnValue({ data, isLoading: false } as any);
+}
+
+describe('WardrobePage saved outfit look cards', () => {
   beforeEach(() => {
     cleanup();
+    vi.clearAllMocks();
+    generateLook.mockReset();
+    generateLook.mockResolvedValue({ generation_id: 'gen-2', outfit_id: 'outfit-1' });
     vi.mocked(useGetWardrobe).mockReturnValue({ data: [], isLoading: false } as any);
     vi.mocked(useGetWardrobeCategories).mockReturnValue({ data: { categories: [] } } as any);
     vi.mocked(useDeleteWardrobeItemsId).mockReturnValue({ mutate: vi.fn() } as any);
-    vi.mocked(useGetOutfits).mockReturnValue({ data: outfitResponse([]), isLoading: false } as any);
+    vi.mocked(usePostVtoGenerations).mockReturnValue({ mutateAsync: generateLook, isPending: false } as any);
+    mockOutfits(outfitResponse(outfit()));
   });
 
   afterEach(() => {
@@ -72,35 +100,122 @@ describe('WardrobePage saved outfit cards', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the primary thumbnail from the first nested item with an image', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: outfitResponse([
-        { id: 'item-1', name: 'Coat', category: 'Outerwear', imageKeys: [{ key: SIGNED, isPrimary: true }] },
-        { id: 'item-2', name: 'Scarf', category: 'Accessory', imageKeys: null },
-      ]),
-      isLoading: false,
-    } as any);
+  it('renders the completed look URL with a cache key that names its generation', () => {
+    mockOutfits(outfitResponse(outfit({
+      latestGeneration: { id: 'gen-1', status: 'Complete', errorCode: null, createdAt: '2026-06-01T00:00:00.000Z' },
+      look: { generationId: 'gen-1', url: LOOK_URL, createdAt: '2026-06-01T00:00:00.000Z' },
+    })));
 
     renderPage();
 
     const image = screen.getByTestId('outfit-thumbnail-outfit-1');
-    expect(image).toHaveAttribute('src', SIGNED);
-    expect(image).toHaveAttribute('alt', 'Rainy Day');
-    expect(image).toHaveAttribute('data-cache-key', 'outfit-outfit-1-item-1');
+    expect(image).toHaveAttribute('src', LOOK_URL);
+    expect(image).toHaveAttribute('data-cache-key', 'outfit-look-gen-1');
+    expect(screen.queryByTestId('outfit-look-badge-pending')).toBeNull();
+    expect(screen.getByRole('button', { name: 'New look for Rainy Day' })).toBeInTheDocument();
   });
 
-  it('keeps the intentional "No image" state for empty outfits and raw storage keys', () => {
-    vi.mocked(useGetOutfits).mockReturnValue({
-      data: outfitResponse([
-        { id: 'item-1', name: 'Coat', category: 'Outerwear', imageKeys: [{ key: 'wardrobe/raw-key.jpg', isPrimary: true }] },
-      ]),
-      isLoading: false,
-    } as any);
-
+  it('never derives the image from wearable items: no look shows the empty state and Generate look', () => {
     renderPage();
 
     expect(screen.queryByTestId('outfit-thumbnail-outfit-1')).toBeNull();
-    expect(screen.getByText('No image')).toBeInTheDocument();
-    expect(document.querySelector('img[src*="wardrobe/raw-key.jpg"]')).toBeNull();
+    expect(screen.getByText('No look yet')).toBeInTheDocument();
+    expect(document.querySelector(`img[src="${ITEM_URL}"]`)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Generate look for Rainy Day' })).toBeInTheDocument();
+    expect(screen.getByText('1 items')).toBeInTheDocument();
+  });
+
+  it('shows Pending as a live state and offers no second action while it is active', () => {
+    mockOutfits(outfitResponse(outfit({
+      latestGeneration: { id: 'gen-2', status: 'Pending', errorCode: null, createdAt: '2026-06-02T00:00:00.000Z' },
+    })));
+
+    renderPage();
+
+    expect(screen.getByTestId('outfit-look-badge-pending')).toHaveTextContent('Pending');
+    expect(screen.getByText('Generating look...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Generate look for/ })).toBeNull();
+  });
+
+  it('shows Processing as a live state without an action', () => {
+    mockOutfits(outfitResponse(outfit({
+      latestGeneration: { id: 'gen-2', status: 'Processing', errorCode: null, createdAt: '2026-06-02T00:00:00.000Z' },
+    })));
+
+    renderPage();
+
+    expect(screen.getByTestId('outfit-look-badge-processing')).toHaveTextContent('Processing');
+    expect(screen.queryByRole('button', { name: /Generate look for/ })).toBeNull();
+  });
+
+  it('shows Failed with Retry while keeping the older completed look', () => {
+    mockOutfits(outfitResponse(outfit({
+      latestGeneration: { id: 'gen-2', status: 'Failed', errorCode: 'base_photo_unavailable', createdAt: '2026-06-02T00:00:00.000Z' },
+      look: { generationId: 'gen-1', url: LOOK_URL, createdAt: '2026-06-01T00:00:00.000Z' },
+    })));
+
+    renderPage();
+
+    expect(screen.getByTestId('outfit-look-badge-failed')).toHaveTextContent('Failed');
+    expect(screen.getByTestId('outfit-thumbnail-outfit-1')).toHaveAttribute('src', LOOK_URL);
+    expect(screen.getByRole('button', { name: 'Retry for Rainy Day' })).toBeInTheDocument();
+  });
+
+  it('starts nothing on load; Cancel in the confirmation spends nothing', async () => {
+    renderPage();
+
+    expect(generateLook).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look for Rainy Day' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('This uses 1 of your daily credits.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(generateLook).not.toHaveBeenCalled();
+  });
+
+  it('confirms a generation without base_photo_id and refreshes the outfits and user queries', async () => {
+    const { queryClient } = renderPage();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look for Rainy Day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look (1 credit)' }));
+
+    await waitFor(() => expect(generateLook).toHaveBeenCalledTimes(1));
+    expect(generateLook).toHaveBeenCalledWith({ data: { outfit_id: 'outfit-1' } });
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/outfits'] });
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/users/me'] });
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('surfaces the exhausted-credits response and keeps the dialog open', async () => {
+    generateLook.mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: { error: 'daily_credits_exhausted', message: 'Daily AI credits exhausted. Resets tomorrow.' },
+      },
+    });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look for Rainy Day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look (1 credit)' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Daily AI credits exhausted. Resets tomorrow.');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('offers the same confirmed action after saving an outfit', async () => {
+    mockOutfits({ outfits: [] });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Outfit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save outfit' }));
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Generate a look for Rainy Day?');
+    expect(generateLook).not.toHaveBeenCalled();
   });
 });

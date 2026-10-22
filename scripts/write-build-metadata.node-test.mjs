@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,6 +7,13 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { parseClientVersion, readClientVersion } from './client-version.mjs';
 import { createBuildMetadata, writeBuildMetadata } from './write-build-metadata.mjs';
+
+// The repository file is the single source of truth; the version number itself
+// is guarded by `assert-client-version-bump.mjs`, which requires a strict
+// increase whenever the `api` gitlink moves.
+const declaredClientVersion = JSON.parse(
+  readFileSync(new URL('../client-version.json', import.meta.url), 'utf8'),
+).client_version;
 
 const declaredInterface = {
   VITE_API_BASE_URL: 'https://api.beta.anywear.example',
@@ -28,7 +36,7 @@ test('creates reviewable Client build identity metadata with the compiled interf
     assert.equal(metadata.source_commit, 'a'.repeat(40));
     assert.equal(metadata.schema_version, 3);
     assert.equal(metadata.component, 'AnyWear-Client');
-    assert.equal(metadata.client_version, 1);
+    assert.equal(metadata.client_version, declaredClientVersion);
     assert.deepEqual(metadata.interface, {
       api_base_url: declaredInterface.VITE_API_BASE_URL,
       cognito_user_pool_id: declaredInterface.VITE_COGNITO_USER_POOL_ID,
@@ -61,8 +69,11 @@ test('keeps source_commit byte-compatible and the served file strict JSON', asyn
 });
 
 test('reads the repository client-version.json as the single source of truth', () => {
-  assert.equal(readClientVersion(), 1);
-  assert.equal(createBuildMetadata({ SOURCE_COMMIT_SHA: 'a'.repeat(40), ...declaredInterface }).client_version, 1);
+  assert.equal(readClientVersion(), declaredClientVersion);
+  assert.equal(
+    createBuildMetadata({ SOURCE_COMMIT_SHA: 'a'.repeat(40), ...declaredInterface }).client_version,
+    declaredClientVersion,
+  );
 });
 
 test('rejects mutable or abbreviated source references', () => {

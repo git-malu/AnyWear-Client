@@ -4,6 +4,8 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { GetOutfits200OutfitsItemLatestGeneration } from './getOutfits200OutfitsItemLatestGeneration';
+import type { GetOutfits200OutfitsItemLook } from './getOutfits200OutfitsItemLook';
 import type { GetOutfits200OutfitsItemWearableItemsItem } from './getOutfits200OutfitsItemWearableItemsItem';
 
 export type GetOutfits200OutfitsItem = {
@@ -13,4 +15,8 @@ export type GetOutfits200OutfitsItem = {
   name: string | null;
   wearableItems: GetOutfits200OutfitsItemWearableItemsItem[];
   createdAt: string;
+  /** @nullable */
+  latestGeneration?: GetOutfits200OutfitsItemLatestGeneration;
+  /** @nullable */
+  look?: GetOutfits200OutfitsItemLook;
 };
