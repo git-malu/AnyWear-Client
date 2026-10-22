@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../../api/endpoints/vto/vto', () => ({
@@ -12,6 +12,11 @@ vi.mock('../../api/endpoints/vto/vto', () => ({
   useDeleteVtoBasePhotosId: vi.fn(),
 }));
 
+vi.mock('../../lib/imageUpload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/imageUpload')>();
+  return { ...actual, uploadImageWithSignedPost: vi.fn() };
+});
+
 vi.mock('../../components/CachedImage', () => ({
   default: ({ src, cacheKey, alt, className, ...rest }: any) => (
     <img src={src} alt={alt} className={className} data-cache-key={cacheKey} {...rest} />
@@ -19,7 +24,7 @@ vi.mock('../../components/CachedImage', () => ({
 }));
 
 import BasePhotoSelector from './BasePhotoSelector';
-import { HEIC_UNSUPPORTED_MESSAGE } from '../../lib/imageUpload';
+import { HEIC_UNSUPPORTED_MESSAGE, uploadImageWithSignedPost } from '../../lib/imageUpload';
 import {
   useDeleteVtoBasePhotosId,
   useGetVtoBasePhotos,
@@ -30,6 +35,7 @@ import {
 
 describe('BasePhotoSelector', () => {
   const reservePhotoUpload = vi.fn();
+  const confirmPhotoUpload = vi.fn();
   const setDefault = vi.fn();
   const deletePhoto = vi.fn();
 
@@ -38,19 +44,36 @@ describe('BasePhotoSelector', () => {
     cleanup();
     vi.mocked(useGetVtoBasePhotos).mockReturnValue({ data: [], isLoading: false } as any);
     vi.mocked(usePostVtoBasePhotosUploadUrl).mockReturnValue({ mutateAsync: reservePhotoUpload } as any);
-    vi.mocked(usePostVtoBasePhotosUpload).mockReturnValue({ mutateAsync: vi.fn() } as any);
+    vi.mocked(usePostVtoBasePhotosUpload).mockReturnValue({ mutateAsync: confirmPhotoUpload } as any);
     vi.mocked(usePatchVtoBasePhotosId).mockReturnValue({ mutate: setDefault } as any);
     vi.mocked(useDeleteVtoBasePhotosId).mockReturnValue({ mutate: deletePhoto } as any);
+    vi.mocked(uploadImageWithSignedPost).mockResolvedValue(undefined);
   });
 
-  function renderSelector(photos: unknown[]) {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function renderSelector(
+    photos: unknown[],
+    props: {
+      selectedPhotoId?: string | null;
+      onSelect?: (id: string | null) => void;
+      onUploaded?: (id: string) => void;
+    } = {},
+  ) {
     vi.mocked(useGetVtoBasePhotos).mockReturnValue({ data: photos, isLoading: false } as any);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    return render(
+    const rendered = render(
       <QueryClientProvider client={queryClient}>
-        <BasePhotoSelector selectedPhotoId={null} onSelect={() => {}} />
+        <BasePhotoSelector
+          selectedPhotoId={props.selectedPhotoId ?? null}
+          onSelect={props.onSelect ?? (() => {})}
+          onUploaded={props.onUploaded ?? (() => {})}
+        />
       </QueryClientProvider>,
     );
+    return { ...rendered, queryClient };
   }
 
   const ownPhoto = {
@@ -76,7 +99,7 @@ describe('BasePhotoSelector', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
       <QueryClientProvider client={queryClient}>
-        <BasePhotoSelector selectedPhotoId={null} onSelect={() => {}} />
+        <BasePhotoSelector selectedPhotoId={null} onSelect={() => {}} onUploaded={() => {}} />
       </QueryClientProvider>,
     );
 
@@ -129,5 +152,53 @@ describe('BasePhotoSelector', () => {
       { id: 'photo-system', data: { is_default: true } },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('reports a confirmed upload through onUploaded instead of selecting it', async () => {
+    reservePhotoUpload.mockResolvedValue({
+      reservationId: 'reservation-1',
+      upload: { url: 'https://upload.example.com', fields: { key: 'base-photos/new.jpg' } },
+    });
+    confirmPhotoUpload.mockResolvedValue({ ...ownPhoto, id: 'photo-new', isDefault: false });
+    const onSelect = vi.fn();
+    const onUploaded = vi.fn();
+    const { container } = renderSelector([ownPhoto], { onSelect, onUploaded });
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    fireEvent.change(input!, {
+      target: { files: [new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' })] },
+    });
+
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledWith('photo-new'));
+    // The page owns adoption; the selector must not select the photo itself.
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(uploadImageWithSignedPost).toHaveBeenCalledWith(
+      { url: 'https://upload.example.com', fields: { key: 'base-photos/new.jpg' } },
+      expect.any(File),
+    );
+  });
+
+  it('trims the deleted row from the cached list and clears the selection with null', () => {
+    const onSelect = vi.fn();
+    const { queryClient } = renderSelector([ownPhoto, systemPhoto], {
+      selectedPhotoId: 'photo-own',
+      onSelect,
+    });
+    queryClient.setQueryData(['/vto/base-photos'], [ownPhoto, systemPhoto]);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete this base photo' }));
+
+    expect(deletePhoto).toHaveBeenCalledTimes(1);
+    const [variables, options] = deletePhoto.mock.calls[0];
+    expect(variables).toEqual({ id: 'photo-own' });
+
+    act(() => options.onSuccess());
+
+    expect(onSelect).toHaveBeenCalledWith(null);
+    expect(queryClient.getQueryData(['/vto/base-photos'])).toEqual([systemPhoto]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/vto/base-photos'] });
   });
 });

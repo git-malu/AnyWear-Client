@@ -9,13 +9,15 @@ import {
 import CachedImage from '../CachedImage';
 import { useQueryClient } from '@tanstack/react-query';
 import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from '../../lib/imageUpload';
+import type { GetVtoBasePhotos200Item } from '../../api/model/getVtoBasePhotos200Item';
 
 interface BasePhotoSelectorProps {
   selectedPhotoId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
+  onUploaded: (id: string) => void;
 }
 
-export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePhotoSelectorProps) {
+export default function BasePhotoSelector({ selectedPhotoId, onSelect, onUploaded }: BasePhotoSelectorProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -51,9 +53,9 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
       });
 
       queryClient.invalidateQueries({ queryKey: ['/vto/base-photos'] as const });
-      if (!selectedPhotoId && photo.id) {
-        onSelect(photo.id);
-      }
+      // The page decides whether the confirmed photo is adopted: it keeps the
+      // provenance of the current selection, which this selector cannot see.
+      if (photo.id) onUploaded(photo.id);
     } catch (err) {
       console.error('Failed to upload base photo:', err);
       setUploadError(err instanceof Error ? err.message : 'Failed to upload base photo');
@@ -75,7 +77,14 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect }: BasePho
     if (!window.confirm('Remove this base photo?')) return;
     deletePhoto({ id }, {
       onSuccess: () => {
-        if (selectedPhotoId === id) onSelect('');
+        if (selectedPhotoId === id) onSelect(null);
+        // Drop the removed row before the refetch: the page derives its
+        // selection from this list, so trimming it keeps what renders and what
+        // can be selected in agreement at the next commit.
+        queryClient.setQueryData<GetVtoBasePhotos200Item[]>(
+          ['/vto/base-photos'],
+          (cached) => (Array.isArray(cached) ? cached.filter((photo) => photo.id !== id) : cached),
+        );
         queryClient.invalidateQueries({ queryKey: ['/vto/base-photos'] as const });
       },
     });
