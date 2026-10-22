@@ -10,6 +10,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -431,7 +432,12 @@ test('runs the checker entry against the real checkout with the ambient CI envir
     assert.equal(process.exitCode, 0, `checker produced failures:\n${failures.join('\n')}`);
 
     const current = readHeadClientVersion(root);
-    assert.equal(current, 1, 'the real HEAD client-version.json must parse');
+    // The repository file is the single source of truth; the monotonic bump is
+    // what this checker enforces, not a fixed value in this test.
+    const declared = JSON.parse(
+      readFileSync(new URL('../client-version.json', import.meta.url), 'utf8'),
+    ).client_version;
+    assert.equal(current, declared, 'the real HEAD client-version.json must parse');
     if (process.env.GITHUB_ACTIONS === 'true') {
       const ambientEvent = process.env.GITHUB_EVENT_NAME;
       assert.ok(
