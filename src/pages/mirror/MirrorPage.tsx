@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useLayoutEffect, useRef } from 'react';
 import MirrorErrorBoundary from '../../components/mirror/MirrorErrorBoundary';
 import CreditDisplay from '../../components/mirror/CreditDisplay';
 import BasePhotoSelector from '../../components/mirror/BasePhotoSelector';
@@ -10,12 +10,14 @@ import ResultArea from '../../components/mirror/ResultArea';
 import VtoHistorySection from '../../components/mirror/VtoHistorySection';
 import useVtoGeneration from '../../hooks/useVtoGeneration';
 import { useGetUsersMe } from '../../api/endpoints/users/users';
+import { useGetVtoBasePhotos } from '../../api/endpoints/vto/vto';
+import { resolveBasePhotoSelection } from '../../lib/basePhotoSelection';
 
 type SelectionMode = 'outfit' | 'items';
 
 export default function MirrorPage() {
   const [mode, setMode] = useState<SelectionMode>('items');
-  const [selectedBasePhotoId, setSelectedBasePhotoId] = useState<string | null>(null);
+  const [chosenBasePhotoId, setChosenBasePhotoId] = useState<string | null>(null);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [selectedWearableItemIds, setSelectedWearableItemIds] = useState<string[]>([]);
   const [outfitName, setOutfitName] = useState('');
@@ -23,6 +25,38 @@ export default function MirrorPage() {
 
   const { generate, result, errorMessage, isPolling, isStarting, vtoId } = useVtoGeneration();
   const { data: user } = useGetUsersMe();
+  // The same `['/vto/base-photos']` query the selector runs: one request and
+  // two subscribers, so the preselect reads the list it already fetched.
+  const { data: basePhotos, isLoading: isLoadingBasePhotos } = useGetVtoBasePhotos();
+
+  // The user's intent is the only selection state. The effective selection is
+  // derived from it and the list on every render, so a refetch cannot move it
+  // and a deleted row cannot leave a phantom selection behind.
+  const basePhotoSelection = resolveBasePhotoSelection(basePhotos, chosenBasePhotoId);
+  const selectedBasePhotoId = basePhotoSelection.photoId;
+
+  const handleSelectBasePhoto = useCallback((id: string | null) => {
+    setChosenBasePhotoId(id);
+  }, []);
+
+  // The upload confirmation resolves after several awaits, so its adoption
+  // decision must read the selection source that is current when it resolves,
+  // not the one captured by the render that created the file-change handler.
+  // This ref holds the last committed source: it is refreshed after every
+  // commit, before the confirm response can be delivered, so a card clicked
+  // while the upload runs stays in force instead of being overwritten.
+  const selectionSourceRef = useRef(basePhotoSelection.source);
+  useLayoutEffect(() => {
+    selectionSourceRef.current = basePhotoSelection.source;
+  });
+
+  // A confirmed upload is adopted only when no photo the user chose during this
+  // visit is in force at resolution time; it never replaces an explicit choice.
+  const handleUploadedBasePhoto = useCallback((id: string) => {
+    if (selectionSourceRef.current !== 'chosen') {
+      setChosenBasePhotoId(id);
+    }
+  }, []);
 
   const credits = user?.dailyCredits ?? 0;
 
@@ -74,7 +108,8 @@ export default function MirrorPage() {
             </div>
             <BasePhotoSelector
               selectedPhotoId={selectedBasePhotoId}
-              onSelect={setSelectedBasePhotoId}
+              onSelect={handleSelectBasePhoto}
+              onUploaded={handleUploadedBasePhoto}
             />
           </div>
 
@@ -137,7 +172,7 @@ export default function MirrorPage() {
                 isLoading={isStarting || isPolling}
                 credits={credits}
               />
-              {!selectedBasePhotoId && (
+              {!selectedBasePhotoId && !isLoadingBasePhotos && (
                 <p className="text-xs text-gray-600 text-center">Select a base photo to start</p>
               )}
               {selectedBasePhotoId && !hasItems && (
