@@ -141,6 +141,23 @@ describe('MirrorPage base-photo selection', () => {
     await act(async () => {});
   }
 
+  // Starts an upload and returns the resolver for its confirm response, so a
+  // test can act while the upload is still in flight.
+  function startPendingUpload(container: HTMLElement) {
+    reservePhotoUpload.mockResolvedValue({
+      reservationId: 'reservation-1',
+      upload: { url: 'https://upload.example.com', fields: { key: 'base-photos/new.jpg' } },
+    });
+    let resolveConfirm!: (value: unknown) => void;
+    confirmPhotoUpload.mockReturnValue(new Promise((resolve) => { resolveConfirm = resolve; }));
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    fireEvent.change(input!, {
+      target: { files: [new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' })] },
+    });
+    return { resolveConfirm };
+  }
+
   it('preselects the pointer default and generates with its id', () => {
     mockPhotos([ownDefaultPhoto, systemPhoto]);
     renderPage();
@@ -225,6 +242,34 @@ describe('MirrorPage base-photo selection', () => {
     expect(screen.queryByText('Select a base photo to start')).toBeNull();
   });
 
+  it('keeps a photo clicked while a delete is in flight', () => {
+    mockPhotos([ownDefaultPhoto, otherOwnPhoto, systemPhoto]);
+    const { rerenderPage } = renderPage();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    expect(screen.getByRole('button', { name: 'Selected base photo 1, default' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete this base photo' })[0]);
+    expect(deletePhoto).toHaveBeenCalledTimes(1);
+    const [variables, options] = deletePhoto.mock.calls[0];
+    expect(variables).toEqual({ id: 'photo-own' });
+
+    // The user clicks another card while the DELETE request is still running.
+    fireEvent.click(screen.getByRole('button', { name: 'Select base photo 2' }));
+    expect(screen.getByRole('button', { name: 'Selected base photo 2' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    // The delete resolves and the refetch flags the system photo; the clicked
+    // photo must stay selected instead of being cleared by the resolution.
+    mockPhotos([otherOwnPhoto, { ...systemPhoto, isDefault: true }]);
+    act(() => options.onSuccess());
+    rerenderPage();
+
+    expect(screen.getByRole('button', { name: 'Selected base photo 1' }))
+      .toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Select base photo 2, default, shared system photo' }))
+      .toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('leaves nothing selected when the list flags no default photo', () => {
     mockPhotos([photo({ id: 'photo-own' }), systemPhoto]);
     renderPage();
@@ -274,6 +319,43 @@ describe('MirrorPage base-photo selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Select base photo 2' }));
     await uploadFile(container);
 
+    mockPhotos([uploadedPhoto, ownDefaultPhoto, otherOwnPhoto]);
+    rerenderPage();
+
+    expect(screen.getByRole('button', { name: 'Selected base photo 3' }))
+      .toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Select base photo 1' }))
+      .toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select a wearable item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate try-on' }));
+
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      base_photo_id: 'photo-other',
+      wearable_item_ids: ['item-1'],
+    }));
+  });
+
+  it('keeps a photo clicked while an upload is in flight', async () => {
+    mockPhotos([ownDefaultPhoto, otherOwnPhoto]);
+    const { container, rerenderPage } = renderPage();
+    expect(screen.getByRole('button', { name: 'Selected base photo 1, default' })).toBeInTheDocument();
+
+    const { resolveConfirm } = startPendingUpload(container);
+    await waitFor(() => expect(confirmPhotoUpload).toHaveBeenCalledTimes(1));
+
+    // The user clicks another card before the confirmation resolves.
+    fireEvent.click(screen.getByRole('button', { name: 'Select base photo 2' }));
+    expect(screen.getByRole('button', { name: 'Selected base photo 2' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    await act(async () => {
+      resolveConfirm(uploadedPhoto);
+    });
+    await act(async () => {});
+
+    // The refetch lists the confirmed photo first; the clicked photo must stay
+    // selected instead of being overwritten by the upload.
     mockPhotos([uploadedPhoto, ownDefaultPhoto, otherOwnPhoto]);
     rerenderPage();
 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useLayoutEffect, useRef } from 'react';
 import MirrorErrorBoundary from '../../components/mirror/MirrorErrorBoundary';
 import CreditDisplay from '../../components/mirror/CreditDisplay';
 import BasePhotoSelector from '../../components/mirror/BasePhotoSelector';
@@ -39,13 +39,24 @@ export default function MirrorPage() {
     setChosenBasePhotoId(id);
   }, []);
 
+  // The upload confirmation resolves after several awaits, so its adoption
+  // decision must read the selection source that is current when it resolves,
+  // not the one captured by the render that created the file-change handler.
+  // This ref holds the last committed source: it is refreshed after every
+  // commit, before the confirm response can be delivered, so a card clicked
+  // while the upload runs stays in force instead of being overwritten.
+  const selectionSourceRef = useRef(basePhotoSelection.source);
+  useLayoutEffect(() => {
+    selectionSourceRef.current = basePhotoSelection.source;
+  });
+
   // A confirmed upload is adopted only when no photo the user chose during this
-  // visit is in force; it never replaces an explicit choice.
+  // visit is in force at resolution time; it never replaces an explicit choice.
   const handleUploadedBasePhoto = useCallback((id: string) => {
-    if (basePhotoSelection.source !== 'chosen') {
+    if (selectionSourceRef.current !== 'chosen') {
       setChosenBasePhotoId(id);
     }
-  }, [basePhotoSelection.source]);
+  }, []);
 
   const credits = user?.dailyCredits ?? 0;
 

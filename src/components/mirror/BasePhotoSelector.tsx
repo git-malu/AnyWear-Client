@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import {
   useGetVtoBasePhotos,
   usePostVtoBasePhotosUpload,
@@ -28,6 +28,15 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect, onUploade
   const { mutateAsync: confirmPhotoUpload } = usePostVtoBasePhotosUpload();
   const { mutate: setDefault } = usePatchVtoBasePhotosId();
   const { mutate: deletePhoto } = useDeleteVtoBasePhotosId();
+
+  // The delete confirmation resolves after the DELETE round trip, so the clear
+  // must compare against the last committed selection, not the one captured
+  // when the request started: a card clicked while it is in flight stays
+  // selected. This ref is refreshed after every commit.
+  const selectedPhotoIdRef = useRef(selectedPhotoId);
+  useLayoutEffect(() => {
+    selectedPhotoIdRef.current = selectedPhotoId;
+  });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,7 +86,7 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect, onUploade
     if (!window.confirm('Remove this base photo?')) return;
     deletePhoto({ id }, {
       onSuccess: () => {
-        if (selectedPhotoId === id) onSelect(null);
+        if (selectedPhotoIdRef.current === id) onSelect(null);
         // Drop the removed row before the refetch: the page derives its
         // selection from this list, so trimming it keeps what renders and what
         // can be selected in agreement at the next commit.
