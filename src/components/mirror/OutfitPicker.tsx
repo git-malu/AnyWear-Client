@@ -1,5 +1,6 @@
 import { useGetOutfits } from '../../api/endpoints/outfits/outfits';
 import { getOutfitLookImage } from '../../lib/image-utils';
+import { outfitLookRefetchInterval, type OutfitLookState } from '../../lib/outfit-look';
 import OutfitLookBadge from '../OutfitLookBadge';
 import CachedImage from '../CachedImage';
 
@@ -9,7 +10,15 @@ interface OutfitPickerProps {
 }
 
 export default function OutfitPicker({ selectedOutfitId, onSelect }: OutfitPickerProps) {
-  const { data, isLoading } = useGetOutfits({ query: {} });
+  const { data, isLoading } = useGetOutfits({
+    query: {
+      // Same interval as the Wardrobe list: poll only while a returned
+      // generation is Pending or Processing, so both surfaces advance together.
+      refetchInterval: (query) => outfitLookRefetchInterval(
+        query.state.data as { outfits?: OutfitLookState[] } | undefined,
+      ),
+    },
+  });
 
   const outfits = data?.outfits ?? [];
 

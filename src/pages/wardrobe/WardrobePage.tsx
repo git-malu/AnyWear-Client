@@ -57,6 +57,9 @@ export default function WardrobePage() {
   const [filters, setFilters] = useState<GetWardrobeParams>({});
   const [lookTarget, setLookTarget] = useState<{ id: string; name?: string | null } | null>(null);
   const [lookError, setLookError] = useState<string | null>(null);
+  // Held from the confirm click until the request and its refreshes settle, so
+  // the confirmation cannot start a second charge while the first one starts.
+  const [isStartingLook, setIsStartingLook] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -166,7 +169,8 @@ export default function WardrobePage() {
   };
 
   const confirmGenerateLook = async () => {
-    if (!lookTarget || isGeneratingLook) return;
+    if (!lookTarget || isStartingLook) return;
+    setIsStartingLook(true);
     setLookError(null);
     try {
       // The card omits base_photo_id: the Service resolves the caller's pointer,
@@ -181,6 +185,8 @@ export default function WardrobePage() {
       // A drained balance arrives as the Service's 429 body, so its message is
       // shown unchanged; any other failure keeps the dialog open with its cause.
       setLookError(getErrorMessage(error, 'Failed to start the look generation'));
+    } finally {
+      setIsStartingLook(false);
     }
   };
 
@@ -407,7 +413,7 @@ export default function WardrobePage() {
       <GenerateLookDialog
         isOpen={!!lookTarget}
         outfitName={lookTarget?.name ?? null}
-        isSubmitting={isGeneratingLook}
+        isSubmitting={isGeneratingLook || isStartingLook}
         errorMessage={lookError}
         onCancel={cancelGenerateLook}
         onConfirm={confirmGenerateLook}

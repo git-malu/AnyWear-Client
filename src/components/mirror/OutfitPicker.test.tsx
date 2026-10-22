@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import OutfitPicker from './OutfitPicker';
+import { OUTFIT_LOOK_POLL_INTERVAL_MS } from '../../lib/outfit-look';
 
 const LOOK_URL = 'https://anywear-beta.s3.amazonaws.com/outfit-generations/user-1/outfit-1/gen-1.png?X-Amz-Signature=signed';
 const ITEM_URL = 'https://example.com/tshirt.jpg?X-Amz-Signature=signed';
@@ -118,6 +119,48 @@ describe('OutfitPicker', () => {
     expect(screen.getByTestId(`outfit-look-badge-${status.toLowerCase()}`)).toHaveTextContent(status);
     // The picker's only action is selecting the outfit.
     expect(screen.queryByRole('button', { name: /Generate look|Retry|New look/ })).toBeNull();
+  });
+
+  it('polls the outfits query only while a returned generation is Pending or Processing', () => {
+    mockData(structuredClone(mockOutfits));
+
+    render(<OutfitPicker selectedOutfitId={null} onSelect={() => {}} />);
+
+    const options = vi.mocked(useGetOutfits).mock.lastCall?.[0];
+    const refetchInterval = options?.query?.refetchInterval;
+    expect(refetchInterval).toBeTypeOf('function');
+
+    // Mirrors the Wardrobe list: the same shared interval while any returned
+    // generation is active, and false once every one of them is terminal.
+    const intervalFor = refetchInterval as unknown as (
+      query: { state: { data: unknown } },
+    ) => number | false;
+
+    expect(intervalFor({
+      state: { data: { outfits: [{ latestGeneration: { status: 'Processing' } }] } },
+    })).toBe(OUTFIT_LOOK_POLL_INTERVAL_MS);
+    expect(intervalFor({
+      state: {
+        data: {
+          outfits: [
+            { latestGeneration: { status: 'Complete' } },
+            { latestGeneration: { status: 'Pending' } },
+          ],
+        },
+      },
+    })).toBe(OUTFIT_LOOK_POLL_INTERVAL_MS);
+    expect(intervalFor({
+      state: {
+        data: {
+          outfits: [
+            { latestGeneration: { status: 'Complete' } },
+            { latestGeneration: { status: 'Failed' } },
+          ],
+        },
+      },
+    })).toBe(false);
+    expect(intervalFor({ state: { data: { outfits: [] } } })).toBe(false);
+    expect(intervalFor({ state: { data: undefined } })).toBe(false);
   });
 
   it('calls onSelect when an outfit is clicked', () => {

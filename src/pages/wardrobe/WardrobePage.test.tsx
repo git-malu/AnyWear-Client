@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import WardrobePage from './WardrobePage';
 
 const LOOK_URL = 'https://anywear-beta.s3.amazonaws.com/outfit-generations/user-1/outfit-1/gen-1.png?X-Amz-Signature=signed';
 const ITEM_URL = 'https://anywear-beta.s3.amazonaws.com/wardrobe/coat.jpg?X-Amz-Signature=signed';
+
+interface CreateOutfitModalMockProps {
+  isOpen: boolean;
+  onSaved?: (outfit: { id: string; name?: string | null }) => void;
+  outfit?: { id: string; name?: string | null } | null;
+}
+
+const createOutfitModal = vi.hoisted(() => ({
+  props: null as CreateOutfitModalMockProps | null,
+}));
 
 vi.mock('../../api/endpoints/wardrobe/wardrobe', () => ({
   useGetWardrobe: vi.fn(),
@@ -31,11 +41,23 @@ vi.mock('../../components/CachedImage', () => ({
 vi.mock('./AddItemModal', () => ({ default: () => null }));
 vi.mock('./ItemDetailsModal', () => ({ default: () => null }));
 vi.mock('./CreateOutfitModal', () => ({
-  default: ({ isOpen, onSaved }: any) => (isOpen ? (
-    <button type="button" onClick={() => onSaved({ id: 'outfit-1', name: 'Rainy Day' })}>
-      Save outfit
-    </button>
-  ) : null),
+  default: (props: CreateOutfitModalMockProps) => {
+    // Record the real props so the tests can call the page's own onSaved wiring
+    // in both create and edit mode instead of relying on this stand-in.
+    createOutfitModal.props = props;
+    if (!props.isOpen) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => props.onSaved?.({
+          id: props.outfit?.id ?? 'outfit-1',
+          name: props.outfit?.name ?? 'Rainy Day',
+        })}
+      >
+        Save outfit
+      </button>
+    );
+  },
 }));
 vi.mock('../../lib/sse', () => ({ connectSse: () => ({ close: () => {} }) }));
 
@@ -86,6 +108,7 @@ describe('WardrobePage saved outfit look cards', () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    createOutfitModal.props = null;
     generateLook.mockReset();
     generateLook.mockResolvedValue({ generation_id: 'gen-2', outfit_id: 'outfit-1' });
     vi.mocked(useGetWardrobe).mockReturnValue({ data: [], isLoading: false } as any);
@@ -216,6 +239,77 @@ describe('WardrobePage saved outfit look cards', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save outfit' }));
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Generate a look for Rainy Day?');
+    expect(generateLook).not.toHaveBeenCalled();
+  });
+
+  it('cannot start a second generation while the first start is still settling', async () => {
+    const { queryClient } = renderPage();
+    let releaseInvalidations!: () => void;
+    const invalidations = new Promise<void>((resolve) => {
+      releaseInvalidations = resolve;
+    });
+    const invalidate = vi
+      .spyOn(queryClient, 'invalidateQueries')
+      .mockReturnValue(invalidations);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look for Rainy Day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate look (1 credit)' }));
+
+    // The 202 has resolved while both invalidations are still in flight: the
+    // exact window where the dialog used to re-enable and allow another charge.
+    await waitFor(() => expect(generateLook).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(2));
+
+    const confirm = screen.getByRole('button', { name: /Generate look \(1 credit\)|Starting\.\.\./ });
+
+    // Clicking the confirm again here is the duplicate the dialog used to allow.
+    fireEvent.click(confirm);
+
+    expect(generateLook).toHaveBeenCalledTimes(1);
+    expect(generateLook).toHaveBeenCalledWith({ data: { outfit_id: 'outfit-1' } });
+    expect(confirm).toHaveTextContent('Starting...');
+    expect(confirm).toBeDisabled();
+
+    await act(async () => {
+      releaseInvalidations();
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('opens the same 1-credit confirmation from onSaved in create mode', () => {
+    mockOutfits({ outfits: [] });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Outfit' }));
+
+    const props = createOutfitModal.props;
+    expect(props?.outfit).toBeUndefined();
+    const onSaved = props?.onSaved;
+    expect(onSaved).toBeTypeOf('function');
+
+    act(() => onSaved?.({ id: 'outfit-new', name: 'Sunny Day' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Generate a look for Sunny Day?');
+    expect(dialog).toHaveTextContent('This uses 1 of your daily credits.');
+    expect(generateLook).not.toHaveBeenCalled();
+  });
+
+  it('opens the same 1-credit confirmation from onSaved in edit mode', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Rainy Day' }));
+
+    const props = createOutfitModal.props;
+    expect(props?.outfit).toMatchObject({ id: 'outfit-1', name: 'Rainy Day' });
+    const onSaved = props?.onSaved;
+    expect(onSaved).toBeTypeOf('function');
+
+    act(() => onSaved?.({ id: 'outfit-1', name: 'Rainy Day Updated' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Generate a look for Rainy Day Updated?');
+    expect(dialog).toHaveTextContent('This uses 1 of your daily credits.');
     expect(generateLook).not.toHaveBeenCalled();
   });
 });
