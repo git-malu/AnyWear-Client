@@ -7,6 +7,11 @@
 
 export type PostWardrobeItemsIdUpload200 = {
   itemId: string;
-  key: string;
-  downloadUrl: string;
+  /** The image record the confirmation created (or replayed) and attached to the item. */
+  imageId: string;
+  /**
+     * A download URL for the new image, signed when this response was produced and valid for 3600 seconds. Null when signing failed; this member never falls back to the object key.
+     * @nullable
+     */
+  downloadUrl: string | null;
 };

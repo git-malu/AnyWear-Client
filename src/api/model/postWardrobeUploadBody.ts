@@ -6,6 +6,6 @@
  */
 
 export type PostWardrobeUploadBody = {
-  /** The reservation this confirmation completes. Confirming the same reservation again replays the first result instead of creating a second record. */
+  /** The reservation this confirmation completes. Confirming the same reservation again replays the first result — including the same imageId — instead of creating a second record. */
   reservationId: string;
 };

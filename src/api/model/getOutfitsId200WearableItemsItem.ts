@@ -4,12 +4,13 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { GetOutfitsId200WearableItemsItemImageKeys } from './getOutfitsId200WearableItemsItemImageKeys';
+import type { ImageEntryResponse } from './imageEntryResponse';
 
 export type GetOutfitsId200WearableItemsItem = {
   id: string;
   /** @nullable */
   name: string | null;
   category: string;
-  imageKeys: GetOutfitsId200WearableItemsItemImageKeys;
+  /** The wardrobe item's images, ordered by position, each with a freshly signed `url`. */
+  images: ImageEntryResponse[];
 };

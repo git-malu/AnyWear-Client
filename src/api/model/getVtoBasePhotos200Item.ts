@@ -10,7 +10,13 @@ export type GetVtoBasePhotos200Item = {
   id: string;
   /** @nullable */
   userId: string | null;
-  imageKey: string;
+  /** The image record this photo references. */
+  imageId: string;
+  /**
+     * A download URL for this photo's original rendition, signed when this response was produced and valid for 3600 seconds. Null when signing failed; it never falls back to the object key.
+     * @nullable
+     */
+  url: string | null;
   isDefault: boolean;
   source: GetVtoBasePhotos200ItemSource;
   createdAt: string;

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useGetWardrobe, useGetWardrobeCategories } from '../../api/endpoints/wardrobe/wardrobe';
 import CachedImage from '../CachedImage';
-import { getPrimaryImage } from '../../lib/image-utils';
+import { getPrimaryImageUrl } from '../../lib/image-utils';
 import type { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import type { GetWardrobeParams } from '../../api/model/getWardrobeParams';
 
@@ -134,7 +134,11 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
         <div className="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
           {filteredItems.map((item: GetWardrobe200Item) => {
             const isSelected = selectedIds.includes(item.id);
-            const imageKey = getPrimaryImage(item.imageKeys);
+            const imageUrl = getPrimaryImageUrl(item.images);
+            // The cache file names the image record, so two images of one item
+            // are two entries rather than one overwritten entry.
+            const primaryImageId = item.images.find((image) => image.isPrimary)?.imageId
+              ?? item.images[0]?.imageId;
             return (
               <button
                 type="button"
@@ -149,8 +153,8 @@ export default function WearableItemMultiSelector({ selectedIds, onSelectionChan
                 }`}
               >
                 <div className="aspect-[4/5] bg-gray-100">
-                  {imageKey ? (
-                    <CachedImage src={imageKey} cacheKey={item.id} alt={item.name || item.category} className="w-full h-full object-cover" />
+                  {imageUrl && primaryImageId ? (
+                    <CachedImage src={imageUrl} cacheKey={primaryImageId} alt={item.name || item.category} className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400 text-xs">No Image</div>
                   )}

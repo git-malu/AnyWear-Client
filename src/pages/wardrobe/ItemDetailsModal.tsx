@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import { usePatchWardrobeItemsId, useDeleteWardrobeItemsId, usePostWardrobeItemsItemIdRetag } from '../../api/endpoints/wardrobe/wardrobe';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
+import type { PostWardrobeItemsIdUpload200 } from '../../api/model/postWardrobeItemsIdUpload200';
+import type { PostWardrobeItemsIdUploadUrl200 } from '../../api/model/postWardrobeItemsIdUploadUrl200';
 import CachedImage from '../../components/CachedImage';
-import { parseImageKeys } from '../../lib/image-utils';
-import type { ImageEntry } from '../../lib/image-utils';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
 import { resolveImageContentType, uploadImageWithSignedPost, validateImageFile } from '../../lib/imageUpload';
 import { getErrorMessage } from '../../lib/errors';
@@ -17,6 +17,14 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+/** One gallery entry as this editor holds it: the read's members plus its own draft flags. */
+interface EditableImage {
+  imageId: string;
+  url: string | null;
+  view: string | null;
+  isPrimary: boolean;
 }
 
 interface StyleAttributeFields {
@@ -101,11 +109,15 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
   const [category, setCategory] = useState(item.category || '');
   const [attrs, setAttrs] = useState<StyleAttributeFields>(() => parseStyleAttributes(item.styleAttributes));
   const [weatherTagsInput, setWeatherTagsInput] = useState(() => parseWeatherTags(item.weatherTags).join(', '));
-  const [images, setImages] = useState<ImageEntry[]>(() => parseImageKeys(item.imageKeys));
+  const [images, setImages] = useState<EditableImage[]>(() => item.images.map((image) => ({
+    imageId: image.imageId,
+    url: image.url,
+    view: image.view,
+    isPrimary: image.isPrimary,
+  })));
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isAddingImage, setIsAddingImage] = useState(false);
   const addImageInputRef = useRef<HTMLInputElement>(null);
-  const [pendingDisplayUrls, setPendingDisplayUrls] = useState<Record<string, string>>({});
 
   const { mutateAsync: updateItem, isPending: isUpdating } = usePatchWardrobeItemsId();
   const { mutateAsync: deleteItem, isPending: isDeleting } = useDeleteWardrobeItemsId();
@@ -129,7 +141,13 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
         data: {
           name: name || undefined,
           category: category || undefined,
-          imageKeys: images.length > 0 ? images : undefined,
+          // The write body names images, never a key or a URL: the value the
+          // Client read is not re-encoded on the way back.
+          images: images.length > 0 ? images.map(({ imageId, view, isPrimary }) => ({
+            imageId,
+            ...(view ? { view } : {}),
+            isPrimary,
+          })) : undefined,
           styleAttributes: Object.keys(styleAttributes).length > 0 ? styleAttributes : undefined,
           weatherTags: tags.length > 0 ? tags : undefined,
         },
@@ -167,7 +185,7 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
   const handleViewChange = (index: number, value: string) => {
     setImages((prev) => {
       const copy = [...prev];
-      if (copy[index]) copy[index] = { ...copy[index], view: value || undefined };
+      if (copy[index]) copy[index] = { ...copy[index], view: value || null };
       return copy;
     });
   };
@@ -200,9 +218,10 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
       validateImageFile(file);
 
       // Reserve the additional image, upload it through the signed policy, then
-      // confirm. The confirmation attaches the verified key to the item, so the
-      // PATCH that saves this list only ever carries keys the service has seen.
-      const { data: reservation } = await AXIOS_INSTANCE.post(
+      // confirm. The confirmation returns the image record it attached, so the
+      // gallery paints the signed download URL until the next read returns a
+      // fresh `url`, and the PATCH that saves this list carries image ids only.
+      const { data: reservation } = await AXIOS_INSTANCE.post<PostWardrobeItemsIdUploadUrl200>(
         `/wardrobe/items/${item.id}/upload-url`,
         { contentType: resolveImageContentType(file) },
       );
@@ -211,16 +230,17 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
 
       await uploadImageWithSignedPost(reservation.upload, file);
 
-      const { data: confirmed } = await AXIOS_INSTANCE.post(
+      const { data: confirmed } = await AXIOS_INSTANCE.post<PostWardrobeItemsIdUpload200>(
         `/wardrobe/items/${item.id}/upload`,
         { reservationId: reservation.reservationId },
       );
 
-      const key: string = confirmed.key;
-      const downloadUrl: string = confirmed.downloadUrl || key;
-
-      setImages((prev) => [...prev, { key, isPrimary: prev.length === 0 }]);
-      setPendingDisplayUrls((current) => ({ ...current, [key]: downloadUrl }));
+      setImages((prev) => [...prev, {
+        imageId: confirmed.imageId,
+        url: confirmed.downloadUrl,
+        view: null,
+        isPrimary: prev.length === 0,
+      }]);
       setSelectedImageIndex(images.length);
     } catch (error) {
       console.error('Failed to add image:', error);
@@ -229,10 +249,6 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
       setIsAddingImage(false);
       if (addImageInputRef.current) addImageInputRef.current.value = '';
     }
-  };
-
-  const getDisplayUrl = (rawUrl: string): string => {
-    return pendingDisplayUrls[rawUrl] || rawUrl;
   };
 
   const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';
@@ -277,8 +293,8 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
               {/* Image gallery */}
               <div className="mt-4">
                 <div className="flex justify-center">
-                  {currentImage ? (
-                    <CachedImage src={getDisplayUrl(currentImage.key)} cacheKey={`${item.id}-${selectedImageIndex}`} alt="Item" className="max-h-64 object-contain rounded-md" />
+                  {currentImage?.url ? (
+                    <CachedImage src={currentImage.url} cacheKey={currentImage.imageId} alt="Item" className="max-h-64 object-contain rounded-md" />
                   ) : (
                     <div className="flex items-center justify-center h-48 w-full bg-gray-100 text-gray-400 rounded-md">
                       No Image
@@ -320,7 +336,11 @@ function ItemDetailsEditor({ item, onClose, onSuccess }: ItemDetailsEditorProps)
                           onClick={() => setSelectedImageIndex(idx)}
                           className={`w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition ${idx === selectedImageIndex ? 'border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}
                         >
-                          <CachedImage src={getDisplayUrl(img.key)} cacheKey={`${item.id}-thumb-${idx}`} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                          {img.url ? (
+                            <CachedImage src={img.url} cacheKey={img.imageId} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100" />
+                          )}
                         </button>
                         <button
                           type="button"

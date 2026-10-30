@@ -28,7 +28,6 @@ import type {
   DeleteVtoGenerationsGenerationId409,
   GetVtoBasePhotos200Item,
   GetVtoGenerations200,
-  GetVtoGenerationsGenerationId200,
   GetVtoGenerationsParams,
   PatchVtoBasePhotosId200,
   PatchVtoBasePhotosIdBody,
@@ -38,7 +37,8 @@ import type {
   PostVtoBasePhotosUploadUrl200,
   PostVtoBasePhotosUploadUrlBody,
   PostVtoGenerations202,
-  PostVtoGenerationsBody
+  PostVtoGenerationsBody,
+  VtoStatusResponse
 } from '../../model';
 
 import { customInstance } from '../../custom-instance';
@@ -196,7 +196,7 @@ export const getVtoGenerationsGenerationId = (
 ) => {
 
 
-      return customInstance<GetVtoGenerationsGenerationId200>(
+      return customInstance<VtoStatusResponse>(
       {url: `/vto/generations/${generationId}`, method: 'GET', signal
     },
       options);
@@ -329,7 +329,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeleteVtoGenerationsGenerationIdMutationOptions(options), queryClient);
     }
-    export const patchVtoGenerationsGenerationIdRating = (
+    export const getVtoGenerationsGenerationIdStream = (
+    generationId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<VtoStatusResponse>(
+      {url: `/vto/generations/${generationId}/stream`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetVtoGenerationsGenerationIdStreamQueryKey = (generationId: string,) => {
+    return [
+    `/vto/generations/${generationId}/stream`
+    ] as const;
+    }
+
+
+export const getGetVtoGenerationsGenerationIdStreamQueryOptions = <TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError = void>(generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVtoGenerationsGenerationIdStreamQueryKey(generationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>> = ({ signal }) => getVtoGenerationsGenerationIdStream(generationId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(generationId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetVtoGenerationsGenerationIdStreamQueryResult = NonNullable<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>>
+export type GetVtoGenerationsGenerationIdStreamQueryError = void
+
+
+export function useGetVtoGenerationsGenerationIdStream<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError = void>(
+ generationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>,
+          TError,
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVtoGenerationsGenerationIdStream<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>,
+          TError,
+          Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVtoGenerationsGenerationIdStream<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetVtoGenerationsGenerationIdStream<TData = Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError = void>(
+ generationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVtoGenerationsGenerationIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetVtoGenerationsGenerationIdStreamQueryOptions(generationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+export const patchVtoGenerationsGenerationIdRating = (
     generationId: string,
     patchVtoGenerationsGenerationIdRatingBody: PatchVtoGenerationsGenerationIdRatingBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal

@@ -9,11 +9,29 @@ interface SseConnection {
   close: () => void;
 }
 
-interface SseConnectionOptions {
+interface SseConnectionOptions<T = unknown> {
   initialRetryMs?: number;
   maxRetryMs?: number;
+  /**
+   * Only frames whose SSE `event` field names this event reach the callback.
+   * The Service interleaves `event: heartbeat` frames (`data: {}`) with the
+   * `event: status` frames that carry state, and a heartbeat must never replace
+   * cached state.
+   */
+  eventName?: string;
+  /**
+   * A dispatched payload after which no reconnect can change the resource. The
+   * connection closes without retrying, so a terminal frame does not reopen the
+   * stream that produced it.
+   */
+  isTerminal?: (data: T) => boolean;
   onError?: (error: unknown) => void;
   onStateChange?: (state: SseConnectionState) => void;
+}
+
+interface SseFrame {
+  event: string;
+  data: string;
 }
 
 /**
@@ -40,26 +58,52 @@ async function isClientVersionUnsupported(response: Response): Promise<boolean> 
   }
 }
 
-function parseEventFrame<T>(frame: string, onEvent: SseEventCallback<T>): void {
-  const dataLines = frame
-    .split('\n')
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).replace(/^ /, ''));
+function parseEventFrame(frame: string): SseFrame | null {
+  let event = 'message';
+  const dataLines: string[] = [];
 
-  if (dataLines.length === 0) return;
-
-  try {
-    onEvent(JSON.parse(dataLines.join('\n')) as T);
-  } catch {
-    // Heartbeats and malformed events are ignored; the stream remains usable.
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) {
+      event = line.slice('event:'.length).replace(/^ /, '');
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).replace(/^ /, ''));
+    }
   }
+
+  if (dataLines.length === 0) return null;
+  return { event, data: dataLines.join('\n') };
 }
 
+/** Dispatches one frame; returns whether it was the caller's terminal payload. */
+function dispatchFrame<T>(
+  frame: string,
+  onEvent: SseEventCallback<T>,
+  eventName: string | undefined,
+  isTerminal: ((data: T) => boolean) | undefined,
+): boolean {
+  const parsed = parseEventFrame(frame);
+  if (!parsed) return false;
+  if (eventName !== undefined && parsed.event !== eventName) return false;
+
+  let data: T;
+  try {
+    data = JSON.parse(parsed.data) as T;
+  } catch {
+    // Malformed events are ignored; the stream remains usable.
+    return false;
+  }
+
+  onEvent(data);
+  return isTerminal?.(data) === true;
+}
+
+/** Resolves to `true` when a terminal payload was dispatched. */
 async function consumeEventStream<T>(
   response: Response,
   signal: AbortSignal,
   onEvent: SseEventCallback<T>,
-): Promise<void> {
+  options: SseConnectionOptions<T>,
+): Promise<boolean> {
   if (!response.body) throw new Error('SSE response has no body');
 
   const reader = response.body.getReader();
@@ -69,7 +113,7 @@ async function consumeEventStream<T>(
 
   while (!signal.aborted) {
     const { done, value } = await reader.read();
-    if (signal.aborted) break;
+    if (signal.aborted) return false;
 
     // A trailing CR may be the first half of a CRLF split across chunks.
     let chunk: string = (trailingCr ? '\r' : '') + decoder.decode(value, { stream: !done });
@@ -80,11 +124,13 @@ async function consumeEventStream<T>(
     while (!signal.aborted && boundary >= 0) {
       const frame = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
-      parseEventFrame(frame, onEvent);
+      if (dispatchFrame(frame, onEvent, options.eventName, options.isTerminal)) return true;
       boundary = buffer.indexOf('\n\n');
     }
-    if (done) break;
+    if (done) return false;
   }
+
+  return false;
 }
 
 /**
@@ -93,7 +139,7 @@ async function consumeEventStream<T>(
 export function connectSse<T = unknown>(
   path: string,
   onEvent: SseEventCallback<T>,
-  options: SseConnectionOptions = {},
+  options: SseConnectionOptions<T> = {},
 ): SseConnection {
   const initialRetryMs = options.initialRetryMs ?? 1_000;
   const maxRetryMs = options.maxRetryMs ?? 30_000;
@@ -103,6 +149,18 @@ export function connectSse<T = unknown>(
   let activeController: AbortController | null = null;
 
   const setState = (state: SseConnectionState) => options.onStateChange?.(state);
+
+  /** Ends the connection without a reconnect. Returns false when already closed. */
+  const closeConnection = (): boolean => {
+    if (closed) return false;
+    closed = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
+    activeController?.abort();
+    activeController = null;
+    setState('closed');
+    return true;
+  };
 
   const scheduleReconnect = (): void => {
     if (closed || retryTimer) return;
@@ -119,14 +177,7 @@ export function connectSse<T = unknown>(
 
   /** Ends the connection without a reconnect: no retry can change the response. */
   const closeTerminally = (error: unknown): void => {
-    if (closed) return;
-    closed = true;
-    if (retryTimer) clearTimeout(retryTimer);
-    retryTimer = null;
-    activeController?.abort();
-    activeController = null;
-    setState('closed');
-    options.onError?.(error);
+    if (closeConnection()) options.onError?.(error);
   };
 
   const run = async (forceRefresh: boolean): Promise<void> => {
@@ -166,8 +217,9 @@ export function connectSse<T = unknown>(
 
       retryAttempt = 0;
       setState('open');
-      await consumeEventStream(response, controller.signal, onEvent);
-      scheduleReconnect();
+      const terminal = await consumeEventStream(response, controller.signal, onEvent, options);
+      if (terminal) closeConnection();
+      else scheduleReconnect();
     } catch (error) {
       if (closed || (error instanceof Error && error.name === 'AbortError')) return;
       if (error instanceof ClientVersionUnsupportedError) {
@@ -185,13 +237,7 @@ export function connectSse<T = unknown>(
 
   return {
     close: () => {
-      if (closed) return;
-      closed = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      retryTimer = null;
-      activeController?.abort();
-      activeController = null;
-      setState('closed');
+      closeConnection();
     },
   };
 }

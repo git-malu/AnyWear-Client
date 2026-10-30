@@ -8,7 +8,6 @@ import type { PostVtoBasePhotosUploadUrl200Upload } from './postVtoBasePhotosUpl
 
 export type PostVtoBasePhotosUploadUrl200 = {
   reservationId: string;
-  key: string;
   /** After this instant the reservation cannot be confirmed. Its object and its row are removed without it. */
   expiresAt: string;
   upload: PostVtoBasePhotosUploadUrl200Upload;

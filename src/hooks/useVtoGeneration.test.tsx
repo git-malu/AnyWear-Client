@@ -3,17 +3,19 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GetVtoGenerationsGenerationId200 } from '../api/model/getVtoGenerationsGenerationId200';
+import type { VtoStatusResponse } from '../api/model/vtoStatusResponse';
 import { customInstance } from '../api/custom-instance';
 import useVtoGeneration from './useVtoGeneration';
 
 vi.mock('../api/custom-instance', () => ({ customInstance: vi.fn() }));
 vi.mock('aws-amplify/auth', () => ({ fetchAuthSession: vi.fn() }));
 
-const pendingStatus: GetVtoGenerationsGenerationId200 = {
+const pendingStatus: VtoStatusResponse = {
   generation_id: 'generation-1',
   status: 'Processing',
   state_version: 1,
+  imageId: null,
+  url: null,
   created_at: '2026-10-03T00:00:00.000Z',
 };
 
@@ -25,7 +27,7 @@ function createWrapper(queryClient: QueryClient) {
 
 describe('useVtoGeneration recovery lifecycle', () => {
   const clients: QueryClient[] = [];
-  let getStatus: ReturnType<typeof vi.fn<() => Promise<GetVtoGenerationsGenerationId200>>>;
+  let getStatus: ReturnType<typeof vi.fn<() => Promise<VtoStatusResponse>>>;
   let streamFetch: ReturnType<typeof vi.fn<typeof fetch>>;
   let streamSignals: AbortSignal[];
   let streamControllers: ReadableStreamDefaultController<Uint8Array>[];
@@ -167,8 +169,8 @@ describe('useVtoGeneration recovery lifecycle', () => {
     await start(result);
     await act(async () => {
       streamControllers[0].enqueue(new TextEncoder().encode(
-        `data: ${JSON.stringify({ ...pendingStatus, status, state_version: 3 })}\n\n`
-        + `data: ${JSON.stringify({ ...pendingStatus, state_version: 2 })}\n\n`,
+        `event: status\ndata: ${JSON.stringify({ ...pendingStatus, status, state_version: 3 })}\n\n`
+        + `event: status\ndata: ${JSON.stringify({ ...pendingStatus, state_version: 2 })}\n\n`,
       ));
     });
     await advance(1);
@@ -180,13 +182,56 @@ describe('useVtoGeneration recovery lifecycle', () => {
     expect(streamFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('does not let a heartbeat frame replace cached state', async () => {
+    const { result, queryClient } = renderGeneration();
+    await start(result);
+    const queryKey = ['/vto/generations/generation-1'];
+
+    await act(async () => {
+      streamControllers[0].enqueue(new TextEncoder().encode('event: heartbeat\ndata: {}\n\n'));
+    });
+    await advance(1);
+
+    expect(queryClient.getQueryData(queryKey)).toEqual(pendingStatus);
+    expect(result.current.result).toEqual(pendingStatus);
+    expect(streamSignals[0].aborted).toBe(false);
+  });
+
+  it('drops a status frame whose state_version is not newer than the cached one', async () => {
+    getStatus.mockResolvedValue({ ...pendingStatus, state_version: 3 });
+    const { result, queryClient } = renderGeneration();
+    await start(result);
+    const queryKey = ['/vto/generations/generation-1'];
+    expect(queryClient.getQueryData(queryKey)).toEqual({ ...pendingStatus, state_version: 3 });
+
+    // A duplicate or out-of-order frame leaves the newer cached state in place.
+    await act(async () => {
+      streamControllers[0].enqueue(new TextEncoder().encode(
+        `event: status\ndata: ${JSON.stringify({ ...pendingStatus, status: 'Pending', state_version: 2 })}\n\n`,
+      ));
+    });
+    await advance(1);
+    expect(result.current.status).toBe('Processing');
+    expect(result.current.result?.state_version).toBe(3);
+
+    // A newer frame is applied.
+    await act(async () => {
+      streamControllers[0].enqueue(new TextEncoder().encode(
+        `event: status\ndata: ${JSON.stringify({ ...pendingStatus, status: 'Pending', state_version: 4 })}\n\n`,
+      ));
+    });
+    await advance(1);
+    expect(result.current.status).toBe('Pending');
+    expect(result.current.result?.state_version).toBe(4);
+  });
+
   it('aborts on unmount and ignores a frame arriving after the pending read', async () => {
     const { result, unmount, queryClient } = renderGeneration();
     await start(result);
     unmount();
     expect(streamSignals[0].aborted).toBe(true);
     streamControllers[0].enqueue(new TextEncoder().encode(
-      `data: ${JSON.stringify({ ...pendingStatus, status: 'Complete', state_version: 2 })}\n\n`,
+      `event: status\ndata: ${JSON.stringify({ ...pendingStatus, status: 'Complete', state_version: 2 })}\n\n`,
     ));
     await advance(30_000);
     expect(queryClient.getQueryData(['/vto/generations/generation-1'])).toEqual(pendingStatus);

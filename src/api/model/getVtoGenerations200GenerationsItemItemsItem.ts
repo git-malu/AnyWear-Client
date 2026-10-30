@@ -4,11 +4,13 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { ImageEntryResponse } from './imageEntryResponse';
 
 export type GetVtoGenerations200GenerationsItemItemsItem = {
   id: string;
   /** @nullable */
   name: string | null;
   category: string;
-  imageKeys?: unknown | null;
+  /** The wardrobe item's images, ordered by position — the same entries the wardrobe read returns. */
+  images: ImageEntryResponse[];
 };

@@ -1,10 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePostVtoGenerations, useGetVtoGenerationsGenerationId } from '../api/endpoints/vto/vto';
 import type { PostVtoGenerationsBody } from '../api/model/postVtoGenerationsBody';
-import type { GetVtoGenerationsGenerationId200 } from '../api/model/getVtoGenerationsGenerationId200';
-import type { GetVtoGenerationsGenerationId200Status } from '../api/model/getVtoGenerationsGenerationId200Status';
+import type { VtoStatusResponse } from '../api/model/vtoStatusResponse';
+import type { VtoStatusResponseStatus } from '../api/model/vtoStatusResponseStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { connectSse } from '../lib/sse';
+
+/** A terminal status needs no reconnect: the stream that reported it is done. */
+function isTerminalStatus(data: VtoStatusResponse): boolean {
+  return data.status === 'Complete' || data.status === 'Failed';
+}
 
 export default function useVtoGeneration() {
   const queryClient = useQueryClient();
@@ -18,13 +23,13 @@ export default function useVtoGeneration() {
       enabled: !!vtoId,
       refetchInterval: (query) => {
         if (!vtoId) return false;
-        const data = query.state.data as GetVtoGenerationsGenerationId200 | undefined;
+        const data = query.state.data as VtoStatusResponse | undefined;
         return data?.status === 'Complete' || data?.status === 'Failed' ? false : 10_000;
       },
     },
   });
 
-  const status: GetVtoGenerationsGenerationId200Status | null = statusQuery.data?.status ?? null;
+  const status: VtoStatusResponseStatus | null = statusQuery.data?.status ?? null;
   const isTerminal = status === 'Complete' || status === 'Failed';
 
   const invalidateProfile = useCallback(() => {
@@ -37,18 +42,19 @@ export default function useVtoGeneration() {
 
     if (!vtoId || isTerminal) return;
 
-    sseRef.current = connectSse<GetVtoGenerationsGenerationId200>(
+    const queryKey = [`/vto/generations/${vtoId}`];
+
+    sseRef.current = connectSse<VtoStatusResponse>(
       `/vto/generations/${vtoId}/stream`,
       (data) => {
-        queryClient.setQueryData(
-          [`/vto/generations/${vtoId}`],
-          data,
-        );
-        if (data.status === 'Complete' || data.status === 'Failed') {
-          sseRef.current?.close();
-          sseRef.current = null;
-        }
+        // Only `event: status` frames reach this callback; a duplicate or
+        // out-of-order frame carries a state_version that is not newer than the
+        // cached one and must leave the newer state in place.
+        const cached = queryClient.getQueryData<VtoStatusResponse>(queryKey);
+        if (cached && data.state_version <= cached.state_version) return;
+        queryClient.setQueryData(queryKey, data);
       },
+      { eventName: 'status', isTerminal: isTerminalStatus },
     );
 
     return () => {
@@ -63,7 +69,7 @@ export default function useVtoGeneration() {
     if (vtoId && isTerminal) invalidateProfile();
   }, [vtoId, isTerminal, invalidateProfile]);
 
-  const result: GetVtoGenerationsGenerationId200 | null = statusQuery.data ?? null;
+  const result: VtoStatusResponse | null = statusQuery.data ?? null;
   const errorMessage: string | null = statusQuery.data?.error_message ?? (generateMutation.isError ? 'Failed to start generation' : null);
   const isPolling = !!vtoId && !isTerminal;
 

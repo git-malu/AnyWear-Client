@@ -4,12 +4,13 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
-import type { PatchWardrobeItemsIdBodyImageKeysItem } from './patchWardrobeItemsIdBodyImageKeysItem';
+import type { PatchWardrobeItemsIdBodyImagesItem } from './patchWardrobeItemsIdBodyImagesItem';
 import type { PatchWardrobeItemsIdBodyStyleAttributes } from './patchWardrobeItemsIdBodyStyleAttributes';
 
 export type PatchWardrobeItemsIdBody = {
   name?: string;
-  imageKeys?: PatchWardrobeItemsIdBodyImageKeysItem[];
+  /** The item's complete image list, in display order. Omitted images are detached and their now-unreferenced image rows and objects are removed. An empty list is refused with 400: an item keeps at least one image, and deleting the item removes them all. */
+  images?: PatchWardrobeItemsIdBodyImagesItem[];
   category?: string;
   weatherTags?: string[];
   styleAttributes?: PatchWardrobeItemsIdBodyStyleAttributes;

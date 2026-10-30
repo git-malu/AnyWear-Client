@@ -19,9 +19,14 @@ vi.mock('../../components/CachedImage', () => ({
   ),
 }));
 
+vi.mock('../../lib/imageUpload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/imageUpload')>();
+  return { ...actual, uploadImageWithSignedPost: vi.fn() };
+});
+
 import ItemDetailsModal from './ItemDetailsModal';
 import { AXIOS_INSTANCE } from '../../api/custom-instance';
-import { HEIC_UNSUPPORTED_MESSAGE } from '../../lib/imageUpload';
+import { HEIC_UNSUPPORTED_MESSAGE, uploadImageWithSignedPost } from '../../lib/imageUpload';
 import {
   useDeleteWardrobeItemsId,
   usePatchWardrobeItemsId,
@@ -37,7 +42,7 @@ function makeItem(overrides: Partial<GetWardrobe200Item> = {}): GetWardrobe200It
     ownerId: 'user-1',
     name: 'Black Hoodie',
     // The add-image input renders only when the item already has a gallery.
-    imageKeys: '[{"key":"k.jpg","isPrimary":true}]',
+    images: [{ imageId: 'image-1', url: 'https://signed.example.com/k.jpg', view: null, isPrimary: true }],
     category: 'Top',
     taggingStatus: 'complete',
     taggingStateVersion: 1,
@@ -64,6 +69,7 @@ describe('ItemDetailsModal', () => {
     vi.mocked(usePatchWardrobeItemsId).mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as any);
     vi.mocked(useDeleteWardrobeItemsId).mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as any);
     vi.mocked(usePostWardrobeItemsItemIdRetag).mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as any);
+    vi.mocked(uploadImageWithSignedPost).mockResolvedValue(undefined);
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
@@ -84,6 +90,48 @@ describe('ItemDetailsModal', () => {
       expect(window.alert).toHaveBeenCalledWith(expect.stringContaining(HEIC_UNSUPPORTED_MESSAGE));
     });
     expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('paints the confirmation download URL and submits image ids instead of keys', async () => {
+    const updateItem = vi.fn().mockResolvedValue({});
+    vi.mocked(usePatchWardrobeItemsId).mockReturnValue({ mutateAsync: updateItem, isPending: false } as any);
+    postMock
+      .mockResolvedValueOnce({
+        data: {
+          reservationId: 'reservation-1',
+          expiresAt: '2026-10-30T19:00:00.000Z',
+          upload: { url: 'https://upload.example.com', fields: { key: 's3-post-field' } },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { itemId: 'item-1', imageId: 'image-new', downloadUrl: 'https://signed.example.com/new.jpg' },
+      });
+
+    const { container } = renderModal(makeItem());
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    fireEvent.change(input!, {
+      target: { files: [new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' })] },
+    });
+
+    // The gallery and the thumbnail row paint the confirmation's signed
+    // download URL, cached under the new image record's id.
+    const thumbnail = await screen.findByAltText('Image 2');
+    expect(thumbnail).toHaveAttribute('src', 'https://signed.example.com/new.jpg');
+    expect(thumbnail).toHaveAttribute('data-cache-key', 'image-new');
+    expect(postMock).toHaveBeenNthCalledWith(2, '/wardrobe/items/item-1/upload', {
+      reservationId: 'reservation-1',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1));
+    const body = updateItem.mock.calls[0][0].data;
+    expect(body.images).toEqual([
+      { imageId: 'image-1', isPrimary: true },
+      { imageId: 'image-new', isPrimary: false },
+    ]);
+    expect(body).not.toHaveProperty('imageKeys');
+    expect(JSON.stringify(body)).not.toContain('signed.example.com');
   });
 
   it('renders the server message for a terminal unsupported-format failure and offers no Re-tag', () => {

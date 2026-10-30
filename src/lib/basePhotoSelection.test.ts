@@ -7,7 +7,8 @@ function photo(
 ): GetVtoBasePhotos200Item {
   return {
     userId: 'user-1',
-    imageKey: `https://signed.example.com/${overrides.id}.jpg`,
+    imageId: `image-${overrides.id}`,
+    url: `https://signed.example.com/${overrides.id}.jpg`,
     isDefault: false,
     source: 'user',
     createdAt: '2026-06-01T00:00:00.000Z',

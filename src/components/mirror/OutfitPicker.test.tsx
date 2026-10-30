@@ -16,8 +16,8 @@ const mockOutfits = {
       userId: 'user-1',
       createdAt: '2026-05-05T00:00:00.000Z',
       wearableItems: [
-        { id: 'item-1', name: 'T-Shirt', category: 'Top', imageKeys: [{ key: ITEM_URL, isPrimary: true }] },
-        { id: 'item-2', name: 'Jeans', category: 'Bottom', imageKeys: null },
+        { id: 'item-1', name: 'T-Shirt', category: 'Top', images: [{ imageId: 'image-1', url: ITEM_URL, view: null, isPrimary: true }] },
+        { id: 'item-2', name: 'Jeans', category: 'Bottom', images: [] },
       ],
       latestGeneration: { id: 'gen-1', status: 'Complete', errorCode: null, createdAt: '2026-06-01T00:00:00.000Z' },
       look: { generationId: 'gen-1', url: LOOK_URL, createdAt: '2026-06-01T00:00:00.000Z' },

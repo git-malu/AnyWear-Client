@@ -31,6 +31,7 @@ import type {
   GetWardrobeItemsId200,
   GetWardrobeParams,
   PatchWardrobeItemsId200,
+  PatchWardrobeItemsId409,
   PatchWardrobeItemsIdBody,
   PostWardrobeItemsIdUpload200,
   PostWardrobeItemsIdUploadBody,
@@ -40,7 +41,8 @@ import type {
   PostWardrobeUpload202,
   PostWardrobeUploadBody,
   PostWardrobeUploadUrl200,
-  PostWardrobeUploadUrlBody
+  PostWardrobeUploadUrlBody,
+  TaggingStatusResponse
 } from '../../model';
 
 import { customInstance } from '../../custom-instance';
@@ -434,7 +436,7 @@ export const patchWardrobeItemsId = (
 
 
 
-export const getPatchWardrobeItemsIdMutationOptions = <TError = void,
+export const getPatchWardrobeItemsIdMutationOptions = <TError = void | PatchWardrobeItemsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchWardrobeItemsId>>, TError,{id: string;data: PatchWardrobeItemsIdBody}, TContext>, request?: SecondParameter<typeof customInstance>}
 ): UseMutationOptions<Awaited<ReturnType<typeof patchWardrobeItemsId>>, TError,{id: string;data: PatchWardrobeItemsIdBody}, TContext> => {
 
@@ -463,9 +465,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type PatchWardrobeItemsIdMutationResult = NonNullable<Awaited<ReturnType<typeof patchWardrobeItemsId>>>
     export type PatchWardrobeItemsIdMutationBody = PatchWardrobeItemsIdBody
-    export type PatchWardrobeItemsIdMutationError = void
+    export type PatchWardrobeItemsIdMutationError = void | PatchWardrobeItemsId409
 
-    export const usePatchWardrobeItemsId = <TError = void,
+    export const usePatchWardrobeItemsId = <TError = void | PatchWardrobeItemsId409,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchWardrobeItemsId>>, TError,{id: string;data: PatchWardrobeItemsIdBody}, TContext>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof patchWardrobeItemsId>>,
@@ -530,7 +532,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeleteWardrobeItemsIdMutationOptions(options), queryClient);
     }
-    export const postWardrobeItemsIdUploadUrl = (
+    export const getWardrobeItemsIdStream = (
+    id: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<TaggingStatusResponse>(
+      {url: `/wardrobe/items/${id}/stream`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetWardrobeItemsIdStreamQueryKey = (id: string,) => {
+    return [
+    `/wardrobe/items/${id}/stream`
+    ] as const;
+    }
+
+
+export const getGetWardrobeItemsIdStreamQueryOptions = <TData = Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError = void>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWardrobeItemsIdStreamQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>> = ({ signal }) => getWardrobeItemsIdStream(id, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWardrobeItemsIdStreamQueryResult = NonNullable<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>>
+export type GetWardrobeItemsIdStreamQueryError = void
+
+
+export function useGetWardrobeItemsIdStream<TData = Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError = void>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWardrobeItemsIdStream>>,
+          TError,
+          Awaited<ReturnType<typeof getWardrobeItemsIdStream>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWardrobeItemsIdStream<TData = Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError = void>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWardrobeItemsIdStream>>,
+          TError,
+          Awaited<ReturnType<typeof getWardrobeItemsIdStream>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWardrobeItemsIdStream<TData = Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError = void>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetWardrobeItemsIdStream<TData = Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError = void>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWardrobeItemsIdStream>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWardrobeItemsIdStreamQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+export const postWardrobeItemsIdUploadUrl = (
     id: string,
     postWardrobeItemsIdUploadUrlBody: PostWardrobeItemsIdUploadUrlBody,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
