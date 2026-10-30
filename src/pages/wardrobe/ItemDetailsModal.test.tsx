@@ -130,7 +130,9 @@ describe('ItemDetailsModal', () => {
       { imageId: 'image-1', isPrimary: true },
       { imageId: 'image-new', isPrimary: false },
     ]);
-    expect(body).not.toHaveProperty('imageKeys');
+    // The whole serialized body is the renamed contract: no legacy image list
+    // and no URL.
+    expect(Object.keys(JSON.parse(JSON.stringify(body))).sort()).toEqual(['category', 'images', 'name']);
     expect(JSON.stringify(body)).not.toContain('signed.example.com');
   });
 
