@@ -59,7 +59,8 @@ function photo(overrides: Record<string, unknown>) {
   return {
     id: 'photo-own',
     userId: 'user-1',
-    imageKey: 'https://signed.example.com/own.jpg',
+    imageId: 'image-own',
+    url: 'https://signed.example.com/own.jpg',
     isDefault: false,
     source: 'user',
     createdAt: '2026-06-01T00:00:00.000Z',
@@ -68,18 +69,20 @@ function photo(overrides: Record<string, unknown>) {
   };
 }
 
-const ownDefaultPhoto = photo({ id: 'photo-own', isDefault: true });
-const otherOwnPhoto = photo({ id: 'photo-other', imageKey: 'https://signed.example.com/other.jpg' });
+const ownDefaultPhoto = photo({ id: 'photo-own', imageId: 'image-own', isDefault: true });
+const otherOwnPhoto = photo({ id: 'photo-other', imageId: 'image-other', url: 'https://signed.example.com/other.jpg' });
 const systemPhoto = photo({
   id: 'photo-system',
   userId: null,
   source: 'system',
-  imageKey: 'https://signed.example.com/system.jpg',
+  imageId: 'image-system',
+  url: 'https://signed.example.com/system.jpg',
   createdAt: '2026-05-01T00:00:00.000Z',
 });
 const uploadedPhoto = photo({
   id: 'photo-new',
-  imageKey: 'https://signed.example.com/new.jpg',
+  imageId: 'image-new',
+  url: 'https://signed.example.com/new.jpg',
   createdAt: '2026-06-02T00:00:00.000Z',
 });
 

@@ -9,7 +9,7 @@
  */
 export interface OutfitLookState {
   latestGeneration?: { status: string } | null;
-  look?: { generationId: string; url: string } | null;
+  look?: { generationId: string; url: string | null } | null;
 }
 
 /** The statuses that mean "a generation is still running for this outfit". */

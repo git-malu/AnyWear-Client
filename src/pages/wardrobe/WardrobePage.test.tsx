@@ -78,7 +78,7 @@ function outfit(overrides: Record<string, unknown> = {}) {
     userId: 'user-1',
     createdAt: '2026-05-05T00:00:00.000Z',
     wearableItems: [
-      { id: 'item-1', name: 'Coat', category: 'Outerwear', imageKeys: [{ key: ITEM_URL, isPrimary: true }] },
+      { id: 'item-1', name: 'Coat', category: 'Outerwear', images: [{ imageId: 'image-coat', url: ITEM_URL, view: null, isPrimary: true }] },
     ],
     latestGeneration: null,
     look: null,

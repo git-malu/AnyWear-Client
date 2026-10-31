@@ -8,18 +8,15 @@ import ItemDetailsModal from './ItemDetailsModal';
 import GenerateLookDialog from './GenerateLookDialog';
 import CachedImage from '../../components/CachedImage';
 import OutfitLookBadge from '../../components/OutfitLookBadge';
-import { getOutfitLookImage, getPrimaryImageUrl } from '../../lib/image-utils';
+import { getOutfitLookImage } from '../../lib/image-utils';
 import { outfitHasActiveGeneration, outfitLookRefetchInterval, type OutfitLookState } from '../../lib/outfit-look';
 import { getErrorMessage } from '../../lib/errors';
 import { connectSse } from '../../lib/sse';
 import { GetWardrobe200Item } from '../../api/model/getWardrobe200Item';
 import { GetWardrobeParams } from '../../api/model/getWardrobeParams';
 import { GetOutfits200OutfitsItem } from '../../api/model/getOutfits200OutfitsItem';
+import { TaggingStatusResponse } from '../../api/model/taggingStatusResponse';
 import { useQueryClient } from '@tanstack/react-query';
-
-interface WardrobeStreamEvent {
-  tagging_status?: 'ready' | 'failed' | 'processing' | 'uploading';
-}
 
 function getTagStatusBadge(status: string | undefined) {
   switch (status) {
@@ -100,12 +97,20 @@ export default function WardrobePage() {
 
     for (const item of wardrobeData as GetWardrobe200Item[]) {
       if (item.taggingStatus === 'processing' || item.taggingStatus === 'uploading') {
-        const conn = connectSse<WardrobeStreamEvent>(
+        // A status frame advances the item only when its version is newer than
+        // the state the list already shows; a duplicate or out-of-order frame
+        // leaves the cached state alone.
+        let lastSeenVersion = item.taggingStateVersion;
+        const conn = connectSse<TaggingStatusResponse>(
           `/wardrobe/items/${item.id}/stream`,
           (data) => {
-            if (data.tagging_status === 'ready' || data.tagging_status === 'failed') {
-              queryClient.invalidateQueries({ queryKey: ['/wardrobe'] });
-            }
+            if (data.state_version <= lastSeenVersion) return;
+            lastSeenVersion = data.state_version;
+            queryClient.invalidateQueries({ queryKey: ['/wardrobe'] });
+          },
+          {
+            eventName: 'status',
+            isTerminal: (data) => data.tagging_status === 'ready' || data.tagging_status === 'failed',
           },
         );
         connections.push(conn);
@@ -248,6 +253,7 @@ export default function WardrobePage() {
             const material = getMaterialFromAttributes(item.styleAttributes);
             const statusBadge = getTagStatusBadge(item.taggingStatus);
             const isProcessing = item.taggingStatus === 'processing' || item.taggingStatus === 'uploading';
+            const primaryImage = item.images.find((image) => image.isPrimary) ?? item.images[0];
 
             return (
               <article
@@ -262,8 +268,13 @@ export default function WardrobePage() {
                   className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 disabled:cursor-default"
                 >
                   <div className="aspect-[4/5] bg-gray-100">
-                    {getPrimaryImageUrl(item.imageKeys) ? (
-                      <CachedImage src={getPrimaryImageUrl(item.imageKeys)!} cacheKey={item.id} alt={item.category || 'Wardrobe item'} className="h-full w-full object-cover" />
+                    {primaryImage?.url ? (
+                      <CachedImage
+                        src={primaryImage.url}
+                        cacheKey={primaryImage.imageId}
+                        alt={item.category || 'Wardrobe item'}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">No Image</div>
                     )}

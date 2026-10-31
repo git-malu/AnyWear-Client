@@ -61,13 +61,15 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {generations.map((gen: GetVtoGenerations200GenerationsItem) => {
               const wearableItemIds = gen.items?.map((item) => item.id) ?? [];
+              const imageUrl = gen.url;
+              const imageId = gen.imageId;
               return (
                 <div key={gen.id} className="relative group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                   <div className="aspect-[3/4] bg-gray-200">
-                    {gen.imageKey ? (
+                    {imageUrl ? (
                       <CachedImage
-                        src={gen.imageKey}
-                        cacheKey={`vto-hist-${gen.id}`}
+                        src={imageUrl}
+                        cacheKey={`vto-hist-${imageId}`}
                         alt="Try-on history"
                         className="w-full h-full object-cover"
                       />
@@ -116,9 +118,9 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       </>
                     ) : (
                       <>
-                        {gen.imageKey && (
+                        {imageUrl && (
                           <button
-                            onClick={() => setViewImageUrl(gen.imageKey)}
+                            onClick={() => setViewImageUrl(imageUrl)}
                             className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
                           >
                             View Full

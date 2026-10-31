@@ -4,13 +4,15 @@
  * AnyWear API
  * OpenAPI spec version: 1.0.0
  */
+import type { ImageEntryResponse } from './imageEntryResponse';
 
 export type GetWardrobeItemsId200 = {
   id: string;
   ownerId: string;
   /** @nullable */
   name: string | null;
-  imageKeys?: unknown | null;
+  /** This item's images, ordered by their position in the gallery. Empty only for an item created before its first image was confirmed; every write path keeps at least one image. */
+  images: ImageEntryResponse[];
   category: string;
   taggingStatus: string;
   /** @exclusiveMinimum 0 */

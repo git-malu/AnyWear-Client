@@ -164,12 +164,16 @@ export default function BasePhotoSelector({ selectedPhotoId, onSelect, onUploade
               }`}
             >
               <button type="button" aria-pressed={selectedPhotoId === photo.id} aria-label={`${selectedPhotoId === photo.id ? 'Selected' : 'Select'} base photo ${index + 1}${photo.isDefault ? ', default' : ''}${isSystemPhoto ? ', shared system photo' : ''}`} onClick={() => onSelect(photo.id)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600">
-                <CachedImage
-                  src={photo.thumbnailUrl || photo.imageKey}
-                  cacheKey={`vto-base-${photo.id}`}
-                  alt=""
-                  className="aspect-[4/5] w-full object-cover"
-                />
+                {photo.url ? (
+                  <CachedImage
+                    src={photo.url}
+                    cacheKey={`vto-base-${photo.imageId}`}
+                    alt=""
+                    className="aspect-[4/5] w-full object-cover"
+                  />
+                ) : (
+                  <div className="aspect-[4/5] w-full bg-gray-100" aria-hidden="true" />
+                )}
                 <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-medium text-gray-800 shadow-sm">
                   {kindLabel}{selectedPhotoId === photo.id ? ' · Selected' : ''}
                 </span>

@@ -198,7 +198,7 @@ export default function MirrorPage() {
             result={result}
             onRetry={handleGenerate}
             onRate={() => {}}
-            currentRating={result?.image_key ? null : null}
+            currentRating={null}
           />
         </section>
 

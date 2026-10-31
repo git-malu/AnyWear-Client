@@ -5,10 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GetVtoGenerationsGenerationId200Status = typeof GetVtoGenerationsGenerationId200Status[keyof typeof GetVtoGenerationsGenerationId200Status];
+export type VtoStatusResponseStatus = typeof VtoStatusResponseStatus[keyof typeof VtoStatusResponseStatus];
 
 
-export const GetVtoGenerationsGenerationId200Status = {
+export const VtoStatusResponseStatus = {
   Pending: 'Pending',
   Processing: 'Processing',
   Complete: 'Complete',

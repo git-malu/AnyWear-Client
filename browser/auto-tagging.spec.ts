@@ -5,9 +5,10 @@ import { mockAmplifySession } from './auth-session';
 
 const ITEM_ID = '11111111-1111-1111-8111-111111111111';
 const RESERVATION_ID = '22222222-2222-4222-8222-222222222222';
+const IMAGE_ID = '33333333-3333-4333-8333-333333333333';
 const mockItem: GetWardrobe200Item = {
   id: ITEM_ID, ownerId: 'test-user-id', name: 'My T-Shirt',
-  imageKeys: [{ key: 'https://example.com/test.jpg', isPrimary: true }],
+  images: [{ imageId: IMAGE_ID, url: 'https://example.com/test.jpg', view: null, isPrimary: true }],
   category: 'Top', taggingStatus: 'ready', weatherTags: ['Warm', 'Temperate'],
   styleAttributes: { color: 'Black', material: 'Cotton', design: 'Short-sleeve T-shirt', fit: 'Regular', pattern: 'Solid', neckline: 'Crew Neck', vibe: 'Casual' },
   isPublic: false, imageEmbedding: null,
@@ -54,7 +55,7 @@ async function setupMock(page: Page, state: MockState) {
       state.mutations.push({ method, path, body: request.postDataJSON() });
       // A reservation, not an item: the item does not exist until the
       // confirmation has verified the stored object.
-      return json({ reservationId: RESERVATION_ID, key: `wearable-items/test-user-id/${RESERVATION_ID}.png`,
+      return json({ reservationId: RESERVATION_ID,
         expiresAt: new Date(Date.now() + 900_000).toISOString(),
         upload: { url: 'https://s3.example.com/upload', fields: { key: `wearable-items/test-user-id/${RESERVATION_ID}.png`,
           'Content-Type': 'image/png', policy: 'signed-policy', 'x-amz-signature': 'signature' } } });
@@ -135,7 +136,7 @@ test.describe('Wardrobe Auto-Tagging (mocked Client integration)', () => {
     await expect(page.getByRole('heading', { name: 'Item Details' })).not.toBeVisible();
     await expect(page.getByText('My Favorite Hoodie', { exact: true })).toBeVisible();
     expect(state.mutations).toEqual([{ method: 'PATCH', path: `/wardrobe/items/${ITEM_ID}`, body: {
-      name: 'My Favorite Hoodie', category: 'Top', imageKeys: mockItem.imageKeys,
+      name: 'My Favorite Hoodie', category: 'Top', images: [{ imageId: IMAGE_ID, isPrimary: true }],
       styleAttributes: mockItem.styleAttributes, weatherTags: ['Warm', 'Temperate'],
     } }]);
   });

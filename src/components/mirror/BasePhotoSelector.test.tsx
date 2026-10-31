@@ -79,7 +79,8 @@ describe('BasePhotoSelector', () => {
   const ownPhoto = {
     id: 'photo-own',
     userId: 'user-1',
-    imageKey: 'https://signed.example.com/own.jpg',
+    imageId: 'image-own',
+    url: 'https://signed.example.com/own.jpg',
     isDefault: true,
     source: 'user',
     createdAt: '2026-06-01T00:00:00.000Z',
@@ -88,7 +89,8 @@ describe('BasePhotoSelector', () => {
   const systemPhoto = {
     id: 'photo-system',
     userId: null,
-    imageKey: 'https://signed.example.com/system.jpg',
+    imageId: 'image-system',
+    url: 'https://signed.example.com/system.jpg',
     isDefault: false,
     source: 'system',
     createdAt: '2026-05-01T00:00:00.000Z',

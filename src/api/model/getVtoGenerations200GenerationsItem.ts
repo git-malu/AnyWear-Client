@@ -13,8 +13,16 @@ export type GetVtoGenerations200GenerationsItem = {
   weatherSnapshotId?: string | null;
   createdAt: string;
   status: string;
-  /** @nullable */
-  imageKey: string | null;
+  /**
+     * The result image record, or null for a generation that never produced one.
+     * @nullable
+     */
+  imageId: string | null;
+  /**
+     * A download URL for the generation's result image, signed when this response was produced and valid for 3600 seconds. It is not an identifier and must not be stored; read the generation again for a fresh one. Null while the generation has no result image and when signing failed; it never falls back to the object key.
+     * @nullable
+     */
+  url: string | null;
   /**
      * @minimum 0
      * @maximum 5

@@ -5,8 +5,8 @@ import { mockAmplifySession } from './auth-session';
 
 const ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const mockItems: GetWardrobe200Item[] = [
-  { id: ITEM_ID, ownerId: 'test-user-id', name: 'T-Shirt', category: 'Top', imageKeys: [{ key: 'https://example.com/tshirt.jpg', isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
-  { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ownerId: 'test-user-id', name: 'Jeans', category: 'Bottom', imageKeys: [], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+  { id: ITEM_ID, ownerId: 'test-user-id', name: 'T-Shirt', category: 'Top', images: [{ imageId: 'image-tshirt', url: 'https://example.com/tshirt.jpg', view: null, isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+  { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ownerId: 'test-user-id', name: 'Jeans', category: 'Bottom', images: [], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
 ];
 
 async function setupMocks(page: Page) {

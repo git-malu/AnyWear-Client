@@ -6,6 +6,6 @@
  */
 
 /**
- * Fields of a signed S3 POST policy. Send them in one multipart form with the file as the last part. S3 itself refuses a body over the size ceiling or of a different content type, so the client cannot exceed either.
+ * Fields of a signed S3 POST policy. Send them in one multipart form with the file as the last part. `fields.key` is S3's own POST-policy form field, not an AnyWear member: post it back verbatim and never interpret it. S3 itself refuses a body over the size ceiling or of a different content type, so the client cannot exceed either.
  */
 export type PostWardrobeUploadUrl200UploadFields = {[key: string]: string};

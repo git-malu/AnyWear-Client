@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
-import type { GetVtoGenerationsGenerationId200 } from '../../api/model/getVtoGenerationsGenerationId200';
+import type { VtoStatusResponse } from '../../api/model/vtoStatusResponse';
 
 interface ResultAreaProps {
   vtoId: string | null;
-  result: GetVtoGenerationsGenerationId200 | null;
+  result: VtoStatusResponse | null;
   onRetry: () => void;
   onRate: (rating: number) => void;
   currentRating: number | null;
@@ -18,7 +18,8 @@ export default function ResultArea(props: ResultAreaProps) {
 function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: ResultAreaProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const status = result?.status;
-  const imageUrl = result?.image_key ?? null;
+  const imageUrl = result?.url ?? null;
+  const imageId = result?.imageId ?? null;
   const errorMessage = result?.error_message ?? null;
 
   useEffect(() => {
@@ -86,7 +87,7 @@ function ResultAreaContent({ vtoId, result, onRetry, onRate, currentRating }: Re
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <CachedImage
           src={imageUrl}
-          cacheKey={`vto-result-${vtoId}`}
+          cacheKey={`vto-result-${imageId ?? vtoId}`}
           alt="Try-on result"
           className="mx-auto max-h-[70vh] w-full object-contain"
         />

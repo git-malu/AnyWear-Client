@@ -195,4 +195,56 @@ describe('connectSse', () => {
       connection.close();
     }
   });
+
+  it('dispatches only the event name the caller asked for', async () => {
+    const onEvent = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(eventStream([
+      'event: heartbeat\ndata: {}\n\n',
+      'event: status\ndata: {"status":"Processing","state_version":2}\n\n',
+      'event: heartbeat\ndata: {}\n\n',
+    ])));
+
+    const connection = connectSse('/events', (event) => {
+      onEvent(event);
+      connection.close();
+    }, { eventName: 'status', initialRetryMs: 60_000 });
+
+    try {
+      await vi.waitFor(() => expect(onEvent).toHaveBeenCalledExactlyOnceWith({
+        status: 'Processing',
+        state_version: 2,
+      }));
+    } finally {
+      connection.close();
+    }
+  });
+
+  it('ends without reconnecting after a terminal payload', async () => {
+    const onEvent = vi.fn();
+    const onStateChange = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const fetchMock = vi.fn().mockResolvedValue(eventStream([
+      'event: status\ndata: {"status":"Complete","state_version":4}\n\n',
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    connectSse<{ status: string }>('/events', onEvent, {
+      eventName: 'status',
+      isTerminal: (event) => event.status === 'Complete',
+      initialRetryMs: 1,
+      maxRetryMs: 1,
+      onStateChange,
+    });
+
+    await vi.waitFor(() => expect(onEvent).toHaveBeenCalledExactlyOnceWith({
+      status: 'Complete',
+      state_version: 4,
+    }));
+    await vi.waitFor(() => expect(onStateChange).toHaveBeenCalledWith('closed'));
+    // A retry would be scheduled within a couple of milliseconds; wait longer
+    // than that and prove the terminal frame did not reopen the stream.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onStateChange).not.toHaveBeenCalledWith('reconnecting');
+  });
 });

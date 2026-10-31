@@ -5,9 +5,9 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import CreateOutfitModal from '../../pages/wardrobe/CreateOutfitModal';
 
 const mockItems = [
-  { id: 'item-1', name: 'T-Shirt', category: 'Top', imageKeys: '[{"key":"test.jpg","isPrimary":true}]' },
-  { id: 'item-2', name: 'Jeans', category: 'Bottom', imageKeys: '[{"key":"test2.jpg","isPrimary":true}]' },
-  { id: 'item-3', name: null, category: 'Shoes', imageKeys: null },
+  { id: 'item-1', name: 'T-Shirt', category: 'Top', images: [] },
+  { id: 'item-2', name: 'Jeans', category: 'Bottom', images: [] },
+  { id: 'item-3', name: null, category: 'Shoes', images: [] },
 ];
 
 vi.mock('../../api/endpoints/outfits/outfits', () => ({
@@ -239,8 +239,8 @@ describe('CreateOutfitModal', () => {
     userId: 'user-1',
     name: 'Weekend Casual',
     wearableItems: [
-      { id: 'item-1', name: 'T-Shirt', category: 'Top', imageKeys: null },
-      { id: 'item-2', name: 'Jeans', category: 'Bottom', imageKeys: null },
+      { id: 'item-1', name: 'T-Shirt', category: 'Top', images: [] },
+      { id: 'item-2', name: 'Jeans', category: 'Bottom', images: [] },
     ],
     createdAt: '2024-01-01T00:00:00Z',
   };

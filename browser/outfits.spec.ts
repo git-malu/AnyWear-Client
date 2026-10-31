@@ -14,18 +14,19 @@ const LOOK_IMAGE = 'https://example.com/outfit-look.png';
 const mockOutfit: GetOutfits200OutfitsItem = {
   id: OUTFIT_ID, userId: 'test-user-id', name: 'Weekend Casual', createdAt: '2026-05-05T00:00:00.000Z',
   wearableItems: [
-    { id: ITEM_ID_1, name: 'T-Shirt', category: 'Top', imageKeys: JSON.stringify([
-      { key: 'https://example.com/tshirt-other.jpg' }, { key: PRIMARY_IMAGE, isPrimary: true },
-    ]) },
-    { id: ITEM_ID_2, name: 'Jeans', category: 'Bottom', imageKeys: null },
+    { id: ITEM_ID_1, name: 'T-Shirt', category: 'Top', images: [
+      { imageId: 'image-tshirt-other', url: 'https://example.com/tshirt-other.jpg', view: null, isPrimary: false },
+      { imageId: 'image-tshirt-primary', url: PRIMARY_IMAGE, view: null, isPrimary: true },
+    ] },
+    { id: ITEM_ID_2, name: 'Jeans', category: 'Bottom', images: [] },
   ],
   latestGeneration: { id: GENERATION_ID, status: 'Complete', errorCode: null, createdAt: '2026-06-01T00:00:00.000Z' },
   look: { generationId: GENERATION_ID, url: LOOK_IMAGE, createdAt: '2026-06-01T00:00:00.000Z' },
 };
 
 const mockWardrobeItems: GetWardrobe200Item[] = [
-  { id: ITEM_ID_1, ownerId: 'test-user-id', name: 'T-Shirt', category: 'Top', imageKeys: [{ key: PRIMARY_IMAGE, isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
-  { id: ITEM_ID_2, ownerId: 'test-user-id', name: 'Jeans', category: 'Bottom', imageKeys: [{ key: 'https://example.com/jeans.jpg', isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+  { id: ITEM_ID_1, ownerId: 'test-user-id', name: 'T-Shirt', category: 'Top', images: [{ imageId: 'image-tshirt-primary', url: PRIMARY_IMAGE, view: null, isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+  { id: ITEM_ID_2, ownerId: 'test-user-id', name: 'Jeans', category: 'Bottom', images: [{ imageId: 'image-jeans', url: 'https://example.com/jeans.jpg', view: null, isPrimary: true }], taggingStatus: 'ready', weatherTags: [], styleAttributes: {}, isPublic: false, imageEmbedding: null, taggingStateVersion: 1, taggingErrorCode: null, taggingErrorMessage: null, createdAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
 ];
 
 interface MockState {
@@ -34,7 +35,7 @@ interface MockState {
 }
 
 function outfitItems(ids: string[]) {
-  return mockWardrobeItems.filter(item => ids.includes(item.id)).map(({ id, name, category, imageKeys }) => ({ id, name, category, imageKeys }));
+  return mockWardrobeItems.filter(item => ids.includes(item.id)).map(({ id, name, category, images }) => ({ id, name, category, images }));
 }
 
 async function setupOutfitMocks(page: Page, state: MockState) {

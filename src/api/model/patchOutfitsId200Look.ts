@@ -10,7 +10,10 @@
  */
 export type PatchOutfitsId200Look = {
   generationId: string;
-  /** A presigned download URL for the generated look image. */
-  url: string;
+  /**
+     * A download URL for the generated look image's original rendition, signed when this response was produced and valid for 3600 seconds. Null when signing failed; it never falls back to the object key.
+     * @nullable
+     */
+  url: string | null;
   createdAt: string;
-} | null;
+} | null | null;
