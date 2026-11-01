@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('../../hooks/useVtoHistory', () => ({ default: vi.fn() }));
 
@@ -330,6 +330,9 @@ describe('VtoHistorySection retry outcomes', () => {
   });
 
   it('clears the status filter and returns to page 1 on success, without a success live region', async () => {
+    // A real, non-empty status filter: an implementation that kept it would
+    // call setFilters with `status: 'Failed'` here, which this assertion sees.
+    mockHistory({ filters: { limit: 12, status: 'Failed' } });
     const onRetryGeneration = vi.fn().mockResolvedValue(undefined);
     renderSection({ onRetryGeneration });
 
@@ -339,6 +342,7 @@ describe('VtoHistorySection retry outcomes', () => {
 
     expect(setFilters).toHaveBeenCalledTimes(1);
     expect(setFilters).toHaveBeenCalledWith({ limit: 12, status: undefined });
+    expect(setFilters.mock.calls[0][0].status).toBeUndefined();
     expect(goToPage).toHaveBeenCalledWith(1);
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -418,15 +422,22 @@ describe('VtoHistorySection full-image viewer', () => {
     expect(document.activeElement).toBe(close);
   });
 
-  it('traps Tab inside the dialog', () => {
+  it('traps Tab inside the dialog by cancelling the boundary move', () => {
     renderSection();
     openViewer();
     const close = screen.getByRole('button', { name: 'Close full view' });
-
-    fireEvent.keyDown(document, { key: 'Tab' });
     expect(document.activeElement).toBe(close);
 
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    // jsdom performs no Tab navigation, so the trap is proven by the cancelled
+    // default: an unimpeded Tab would leave the dialog.
+    const forward = createEvent.keyDown(document, { key: 'Tab' });
+    fireEvent(document, forward);
+    expect(forward.defaultPrevented).toBe(true);
+
+    const backward = createEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    fireEvent(document, backward);
+    expect(backward.defaultPrevented).toBe(true);
+
     expect(document.activeElement).toBe(close);
   });
 
