@@ -9,8 +9,6 @@ import type { GetVtoGenerations200GenerationsItemItemsItem } from './getVtoGener
 export type GetVtoGenerations200GenerationsItem = {
   id: string;
   userId?: string;
-  /** @nullable */
-  weatherSnapshotId?: string | null;
   createdAt: string;
   status: string;
   /**
