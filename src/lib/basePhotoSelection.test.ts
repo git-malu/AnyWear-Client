@@ -12,7 +12,6 @@ function photo(
     isDefault: false,
     source: 'user',
     createdAt: '2026-06-01T00:00:00.000Z',
-    thumbnailUrl: null,
     ...overrides,
   };
 }

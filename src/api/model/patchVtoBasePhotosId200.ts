@@ -20,6 +20,4 @@ export type PatchVtoBasePhotosId200 = {
   isDefault: boolean;
   source: PatchVtoBasePhotosId200Source;
   createdAt: string;
-  /** @nullable */
-  thumbnailUrl: string | null;
 };

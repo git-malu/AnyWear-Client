@@ -20,6 +20,4 @@ export type GetVtoBasePhotos200Item = {
   isDefault: boolean;
   source: GetVtoBasePhotos200ItemSource;
   createdAt: string;
-  /** @nullable */
-  thumbnailUrl: string | null;
 };

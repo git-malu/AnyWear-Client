@@ -84,7 +84,6 @@ describe('BasePhotoSelector', () => {
     isDefault: true,
     source: 'user',
     createdAt: '2026-06-01T00:00:00.000Z',
-    thumbnailUrl: null,
   };
   const systemPhoto = {
     id: 'photo-system',
@@ -94,7 +93,6 @@ describe('BasePhotoSelector', () => {
     isDefault: false,
     source: 'system',
     createdAt: '2026-05-01T00:00:00.000Z',
-    thumbnailUrl: null,
   };
 
   it('narrows the picker and reports the HEIC guidance in an alert before reserving', async () => {
