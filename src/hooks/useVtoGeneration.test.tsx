@@ -247,6 +247,7 @@ describe('useVtoGeneration recovery lifecycle', () => {
 
     await start(result);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/users/me'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['/vto/generations'] });
 
     await advance(10_000);
     await advance(1);

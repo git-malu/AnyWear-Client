@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useVtoHistory from '../../hooks/useVtoHistory';
+import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 import CachedImage from '../CachedImage';
 import RatingWidget from './RatingWidget';
+import { getErrorMessage } from '../../lib/errors';
 import type { GetVtoGenerationsStatus } from '../../api/model/getVtoGenerationsStatus';
 import type { GetVtoGenerations200GenerationsItem } from '../../api/model/getVtoGenerations200GenerationsItem';
+import type { PostVtoGenerationsBody } from '../../api/model/postVtoGenerationsBody';
+
+const RETRY_BLOCKED_REASON_ID = 'vto-retry-blocked-reason';
+const RETRY_FAILURE_FALLBACK = 'Failed to retry this generation';
+
+/** The only advanced settings the Service accepts; any other stored key fails the POST. */
+const ADVANCED_SETTING_KEYS = ['size', 'seed'] as const;
 
 function relativeTime(dateStr: string): string {
   const now = Date.now();
@@ -18,14 +27,114 @@ function relativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-interface VtoHistorySectionProps {
-  onReuseOutfit: (wearableItemIds: string[]) => void;
+// The Service allowlists `size` and `seed` and rejects any other key before
+// charging or enqueuing, so the stored object is copied key by key instead of
+// forwarded as-is.
+function forwardedAdvancedSettings(
+  value: unknown,
+): PostVtoGenerationsBody['advanced_settings'] | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const stored = value as Record<string, unknown>;
+  const forwarded: Record<string, unknown> = {};
+  for (const key of ADVANCED_SETTING_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(stored, key)) forwarded[key] = stored[key];
+  }
+  return Object.keys(forwarded).length > 0 ? forwarded : null;
 }
 
-export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionProps) {
+/**
+ * Rebuilds the POST body from what the failed row recorded.
+ *
+ * The history record keeps no base photo, so the page's current effective
+ * selection supplies `base_photo_id`; it keeps no outfit, so `outfit_id` and
+ * `outfit_name` are never sent and the Service snapshots a fresh outfit from
+ * the recorded items.
+ */
+function buildRetryBody(
+  generation: GetVtoGenerations200GenerationsItem,
+  basePhotoId: string | null,
+): PostVtoGenerationsBody {
+  const body: PostVtoGenerationsBody = {
+    wearable_item_ids: generation.items.map((item) => item.id),
+  };
+  if (basePhotoId) body.base_photo_id = basePhotoId;
+  if (typeof generation.promptUsed === 'string' && generation.promptUsed.length > 0) {
+    body.prompt = generation.promptUsed;
+  }
+  const advancedSettings = forwardedAdvancedSettings(generation.advancedSettings);
+  if (advancedSettings) body.advanced_settings = advancedSettings;
+  return body;
+}
+
+/**
+ * The one page-level blocker, in precedence order. While it is set every Retry
+ * stays focusable but is `aria-disabled`, and its click is guarded.
+ */
+function retryBlockedReason(
+  isGenerating: boolean,
+  basePhotoId: string | null,
+  credits: number,
+): string | null {
+  if (isGenerating) return 'A generation is already running — wait for it to finish.';
+  if (basePhotoId === null) return 'Select a base photo in Step 1 to retry.';
+  if (credits <= 0) return 'Out of daily credits. Credits reset at midnight.';
+  return null;
+}
+
+interface VtoHistorySectionProps {
+  onReuseOutfit: (wearableItemIds: string[]) => void;
+  onRetryGeneration: (body: PostVtoGenerationsBody) => Promise<void>;
+  basePhotoId: string | null;
+  credits: number;
+  isGenerating: boolean;
+}
+
+export default function VtoHistorySection({
+  onReuseOutfit,
+  onRetryGeneration,
+  basePhotoId,
+  credits,
+  isGenerating,
+}: VtoHistorySectionProps) {
   const { generations, total, page, nextPage, goToPage, isLoading, filters, setFilters, rateGeneration, deleteGeneration } = useVtoHistory();
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const restoreDeleteFocusId = useRef<string | null>(null);
+
+  // The confirmation replaces the action set, so it owns focus: Cancel on open,
+  // and that card's Delete control again when the confirmation closes.
+  useEffect(() => {
+    if (confirmDeleteId) {
+      cancelButtonRef.current?.focus();
+      return;
+    }
+    const restoreId = restoreDeleteFocusId.current;
+    restoreDeleteFocusId.current = null;
+    if (restoreId) deleteButtonRefs.current.get(restoreId)?.focus();
+  }, [confirmDeleteId]);
+
+  const blockedReason = retryBlockedReason(isGenerating, basePhotoId, credits);
+
+  const handleRetry = async (generation: GetVtoGenerations200GenerationsItem) => {
+    if (blockedReason || retryingId) return;
+    setRetryError(null);
+    setRetryingId(generation.id);
+    try {
+      await onRetryGeneration(buildRetryBody(generation, basePhotoId));
+      // The new Pending row is the newest entry: clear the status filter and
+      // return to page 1 so it is on screen when the refetch lands.
+      setFilters({ ...filters, status: undefined });
+      goToPage(1);
+    } catch (error) {
+      setRetryError(getErrorMessage(error, RETRY_FAILURE_FALLBACK));
+    } finally {
+      setRetryingId(null);
+    }
+  };
 
   return (
     <div>
@@ -45,6 +154,18 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
           <option value="Processing">Processing</option>
         </select>
       </div>
+
+      {blockedReason && (
+        <p id={RETRY_BLOCKED_REASON_ID} role="status" className="mb-3 text-sm text-gray-600">
+          {blockedReason}
+        </p>
+      )}
+
+      {retryError && (
+        <p role="alert" className="mb-3 text-sm text-red-700">
+          {retryError}
+        </p>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -99,19 +220,36 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       <RatingWidget rating={null} onChange={(r) => rateGeneration(gen.id, r)} />
                     )}
                   </div>
-                  <div className={`absolute inset-0 bg-black/50 transition-opacity flex flex-col items-center justify-center gap-2 p-3 ${confirmDeleteId === gen.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  {/* The reveal is scoped to this overlay, not the card: a focused
+                      rating star outside it must not scrim the star. */}
+                  <div
+                    data-testid="vto-history-actions"
+                    className={`absolute inset-0 bg-black/50 transition-opacity focus-within:transition-none flex flex-col items-center justify-center gap-2 p-3 ${
+                      confirmDeleteId === gen.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+                    }`}
+                  >
                     {confirmDeleteId === gen.id ? (
                       <>
                         <p className="text-white text-xs font-medium text-center">Delete this try-on?</p>
                         <button
-                          onClick={() => { deleteGeneration(gen.id); setConfirmDeleteId(null); }}
-                          className="w-full text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 text-center"
+                          type="button"
+                          onClick={() => {
+                            restoreDeleteFocusId.current = null;
+                            deleteGeneration(gen.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="w-full text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                         >
                           Yes, Delete
                         </button>
                         <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                          type="button"
+                          ref={cancelButtonRef}
+                          onClick={() => {
+                            restoreDeleteFocusId.current = gen.id;
+                            setConfirmDeleteId(null);
+                          }}
+                          className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                         >
                           Cancel
                         </button>
@@ -120,29 +258,46 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
                       <>
                         {imageUrl && (
                           <button
+                            type="button"
                             onClick={() => setViewImageUrl(imageUrl)}
-                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                           >
                             View Full
                           </button>
                         )}
                         {wearableItemIds.length > 0 && (
                           <button
+                            type="button"
                             onClick={() => onReuseOutfit(wearableItemIds)}
-                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
+                            className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                           >
                             Reuse Outfit
                           </button>
                         )}
+                        {gen.status === 'Failed' && gen.items.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRetry(gen)}
+                            aria-disabled={blockedReason || retryingId === gen.id ? 'true' : undefined}
+                            aria-describedby={blockedReason ? RETRY_BLOCKED_REASON_ID : undefined}
+                            className={`w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+                              blockedReason ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {retryingId === gen.id ? 'Retrying…' : 'Retry'}
+                          </button>
+                        )}
                         <button
-                          onClick={() => {/* re-submit handled by parent */}}
-                          className="w-full text-xs bg-white/90 text-gray-800 px-3 py-1.5 rounded hover:bg-white text-center"
-                        >
-                          Retry
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(gen.id)}
-                          className="w-full text-xs bg-red-500/90 text-white px-3 py-1.5 rounded hover:bg-red-500 text-center"
+                          type="button"
+                          ref={(node) => {
+                            if (node) deleteButtonRefs.current.set(gen.id, node);
+                            else deleteButtonRefs.current.delete(gen.id);
+                          }}
+                          onClick={() => {
+                            restoreDeleteFocusId.current = null;
+                            setConfirmDeleteId(gen.id);
+                          }}
+                          className="w-full text-xs bg-red-500/90 text-white px-3 py-1.5 rounded hover:bg-red-500 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                         >
                           Delete
                         </button>
@@ -180,23 +335,53 @@ export default function VtoHistorySection({ onReuseOutfit }: VtoHistorySectionPr
       )}
 
       {viewImageUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setViewImageUrl(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <img src={viewImageUrl} alt="Full view" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
-            <button
-              onClick={() => setViewImageUrl(null)}
-              className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-lg hover:bg-gray-100"
-            >
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <VtoImageViewer url={viewImageUrl} onClose={() => setViewImageUrl(null)} />
       )}
+    </div>
+  );
+}
+
+interface VtoImageViewerProps {
+  url: string;
+  onClose: () => void;
+}
+
+/**
+ * The full-image viewer as a modal dialog. It exists only while an image is
+ * open, so the shared focus hook captures the View Full control that opened it
+ * and restores focus there on close.
+ */
+function VtoImageViewer({ url, onClose }: VtoImageViewerProps) {
+  const dialogRef = useAccessibleDialog(onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/80"
+        onClick={onClose}
+        data-testid="vto-viewer-backdrop"
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vto-viewer-title"
+        tabIndex={-1}
+        className="relative max-w-4xl max-h-[90vh]"
+      >
+        <h2 id="vto-viewer-title" className="sr-only">Try-on full view</h2>
+        <img src={url} alt="Full view" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close full view"
+          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-lg hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+        >
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
