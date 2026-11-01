@@ -24,7 +24,16 @@ vi.mock('../../components/mirror/WearableItemMultiSelector', () => ({
   ),
 }));
 
-vi.mock('../../components/mirror/VtoHistorySection', () => ({ default: () => null }));
+// Captures the props MirrorPage gives the history section, so the wiring can be
+// asserted without rendering the whole history grid.
+const sectionProps = vi.hoisted(() => ({ latest: null as Record<string, any> | null }));
+
+vi.mock('../../components/mirror/VtoHistorySection', () => ({
+  default: (props: Record<string, any>) => {
+    sectionProps.latest = props;
+    return null;
+  },
+}));
 vi.mock('../../components/mirror/CreditDisplay', () => ({ default: () => <span>5/10 today</span> }));
 
 vi.mock('../../lib/imageUpload', async (importOriginal) => {
@@ -90,7 +99,7 @@ function mockPhotos(photos: unknown[], isLoading = false) {
   vi.mocked(useGetVtoBasePhotos).mockReturnValue({ data: photos, isLoading } as any);
 }
 
-describe('MirrorPage base-photo selection', () => {
+describe('MirrorPage', () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -374,5 +383,71 @@ describe('MirrorPage base-photo selection', () => {
       base_photo_id: 'photo-other',
       wearable_item_ids: ['item-1'],
     }));
+  });
+
+  describe('history section wiring', () => {
+    it('passes the effective base photo, the daily credits and the idle state', () => {
+      mockPhotos([ownDefaultPhoto, otherOwnPhoto]);
+      renderPage();
+
+      expect(sectionProps.latest).not.toBeNull();
+      expect(sectionProps.latest!.basePhotoId).toBe('photo-own');
+      expect(sectionProps.latest!.credits).toBe(5);
+      expect(sectionProps.latest!.isGenerating).toBe(false);
+
+      // The prop follows the effective selection, not the initial default.
+      fireEvent.click(screen.getByRole('button', { name: 'Select base photo 2' }));
+      expect(sectionProps.latest!.basePhotoId).toBe('photo-other');
+    });
+
+    it('reports a starting generation as in flight', () => {
+      vi.mocked(useVtoGeneration).mockReturnValue({
+        generate,
+        result: null,
+        errorMessage: null,
+        isPolling: false,
+        isStarting: true,
+        vtoId: null,
+      } as any);
+      renderPage();
+
+      expect(sectionProps.latest!.isGenerating).toBe(true);
+    });
+
+    it('reports a polled generation as in flight on isPolling alone', () => {
+      vi.mocked(useVtoGeneration).mockReturnValue({
+        generate,
+        result: null,
+        errorMessage: null,
+        isPolling: true,
+        isStarting: false,
+        vtoId: 'generation-1',
+      } as any);
+      renderPage();
+
+      expect(sectionProps.latest!.isGenerating).toBe(true);
+    });
+
+    it('runs the section body through generate unchanged and propagates its rejection', async () => {
+      renderPage();
+      const body = {
+        base_photo_id: 'photo-own',
+        wearable_item_ids: ['item-1', 'item-2'],
+        prompt: 'a tailored prompt',
+        advanced_settings: { size: '1024x1024', seed: 7 },
+      };
+      const onRetryGeneration = sectionProps.latest!.onRetryGeneration as
+        (body: unknown) => Promise<void>;
+
+      await act(async () => {
+        await onRetryGeneration(body);
+      });
+      expect(generate).toHaveBeenCalledWith(body);
+      expect(generate.mock.calls[0][0]).toBe(body);
+
+      const failure = new Error('rejected');
+      generate.mockRejectedValueOnce(failure);
+      await expect(onRetryGeneration(body)).rejects.toBe(failure);
+    });
   });
 });

@@ -293,12 +293,18 @@ composes the utilities below.
 | Secondary action | White surface with a gray border, paired with the primary action |
 | Destructive action | `bg-red-600 text-white rounded-md`, hover `bg-red-700` |
 | Card | `bg-white rounded-lg shadow`, `p-6` for page-level cards; `hover:shadow-md` where the card is a link or tile |
-| Dialog panel | White surface, `rounded-xl shadow-xl`, `z-10` for Add/Details and `z-50` for outfit dialogs, dismissed by backdrop click and Escape |
+| History card actions | `bg-black/50` overlay over the whole card, revealed by pointer hover or by focus within the overlay itself; the actions stay in the tab order and the accessibility tree while hidden, and Delete keeps the overlay visible while it swaps the action set in place for a confirmation (`Yes, Delete` / `Cancel`) rather than opening a dialog |
+| Dialog panel | White surface, `rounded-xl shadow-xl`, `z-10` for Add/Details and `z-50` for outfit dialogs and the history image viewer, whose panel is the image itself; dismissed by backdrop click and Escape, with focus moved into the panel on open and restored to the control that opened it on close |
 | Text input | White surface with `border-gray-300` and `rounded-md`; focus moves the border and ring color to indigo |
 | Status badge | `rounded-full` pill with `text-xs`, one of the pending, processing, or failed pairs from [Colors](#colors), always paired with text |
 | Selection card | `aspect-[4/5]` image with `rounded-lg`; unselected uses a gray border, selected uses an indigo border with `ring` and a text label |
 | Credit pill | `rounded-full px-3 py-1.5 text-sm font-medium`, colored by remaining balance: green above 2, amber at 1–2, red at 0 |
 | Error message | `text-red-500` for field and inline errors; `role="alert"` for a failure the user must notice |
+
+The History card actions row costs a second Components entry for one surface and restates
+Tailwind's `focus-within` and `group-hover` utilities instead of naming a project token. It is
+recorded because the reveal is the component's new interaction state, and an undocumented
+interaction state is the larger cost.
 
 Focus is `focus:ring-2` with an indigo ring, usually with `focus:ring-offset-2`, defined
 per control rather than inherited from a shared component. A ring color without a ring
