@@ -300,6 +300,7 @@ composes the utilities below.
 | Selection card | `aspect-[4/5]` image with `rounded-lg`; unselected uses a gray border, selected uses an indigo border with `ring` and a text label |
 | Credit pill | `rounded-full px-3 py-1.5 text-sm font-medium`, colored by remaining balance: green above 2, amber at 1–2, red at 0 |
 | Error message | `text-red-500` for field and inline errors; `role="alert"` for a failure the user must notice |
+| Rating control | Five stars in a `div` with `role="radiogroup"` named Rate this result, each star a `button` with `role="radio"` and `aria-checked`; one tab stop with arrow-key selection; the focused star paints a 2px indigo ring (`focus-visible:ring-2 focus-visible:ring-indigo-500`); filled stars use `text-indigo-500` and outline stars `text-gray-300`, and the sentence uses `text-sm text-gray-600`. A read-only rating is text (`Your rating: N/5`) with the stars as decoration. |
 
 The History card actions row costs a second Components entry for one surface and restates
 Tailwind's `focus-within` and `group-hover` utilities instead of naming a project token. It is
