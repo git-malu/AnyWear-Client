@@ -12,6 +12,7 @@ import useVtoGeneration from '../../hooks/useVtoGeneration';
 import { useGetUsersMe } from '../../api/endpoints/users/users';
 import { useGetVtoBasePhotos } from '../../api/endpoints/vto/vto';
 import { resolveBasePhotoSelection } from '../../lib/basePhotoSelection';
+import type { PostVtoGenerationsBody } from '../../api/model/postVtoGenerationsBody';
 
 type SelectionMode = 'outfit' | 'items';
 
@@ -81,6 +82,15 @@ export default function MirrorPage() {
       });
     }
   }, [generate, selectedBasePhotoId, mode, selectedOutfitId, selectedWearableItemIds, outfitName, prompt]);
+
+  // The history section builds the retry body from the failed row and the
+  // page's current effective base photo; the page only runs it through the one
+  // generation pipeline, so `vtoId`, `isStarting` and `isPolling` keep a single
+  // owner and the history invalidation stays in one place.
+  const handleRetryGeneration = useCallback(
+    (body: PostVtoGenerationsBody) => generate(body),
+    [generate],
+  );
 
   const handleReuseOutfit = useCallback((ids: string[]) => {
     setMode('items');
@@ -204,7 +214,13 @@ export default function MirrorPage() {
 
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">History</h2>
-          <VtoHistorySection onReuseOutfit={handleReuseOutfit} />
+          <VtoHistorySection
+            onReuseOutfit={handleReuseOutfit}
+            onRetryGeneration={handleRetryGeneration}
+            basePhotoId={selectedBasePhotoId}
+            credits={credits}
+            isGenerating={isStarting || isPolling}
+          />
         </div>
       </div>
     </MirrorErrorBoundary>
