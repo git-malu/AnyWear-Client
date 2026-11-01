@@ -20,6 +20,4 @@ export type PostVtoBasePhotosUpload201 = {
   isDefault: boolean;
   source: PostVtoBasePhotosUpload201Source;
   createdAt: string;
-  /** @nullable */
-  thumbnailUrl: string | null;
 };
